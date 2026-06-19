@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone, date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -273,15 +273,61 @@ def start_jolt(gid: int, skip_hc: bool = False,
 
 
 @r.get("/audio/{fname}")
-def serve_audio(fname: str):
+def serve_audio(fname: str, request: Request):
     fp = cfg.out_dir_path / fname
     if not fp.exists():
         raise HTTPException(404, "audio not found")
     data = decrypt_file_to_bytes(str(fp))
+    total = len(data)
     mt = "audio/mpeg" if fname.endswith(".mp3") else "audio/wav"
-    return Response(content=data, media_type=mt,
-                    headers={"Content-Disposition": f"inline; filename={fname}",
-                             "Accept-Ranges": "bytes"})
+
+    # Parse Range header for byte-range requests (required by Safari, mobile browsers)
+    range_header = request.headers.get("range")
+    if range_header:
+        try:
+            range_spec = range_header.strip()
+            if range_spec.lower().startswith("bytes="):
+                range_spec = range_spec[6:]
+            parts = range_spec.split("-", 1)
+            start = int(parts[0]) if parts[0] else 0
+            end = int(parts[1]) if len(parts) > 1 and parts[1] else total - 1
+
+            # Clamp end to file size
+            end = min(end, total - 1)
+
+            if start > end or start >= total:
+                return Response(
+                    content=b"",
+                    status_code=416,
+                    headers={"Content-Range": f"bytes */{total}"},
+                )
+
+            chunk = data[start:end + 1]
+            return Response(
+                content=chunk,
+                status_code=206,
+                media_type=mt,
+                headers={
+                    "Content-Range": f"bytes {start}-{end}/{total}",
+                    "Content-Length": str(len(chunk)),
+                    "Accept-Ranges": "bytes",
+                    "Content-Disposition": f"inline; filename={fname}",
+                },
+            )
+        except (ValueError, IndexError):
+            # Malformed Range header, fall through to full response
+            pass
+
+    # No Range header or malformed -- return full file
+    return Response(
+        content=data,
+        media_type=mt,
+        headers={
+            "Content-Length": str(total),
+            "Accept-Ranges": "bytes",
+            "Content-Disposition": f"inline; filename={fname}",
+        },
+    )
 
 
 @r.get("/{jid}/status", response_model=StatusResp)
