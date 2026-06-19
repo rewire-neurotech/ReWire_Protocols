@@ -4962,6 +4962,7 @@
 
           /* set real audio on the primed element */
           stimAudio.src = audioUrl;
+          stimAudio.load();
           function onDuration() {
             if (
               stimAudio &&
@@ -4981,7 +4982,7 @@
           });
           stimAudio.addEventListener("error", () => {
             console.error("[audio] load/playback error:", stimAudio.error);
-            alert("Could not play audio. Please try again.");
+            alert("Could not load audio. Please try again.");
             clearInterval(joltTimer);
             joltInProgress = false;
             primerActive = false;
@@ -4996,14 +4997,13 @@
           core.classList.remove("paused");
           controls.classList.remove("show");
           show("s-jolt", true);
-          stimAudio.play().catch((err) => {
-            console.error("[audio] play() rejected:", err);
-            alert("Could not start audio playback. Please try again.");
-            clearInterval(joltTimer);
-            joltInProgress = false;
-            primerActive = false;
-            stimAudio = null;
-            show(joltReturn);
+          stimAudio.addEventListener("canplay", function onCanPlay() {
+            stimAudio.removeEventListener("canplay", onCanPlay);
+            stimAudio.play().catch((err) => {
+              console.error("[audio] play() rejected:", err);
+              setPaused(true);
+              revealControls();
+            });
           });
           runTimer();
         }
