@@ -4962,7 +4962,6 @@
 
           /* set real audio on the primed element */
           stimAudio.src = audioUrl;
-          stimAudio.load();
           function onDuration() {
             if (
               stimAudio &&
@@ -4981,13 +4980,7 @@
             endJolt();
           });
           stimAudio.addEventListener("error", () => {
-            console.error("[audio] load/playback error:", stimAudio.error);
-            alert("Could not load audio. Please try again.");
-            clearInterval(joltTimer);
-            joltInProgress = false;
-            primerActive = false;
-            stimAudio = null;
-            show(joltReturn);
+            console.error("[audio] preload error:", stimAudio.error);
           });
 
           remaining = TOTAL;
