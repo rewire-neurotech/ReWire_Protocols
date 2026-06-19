@@ -6392,10 +6392,10 @@
           qCta.toggleAttribute("disabled", !ctaShouldEnable());
         });
         qArea.addEventListener("focus", () => {
-          setTimeout(
-            () => qArea.scrollIntoView({ behavior: "smooth", block: "center" }),
-            350,
-          );
+          setTimeout(() => {
+            const inner = qArea.closest(".q-inner");
+            if (inner) inner.scrollTop = inner.scrollHeight;
+          }, 350);
         });
         qCta.addEventListener("click", () => {
           obAnswers[obQi] = qArea.value;
