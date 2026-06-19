@@ -4949,18 +4949,27 @@
           }
 
           stimAudio = new Audio(audioUrl);
-          stimAudio.addEventListener("loadedmetadata", () => {
-            TOTAL = Math.ceil(stimAudio.duration);
-            remaining = TOTAL;
-            timeRemain.textContent = fmt(remaining);
-          });
+          function onDuration() {
+            if (
+              stimAudio &&
+              isFinite(stimAudio.duration) &&
+              stimAudio.duration > 0
+            ) {
+              TOTAL = Math.ceil(stimAudio.duration);
+              remaining = TOTAL;
+              timeRemain.textContent = fmt(remaining);
+            }
+          }
+          stimAudio.addEventListener("loadedmetadata", onDuration);
+          stimAudio.addEventListener("durationchange", onDuration);
+          stimAudio.addEventListener("canplaythrough", onDuration);
           stimAudio.addEventListener("ended", () => {
             endJolt();
           });
 
           remaining = TOTAL;
           paused = false;
-          timeRemain.textContent = fmt(remaining);
+          timeRemain.textContent = isFinite(TOTAL) ? fmt(remaining) : "--:--";
           playBtn.innerHTML = ICON_PAUSE;
           core.classList.remove("paused");
           controls.classList.remove("show");
