@@ -4991,18 +4991,25 @@
           });
 
           remaining = TOTAL;
-          paused = false;
+          paused = true;
           timeRemain.textContent = isFinite(TOTAL) ? fmt(remaining) : "--:--";
-          playBtn.innerHTML = ICON_PAUSE;
-          core.classList.remove("paused");
-          controls.classList.remove("show");
+          playBtn.innerHTML = ICON_PLAY;
+          core.classList.add("paused");
+          controls.classList.add("show");
           show("s-jolt", true);
           stimAudio.addEventListener("canplay", function onCanPlay() {
             stimAudio.removeEventListener("canplay", onCanPlay);
-            stimAudio.play().catch((err) => {
-              console.error("[audio] play() rejected:", err);
-              setPaused(true);
-              revealControls();
+            stimAudio.play().then(() => {
+              paused = false;
+              playBtn.innerHTML = ICON_PAUSE;
+              core.classList.remove("paused");
+              clearTimeout(hideCtrlTimer);
+              hideCtrlTimer = setTimeout(
+                () => controls.classList.remove("show"),
+                3200,
+              );
+            }).catch((err) => {
+              console.error("[audio] autoplay blocked:", err);
             });
           });
           runTimer();
