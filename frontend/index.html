@@ -2065,6 +2065,8 @@
           calc(var(--safe-bottom) + 16px);
         display: flex;
         flex-direction: column;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
       }
       .q-top {
         display: flex;
@@ -2149,7 +2151,8 @@
       }
       .q-area {
         flex: 1;
-        min-height: 0;
+        min-height: 80px;
+        flex-shrink: 0;
         margin-top: 18px;
         font-size: 18px;
         line-height: 1.55;
@@ -6387,6 +6390,12 @@
         qArea.addEventListener("input", () => {
           obAnswers[obQi] = qArea.value;
           qCta.toggleAttribute("disabled", !ctaShouldEnable());
+        });
+        qArea.addEventListener("focus", () => {
+          setTimeout(
+            () => qArea.scrollIntoView({ behavior: "smooth", block: "center" }),
+            350,
+          );
         });
         qCta.addEventListener("click", () => {
           obAnswers[obQi] = qArea.value;
