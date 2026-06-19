@@ -4363,6 +4363,7 @@
         let token = localStorage.getItem("rw_token") || null;
         let currentJoltId = null;
         let stimAudio = null;
+        let pendingAudioUrl = null;
 
         function setToken(t) {
           token = t;
@@ -4921,16 +4922,6 @@
           joltReturn = from || "s-library";
           buildParticles();
 
-          /* prime audio during user gesture (mobile Safari requires this) */
-          stimAudio = new Audio();
-          stimAudio.src =
-            "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
-          try {
-            await stimAudio.play();
-          } catch (e) {}
-          stimAudio.pause();
-          stimAudio.currentTime = 0;
-
           /* poll until audio ready */
           let audioUrl = null;
           for (let i = 0; i < 120; i++) {
@@ -4960,8 +4951,9 @@
             return;
           }
 
-          /* set real audio on the primed element */
-          stimAudio.src = audioUrl;
+          /* create audio element and try autoplay */
+          pendingAudioUrl = audioUrl;
+          stimAudio = new Audio(audioUrl);
           function onDuration() {
             if (
               stimAudio &&
@@ -4979,31 +4971,26 @@
           stimAudio.addEventListener("ended", () => {
             endJolt();
           });
-          stimAudio.addEventListener("error", () => {
-            console.error("[audio] preload error:", stimAudio.error);
-          });
 
           remaining = TOTAL;
           paused = true;
-          timeRemain.textContent = isFinite(TOTAL) ? fmt(remaining) : "--:--";
+          timeRemain.textContent = "--:--";
           playBtn.innerHTML = ICON_PLAY;
           core.classList.add("paused");
           controls.classList.add("show");
           show("s-jolt", true);
-          stimAudio.addEventListener("canplay", function onCanPlay() {
-            stimAudio.removeEventListener("canplay", onCanPlay);
-            stimAudio.play().then(() => {
-              paused = false;
-              playBtn.innerHTML = ICON_PAUSE;
-              core.classList.remove("paused");
-              clearTimeout(hideCtrlTimer);
-              hideCtrlTimer = setTimeout(
-                () => controls.classList.remove("show"),
-                3200,
-              );
-            }).catch((err) => {
-              console.error("[audio] autoplay blocked:", err);
-            });
+          stimAudio.play().then(() => {
+            pendingAudioUrl = null;
+            paused = false;
+            playBtn.innerHTML = ICON_PAUSE;
+            core.classList.remove("paused");
+            clearTimeout(hideCtrlTimer);
+            hideCtrlTimer = setTimeout(
+              () => controls.classList.remove("show"),
+              3200,
+            );
+          }).catch((err) => {
+            console.error("[audio] autoplay blocked:", err);
           });
           runTimer();
         }
@@ -5050,6 +5037,40 @@
         });
         playBtn.addEventListener("click", (e) => {
           e.stopPropagation();
+          if (pendingAudioUrl) {
+            if (stimAudio) { stimAudio.pause(); stimAudio = null; }
+            stimAudio = new Audio(pendingAudioUrl);
+            stimAudio.addEventListener("loadedmetadata", function() {
+              if (stimAudio && isFinite(stimAudio.duration) && stimAudio.duration > 0) {
+                TOTAL = Math.ceil(stimAudio.duration);
+                remaining = TOTAL;
+                timeRemain.textContent = fmt(remaining);
+              }
+            });
+            stimAudio.addEventListener("durationchange", function() {
+              if (stimAudio && isFinite(stimAudio.duration) && stimAudio.duration > 0) {
+                TOTAL = Math.ceil(stimAudio.duration);
+                remaining = TOTAL;
+                timeRemain.textContent = fmt(remaining);
+              }
+            });
+            stimAudio.addEventListener("ended", () => { endJolt(); });
+            stimAudio.play().then(() => {
+              pendingAudioUrl = null;
+              paused = false;
+              playBtn.innerHTML = ICON_PAUSE;
+              core.classList.remove("paused");
+              clearTimeout(hideCtrlTimer);
+              hideCtrlTimer = setTimeout(
+                () => controls.classList.remove("show"),
+                3200,
+              );
+            }).catch((err) => {
+              console.error("[audio] play tap failed:", err);
+            });
+            revealControls();
+            return;
+          }
           setPaused(!paused);
           revealControls();
         });
