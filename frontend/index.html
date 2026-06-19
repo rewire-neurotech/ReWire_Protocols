@@ -4921,6 +4921,16 @@
           joltReturn = from || "s-library";
           buildParticles();
 
+          /* prime audio during user gesture (mobile Safari requires this) */
+          stimAudio = new Audio();
+          stimAudio.src =
+            "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+          try {
+            await stimAudio.play();
+          } catch (e) {}
+          stimAudio.pause();
+          stimAudio.currentTime = 0;
+
           /* poll until audio ready */
           let audioUrl = null;
           for (let i = 0; i < 120; i++) {
@@ -4934,6 +4944,7 @@
                 alert("Generation error. Please try again.");
                 joltInProgress = false;
                 primerActive = false;
+                stimAudio = null;
                 show(joltReturn);
                 return;
               }
@@ -4944,11 +4955,13 @@
             alert("Audio not ready. Please try again.");
             joltInProgress = false;
             primerActive = false;
+            stimAudio = null;
             show(joltReturn);
             return;
           }
 
-          stimAudio = new Audio(audioUrl);
+          /* set real audio on the primed element */
+          stimAudio.src = audioUrl;
           function onDuration() {
             if (
               stimAudio &&
