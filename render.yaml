@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: rewire
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    disk:
+      name: audio-storage
+      mountPath: /data/audio
+      sizeGB: 5
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: FFMPEG_BIN
+        value: /usr/bin/ffmpeg
+      - key: FFPROBE_BIN
+        value: /usr/bin/ffprobe
+      - key: ALLOWED_ORIGINS
+        value: "*"
+      - key: OUT_DIR
+        value: /data/audio
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: DB_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
