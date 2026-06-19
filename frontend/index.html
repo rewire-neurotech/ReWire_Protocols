@@ -4979,6 +4979,15 @@
           stimAudio.addEventListener("ended", () => {
             endJolt();
           });
+          stimAudio.addEventListener("error", () => {
+            console.error("[audio] load/playback error:", stimAudio.error);
+            alert("Could not play audio. Please try again.");
+            clearInterval(joltTimer);
+            joltInProgress = false;
+            primerActive = false;
+            stimAudio = null;
+            show(joltReturn);
+          });
 
           remaining = TOTAL;
           paused = false;
@@ -4987,7 +4996,15 @@
           core.classList.remove("paused");
           controls.classList.remove("show");
           show("s-jolt", true);
-          stimAudio.play().catch(() => {});
+          stimAudio.play().catch((err) => {
+            console.error("[audio] play() rejected:", err);
+            alert("Could not start audio playback. Please try again.");
+            clearInterval(joltTimer);
+            joltInProgress = false;
+            primerActive = false;
+            stimAudio = null;
+            show(joltReturn);
+          });
           runTimer();
         }
         $("#primerStart").addEventListener("click", beginStimulus);
