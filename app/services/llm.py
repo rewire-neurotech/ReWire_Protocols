@@ -120,3 +120,31 @@ def call_claude(system_prompt: str, user_message: str = "Generate.", max_tokens:
     if last_exc:
         raise last_exc
     raise RuntimeError("unknown LLM error")
+
+
+def clean_goal_title(raw_title: str) -> str:
+    """Use Claude Haiku to turn a raw goal into a clean 4-5 word display title."""
+    client = anthropic.Anthropic(api_key=cfg.ANTHROPIC_API_KEY)
+    try:
+        msg = client.messages.create(
+            model=cfg.HAIKU_MODEL,
+            max_tokens=30,
+            system=(
+                "Convert the user's goal description into a clear, concise 4-5 word title. "
+                "Capitalize each word. Return ONLY the title, nothing else. "
+                "No quotes, no punctuation, no explanation."
+            ),
+            messages=[{"role": "user", "content": raw_title}],
+        )
+        text = ""
+        for block in msg.content:
+            if block.type == "text":
+                text += block.text
+        cleaned = text.strip().strip('"').strip("'")
+        if cleaned:
+            print(f"[LLM] title cleanup: '{raw_title}' -> '{cleaned}'")
+            return cleaned[:200]
+        return raw_title[:200]
+    except Exception as e:
+        print(f"[LLM] title cleanup failed: {e}")
+        return raw_title[:200]
