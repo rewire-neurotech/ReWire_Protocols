@@ -36,6 +36,7 @@ class Goal(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     title = Column(String(200), nullable=False)
+    display_title = Column(String(200), nullable=True)
     description = Column(Text, nullable=True)
     category = Column(String(50), nullable=True)
     place = Column(String(200), nullable=True)
