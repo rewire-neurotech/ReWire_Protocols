@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from app.core.config import cfg
 
@@ -77,6 +78,16 @@ if Base is not None and engine is not None:
     try:
         Base.metadata.create_all(bind=engine)
         _seed_promos()
+        # migrate: add display_title column if missing
+        try:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE goals ADD COLUMN display_title VARCHAR(200)"
+                ))
+                conn.commit()
+                print("[migrate] added display_title column to goals")
+        except Exception:
+            pass  # column already exists
     except Exception as e:
         print(f"[startup] db error: {e}")
 
