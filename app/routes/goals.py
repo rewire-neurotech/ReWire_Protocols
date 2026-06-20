@@ -9,6 +9,7 @@ from app.db import get_db
 from app.models import Goal, Challenge, Tip, Jolt, Reflection, User
 from app.routes.auth import get_current_user_required
 from app.utils.encryption import encrypt_field, decrypt_field
+from app.services.llm import clean_goal_title
 
 r = APIRouter(prefix="/api/goals", tags=["goals"])
 
@@ -27,6 +28,7 @@ class TipOut(BaseModel):
 class GoalOut(BaseModel):
     id: int
     title: str
+    display_title: Optional[str] = None
     description: str
     category: str
     place: str
@@ -70,6 +72,7 @@ def _goal_out(g, db):
     ts = db.query(Tip).filter(Tip.goal_id == g.id).order_by(Tip.created_at).all()
     return GoalOut(
         id=g.id, title=g.title,
+        display_title=g.display_title or g.title,
         description=decrypt_field(g.description) or "",
         category=g.category or "", place=g.place or "",
         reflection_question=g.reflection_question,
@@ -131,6 +134,7 @@ def create_goal(req: CreateGoalReq, u: User = Depends(get_current_user_required)
     g = Goal(
         user_id=u.id,
         title=req.title.strip()[:200],
+        display_title=clean_goal_title(req.title.strip()),
         description=encrypt_field(req.description.strip()) if req.description else None,
         category=req.category.strip() or None,
         place=req.place.strip() or None,
@@ -153,6 +157,7 @@ def update_goal(gid: int, req: UpdateGoalReq, u: User = Depends(get_current_user
     g = _own(gid, u, db)
     if req.title is not None:
         g.title = req.title.strip()[:200]
+        g.display_title = clean_goal_title(req.title.strip())
     if req.description is not None:
         g.description = encrypt_field(req.description.strip()) if req.description.strip() else None
     db.commit()
