@@ -4364,6 +4364,10 @@
         let currentJoltId = null;
         let stimAudio = null;
         let pendingAudioUrl = null;
+        const MEDITATION_URL = "/assets/christian_meditation.mpeg";
+        let joltPhase = "meditation";
+        let onboardingJolt = false;
+        let joltMixUrl = null;
 
         function setToken(t) {
           token = t;
@@ -4506,7 +4510,7 @@
             goals = (r.goals || []).map((g) => ({
               id: "g" + g.id,
               _id: g.id,
-              title: g.title,
+              title: g.display_title || g.title,
               desc: g.description || "",
               date: g.created_at ? longDate(new Date(g.created_at)) : "",
               place: g.place || userPlace || "",
@@ -4539,7 +4543,7 @@
             return (r.goals || []).map((g) => ({
               id: "g" + g.id,
               _id: g.id,
-              title: g.title,
+              title: g.display_title || g.title,
               done: true,
               done_at: g.done_at,
               date: g.created_at ? longDate(new Date(g.created_at)) : "",
@@ -4686,6 +4690,8 @@
           }
           const pill = e.target.closest("[data-jolt]");
           if (pill) {
+            pill.disabled = true;
+            pill.style.pointerEvents = "none";
             triggerJolt(byId(pill.dataset.jolt), "s-library");
             return;
           }
@@ -4766,6 +4772,10 @@
           const b = $("#cardJolt");
           b.classList.remove("is-jolting");
           b.innerHTML = '<span class="jolt-label">Jolt the goal</span>';
+          $$(".jolt-pill").forEach((p) => {
+            p.disabled = false;
+            p.style.pointerEvents = "";
+          });
         }
         $("#cardJolt").addEventListener("click", () => {
           const b = $("#cardJolt");
@@ -4922,36 +4932,105 @@
           joltReturn = from || "s-library";
           buildParticles();
 
-          /* poll until audio ready */
-          let audioUrl = null;
+          /* Start meditation immediately (within user gesture) */
+          joltPhase = "meditation";
+          let meditationDone = false;
+          joltMixUrl = null;
+          pendingAudioUrl = null;
+
+          stimAudio = new Audio(MEDITATION_URL);
+          function onMedDuration() {
+            if (
+              stimAudio &&
+              isFinite(stimAudio.duration) &&
+              stimAudio.duration > 0 &&
+              joltPhase === "meditation"
+            ) {
+              TOTAL = Math.ceil(stimAudio.duration);
+              remaining = TOTAL;
+              timeRemain.textContent = fmt(remaining);
+            }
+          }
+          stimAudio.addEventListener("loadedmetadata", onMedDuration);
+          stimAudio.addEventListener("durationchange", onMedDuration);
+          stimAudio.addEventListener("ended", () => {
+            meditationDone = true;
+            if (joltMixUrl) {
+              switchToMix(joltMixUrl);
+            } else {
+              joltPhase = "waiting";
+              paused = true;
+              timeRemain.textContent = "--:--";
+              playBtn.innerHTML = ICON_PAUSE;
+              core.classList.remove("paused");
+              controls.classList.remove("show");
+            }
+          });
+
+          remaining = TOTAL;
+          paused = false;
+          timeRemain.textContent = "--:--";
+          playBtn.innerHTML = ICON_PAUSE;
+          core.classList.remove("paused");
+          controls.classList.remove("show");
+          show("s-jolt", true);
+
+          stimAudio.play().then(() => {
+            clearTimeout(hideCtrlTimer);
+            hideCtrlTimer = setTimeout(
+              () => controls.classList.remove("show"),
+              3200,
+            );
+          }).catch((err) => {
+            console.error("[audio] meditation autoplay blocked:", err);
+            paused = true;
+            playBtn.innerHTML = ICON_PLAY;
+            core.classList.add("paused");
+            controls.classList.add("show");
+            pendingAudioUrl = MEDITATION_URL;
+          });
+          runTimer();
+
+          /* Poll for jolt mix in background while meditation plays */
           for (let i = 0; i < 120; i++) {
             try {
               const s = await GET("/jolt/" + currentJoltId + "/status");
               if (s.stage === "done" && s.audio_url) {
-                audioUrl = s.audio_url;
-                break;
+                if (meditationDone) {
+                  switchToMix(s.audio_url);
+                } else {
+                  joltMixUrl = s.audio_url;
+                }
+                return;
               }
               if (s.stage === "error") {
                 alert("Generation error. Please try again.");
+                clearInterval(joltTimer);
+                if (stimAudio) { stimAudio.pause(); stimAudio = null; }
                 joltInProgress = false;
                 primerActive = false;
-                stimAudio = null;
+                resetJoltBtn();
                 show(joltReturn);
                 return;
               }
             } catch (e) {}
             await new Promise((r) => setTimeout(r, 2000));
           }
-          if (!audioUrl) {
+          if (!joltMixUrl && !meditationDone) {
             alert("Audio not ready. Please try again.");
+            clearInterval(joltTimer);
+            if (stimAudio) { stimAudio.pause(); stimAudio = null; }
             joltInProgress = false;
             primerActive = false;
-            stimAudio = null;
+            resetJoltBtn();
             show(joltReturn);
-            return;
           }
+        }
+        $("#primerStart").addEventListener("click", beginStimulus);
 
-          /* create audio element and try autoplay */
+        function switchToMix(audioUrl) {
+          joltPhase = "mix";
+          if (stimAudio) { stimAudio.pause(); stimAudio = null; }
           pendingAudioUrl = audioUrl;
           stimAudio = new Audio(audioUrl);
           function onDuration() {
@@ -4968,17 +5047,8 @@
           stimAudio.addEventListener("loadedmetadata", onDuration);
           stimAudio.addEventListener("durationchange", onDuration);
           stimAudio.addEventListener("canplaythrough", onDuration);
-          stimAudio.addEventListener("ended", () => {
-            endJolt();
-          });
+          stimAudio.addEventListener("ended", () => { endJolt(); });
 
-          remaining = TOTAL;
-          paused = true;
-          timeRemain.textContent = "--:--";
-          playBtn.innerHTML = ICON_PLAY;
-          core.classList.add("paused");
-          controls.classList.add("show");
-          show("s-jolt", true);
           stimAudio.play().then(() => {
             pendingAudioUrl = null;
             paused = false;
@@ -4990,11 +5060,14 @@
               3200,
             );
           }).catch((err) => {
-            console.error("[audio] autoplay blocked:", err);
+            console.error("[audio] mix autoplay blocked:", err);
+            paused = true;
+            playBtn.innerHTML = ICON_PLAY;
+            core.classList.add("paused");
+            controls.classList.add("show");
           });
           runTimer();
         }
-        $("#primerStart").addEventListener("click", beginStimulus);
 
         function runTimer() {
           clearInterval(joltTimer);
@@ -5004,7 +5077,7 @@
             if (remaining <= 0) {
               remaining = 0;
               timeRemain.textContent = fmt(0);
-              endJolt();
+              if (joltPhase === "mix") endJolt();
               return;
             }
             timeRemain.textContent = fmt(remaining);
@@ -5054,7 +5127,19 @@
                 timeRemain.textContent = fmt(remaining);
               }
             });
-            stimAudio.addEventListener("ended", () => { endJolt(); });
+            stimAudio.addEventListener("ended", () => {
+              if (joltPhase === "meditation") {
+                if (joltMixUrl) {
+                  switchToMix(joltMixUrl);
+                } else {
+                  joltPhase = "waiting";
+                  paused = true;
+                  timeRemain.textContent = "--:--";
+                }
+              } else {
+                endJolt();
+              }
+            });
             stimAudio.play().then(() => {
               pendingAudioUrl = null;
               paused = false;
@@ -5083,7 +5168,20 @@
           }
           joltInProgress = false;
           primerActive = false;
-          show("s-complete", true);
+          joltPhase = "meditation";
+          pendingAudioUrl = null;
+          joltMixUrl = null;
+          resetJoltBtn();
+          if (onboardingJolt) {
+            onboardingJolt = false;
+            (async () => {
+              try { await POST("/auth/complete-onboarding"); } catch(e) {}
+              document.querySelectorAll(".layer").forEach((l) => l.classList.remove("is-active"));
+              await goLibrary();
+            })();
+          } else {
+            show(joltReturn);
+          }
         });
         function endJolt() {
           clearInterval(joltTimer);
@@ -5093,7 +5191,20 @@
           }
           joltInProgress = false;
           primerActive = false;
-          show("s-complete", true);
+          joltPhase = "meditation";
+          pendingAudioUrl = null;
+          joltMixUrl = null;
+          resetJoltBtn();
+          if (onboardingJolt) {
+            onboardingJolt = false;
+            (async () => {
+              try { await POST("/auth/complete-onboarding"); } catch(e) {}
+              document.querySelectorAll(".layer").forEach((l) => l.classList.remove("is-active"));
+              await goLibrary();
+            })();
+          } else {
+            show("s-complete", true);
+          }
         }
         function fmt(s) {
           const m = Math.floor(s / 60);
@@ -5717,7 +5828,7 @@
             const g = {
               id: "g" + r.id,
               _id: r.id,
-              title: r.title,
+              title: r.display_title || r.title,
               desc: r.description || "",
               date: r.created_at ? longDate(new Date(r.created_at)) : "",
               place: r.place || "",
@@ -6492,7 +6603,7 @@
             goals.unshift({
               id: "g" + g.id,
               _id: g.id,
-              title: g.title,
+              title: g.display_title || g.title,
               desc: g.description || desc,
               date: longDate(new Date()),
               place: g.place || userPlace || "",
@@ -6508,7 +6619,8 @@
             document
               .querySelectorAll(".layer")
               .forEach((l) => l.classList.remove("is-active"));
-            triggerJolt(goals[0], "s-complete");
+            onboardingJolt = true;
+            triggerJolt(goals[0], "s-library");
           } catch (e) {
             if (e && e.message !== "auth") {
               alert(
