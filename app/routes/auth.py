@@ -10,7 +10,10 @@ from passlib.context import CryptContext
 
 from app.core.config import cfg
 from app.db import get_db
-from app.models import User, Subscription
+from app.models import (
+    User, Subscription, Goal, Challenge, Tip, Jolt, Reflection,
+    PushSubscription, AuditLog,
+)
 
 r = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -272,3 +275,36 @@ def get_me(u: User = Depends(get_current_user_required), db: Session = Depends(g
 @r.get("/config")
 def get_auth_config():
     return {"google_client_id": cfg.GOOGLE_CLIENT_ID or ""}
+
+
+@r.delete("/account", response_model=StatusResp)
+def delete_account(u: User = Depends(get_current_user_required),
+                   db: Session = Depends(get_db)):
+    """Permanently delete the user's account and all associated data."""
+    uid = u.id
+
+    # Gather all goal IDs for this user
+    goal_ids = [g.id for g in db.query(Goal.id).filter(Goal.user_id == uid).all()]
+
+    # Delete in dependency order
+    if goal_ids:
+        db.query(Reflection).filter(Reflection.goal_id.in_(goal_ids)).delete(synchronize_session=False)
+        db.query(Jolt).filter(Jolt.goal_id.in_(goal_ids)).delete(synchronize_session=False)
+        db.query(Tip).filter(Tip.goal_id.in_(goal_ids)).delete(synchronize_session=False)
+        db.query(Challenge).filter(Challenge.goal_id.in_(goal_ids)).delete(synchronize_session=False)
+        db.query(Goal).filter(Goal.user_id == uid).delete(synchronize_session=False)
+
+    # Also catch any reflections/jolts linked directly to user but not via goals
+    db.query(Reflection).filter(Reflection.user_id == uid).delete(synchronize_session=False)
+    db.query(Jolt).filter(Jolt.user_id == uid).delete(synchronize_session=False)
+
+    # Delete subscription, push, and audit data
+    db.query(Subscription).filter(Subscription.user_id == uid).delete(synchronize_session=False)
+    db.query(PushSubscription).filter(PushSubscription.user_id == uid).delete(synchronize_session=False)
+    db.query(AuditLog).filter(AuditLog.user_id == uid).delete(synchronize_session=False)
+
+    # Delete the user
+    db.delete(u)
+    db.commit()
+
+    return StatusResp(status="ok")
