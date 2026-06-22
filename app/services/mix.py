@@ -453,7 +453,7 @@ def mix(
     music_target_dbfs: float = -14.5,
     final_peak_dbfs: float = -1.0,
     music_fadein_ms: int = 10,
-    music_premix_gain_db: float = -0.5,
+    music_premix_gain_db: float = -1.0,
     ffmpeg_bin: str | None = None,
     stems_dir: str | Path | None = None,
     content_duration_sec: Optional[float] = None,
@@ -463,8 +463,8 @@ def mix(
     ffmpeg_path = _ffmpeg_bin(ffmpeg_bin)
 
     music = make_stereo(load_audio(music_path).set_frame_rate(44100))
-    music = _normalize_lufs(music, -10.0)
-    music = _level_envelope(music, target_rms_db=-15.0, max_gain_db=50.0, smooth_sec=5.0)
+    music = _normalize_lufs(music, -11.0)
+    music = _level_envelope(music, target_rms_db=-15.0, max_gain_db=15.0, smooth_sec=5.0)
     if len(music) <= 0:
         raise ValueError("Music stem is empty or unreadable.")
 
@@ -485,13 +485,13 @@ def mix(
             if _ffmpeg_has(ffmpeg_path, "dynaudnorm") and _ffmpeg_has(ffmpeg_path, "acompressor"):
                 af = (
                     "dynaudnorm=f=3000:g=31:p=0.5:m=15,"
-                    "acompressor=threshold=-20dB:ratio=3:attack=300:release=3000:makeup=5,"
+                    "acompressor=threshold=-20dB:ratio=3:attack=300:release=3000:makeup=3,"
                     "alimiter=level_in=1:level_out=0.89:limit=0.89:attack=5:release=50"
                 )
             elif _ffmpeg_has(ffmpeg_path, "dynaudnorm"):
                 af = "dynaudnorm=f=3000:g=31:p=0.5:m=15,alimiter=level_in=1:level_out=0.89:limit=0.89:attack=5:release=50"
             else:
-                af = "acompressor=threshold=-20dB:ratio=3:attack=300:release=3000:makeup=5,alimiter=level_in=1:level_out=0.89:limit=0.89:attack=5:release=50"
+                af = "acompressor=threshold=-20dB:ratio=3:attack=300:release=3000:makeup=3,alimiter=level_in=1:level_out=0.89:limit=0.89:attack=5:release=50"
             subprocess.run(
                 [ffmpeg_path, "-y", "-i", tmp_m2_in.name, "-af", af, tmp_m2_out.name],
                 check=True,
@@ -503,7 +503,7 @@ def mix(
             pass
 
     music = _apply_reverb(music, wet_boost_db=8.0)
-    music = _normalize_lufs(music, -15.0)
+    music = _normalize_lufs(music, -16.0)
 
     # Trim music to content duration (removes trailing silence/fade)
     # This ensures the final output length matches the actual music content,
