@@ -222,11 +222,11 @@ def start_jolt(gid: int, skip_hc: bool = False,
     if not g:
         raise HTTPException(404, "goal not found")
 
-    # first 3 jolts are free, subsequent need subscription
+    # first jolt is free, subsequent need subscription
     total_done = db.query(Jolt).filter(
         Jolt.user_id == u.id, Jolt.stage == "done"
     ).count()
-    if total_done >= 3 and not _has_sub(u.id, db):
+    if total_done >= 1 and not _has_sub(u.id, db):
         raise HTTPException(402, "subscription required for additional jolts")
 
     data = _gather(g, db)
