@@ -2633,6 +2633,106 @@
         font-weight: 500;
         color: var(--muted);
       }
+
+      /* ===================== FELIX v2 OVERRIDES ===================== */
+
+      /* btn-jolt: solid black with breathing shadow */
+      .btn-jolt {
+        position: relative;
+        width: 100%; min-height: 56px; border-radius: 999px;
+        border: 0; background: var(--ink); color: #fff;
+        display: flex; align-items: center; justify-content: center; gap: 9px;
+        font-size: 16px; font-weight: 600; letter-spacing: -0.01em;
+        box-shadow: 0 10px 26px rgba(0,0,0,0.24);
+        transition: transform 200ms ease, background 280ms ease, color 280ms ease, box-shadow 280ms ease;
+        animation: joltBreatheWide 2600ms ease-in-out infinite;
+      }
+      .btn-jolt:active { transform: scale(0.97); animation: none; }
+      .btn-jolt.is-jolting {
+        background: var(--accent); color: #fff; animation: none;
+        box-shadow: 0 12px 30px rgba(192,132,58,0.34);
+      }
+      @keyframes joltBreatheWide {
+        0%, 100% { box-shadow: 0 10px 26px rgba(0,0,0,0.24); }
+        50% { box-shadow: 0 14px 34px rgba(0,0,0,0.30); }
+      }
+
+      /* goal-section-head: space-between with inline actions */
+      .goal-section-head {
+        display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      }
+      .goal-section-head .gs-left { display: flex; align-items: baseline; gap: 8px; }
+      .goal-section-head .gs-actions { display: flex; align-items: center; gap: 8px; }
+      .goal-add-inline {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 7px 13px 7px 11px; border-radius: 999px;
+        border: 1px dashed var(--hairline); background: transparent;
+        font-size: 12.5px; font-weight: 600; color: var(--ink-soft);
+        letter-spacing: -0.01em; text-transform: none;
+        transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+      }
+      .goal-add-inline svg { width: 13px; height: 13px; }
+      .goal-add-inline:active { transform: scale(0.94); background: rgba(0,0,0,0.03); }
+      .goal-add-inline.primary { border-style: solid; border-color: var(--accent-soft); color: var(--accent); background: var(--accent-soft); }
+      .goal-add-inline.primary:active { background: #e9d8bd; }
+
+      /* AI suggestion card */
+      .ai-suggest {
+        margin-top: 14px; padding: 14px 16px 13px; border-radius: 16px;
+        background: linear-gradient(180deg, rgba(123,107,255,0.06), rgba(192,132,58,0.05));
+        border: 1.4px dashed rgba(192,132,58,0.45); box-shadow: none;
+        transition: opacity 240ms ease, transform 300ms cubic-bezier(0.22,1,0.36,1);
+      }
+      .ai-suggest.fading { opacity: 0; transform: translateY(6px) scale(0.99); }
+      .ai-suggest-head {
+        display: flex; align-items: center; gap: 6px;
+        font-size: 10.5px; font-weight: 700; letter-spacing: 0.16em;
+        text-transform: uppercase; color: var(--accent);
+      }
+      .ai-suggest-head .spark { width: 13px; height: 13px; flex-shrink: 0; }
+      .ai-suggest-body {
+        margin-top: 9px; font-size: 16.5px; line-height: 1.46; font-weight: 450;
+        color: var(--ink); letter-spacing: -0.006em; min-height: 24px;
+      }
+      .ai-suggest.loading .ai-suggest-body { color: var(--faint); }
+      .ai-suggest .ai-load { display: inline-flex; gap: 5px; padding: 5px 0; }
+      .ai-suggest .ai-load i { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); animation: bounce 1s infinite ease-in-out; }
+      .ai-suggest .ai-load i:nth-child(2) { animation-delay: 0.15s; }
+      .ai-suggest .ai-load i:nth-child(3) { animation-delay: 0.30s; }
+      .ai-suggest-foot { margin-top: 13px; display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+      .ai-vote {
+        width: 42px; height: 42px; border-radius: 50%;
+        display: grid; place-items: center;
+        border: 1px solid var(--hairline); background: rgba(255,255,255,0.82); color: var(--ink-soft);
+        transition: transform 180ms ease, background 180ms ease, color 180ms ease, border-color 180ms ease;
+      }
+      .ai-vote svg { width: 19px; height: 19px; }
+      .ai-vote:active { transform: scale(0.88); }
+      .ai-vote.good:active { background: var(--accent); color: #fff; border-color: var(--accent); }
+      .ai-vote.bad:active { background: #f2efe7; color: var(--ink); }
+
+      /* post-jolt reflection on the card */
+      .card-reflect { display: none; }
+      .card-reflect-q { font-size: 22px; line-height: 1.26; font-weight: 600; letter-spacing: -0.02em; color: var(--ink); }
+      .card-reflect-area { flex: 1; min-height: 0; margin-top: 14px; font-size: 18px; line-height: 1.55; font-weight: 450; color: var(--ink); }
+      .card-reflect-area::placeholder { color: var(--faint); }
+      .card-reflect-foot { display: flex; justify-content: flex-end; padding-top: 10px; }
+      #s-card.reflect-mode .card-actions { display: none; }
+      #s-card.reflect-mode .card-body { flex: 0 1 auto; max-height: 26vh; }
+      #s-card.reflect-mode .card-reflect {
+        display: flex; flex-direction: column; flex: 1; min-height: 0;
+        margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--hairline);
+      }
+      #s-card.reflect-mode .card-reflect { padding-left: 26px; padding-right: 26px; }
+
+      /* future feature row in the + menu */
+      .row.future { cursor: default; opacity: 0.7; }
+      .row.future:hover, .row.future:active { background: transparent; }
+      .row.future .row-label { color: var(--muted); }
+      .soon-pill {
+        font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+        color: var(--muted); background: var(--chip); padding: 3px 8px; border-radius: 999px;
+      }
     </style>
   </head>
   <body>
@@ -3663,36 +3763,11 @@
         <div class="inner">
           <div class="topbar">
             <button class="icon-btn" data-nav="library" aria-label="Back">
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <line x1="19" y1="12" x2="5" y2="12" />
-                <polyline points="12 19 5 12 12 5" />
-              </svg>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
             </button>
             <div class="topbar-actions">
-              <button class="text-btn" id="cardFeedback">Ask for tips</button>
               <button class="icon-btn edit-btn" id="cardEdit" aria-label="Edit">
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.7"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M12 20h9" />
-                  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                </svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
               </button>
             </div>
           </div>
@@ -3703,10 +3778,14 @@
           <div class="card-rule"></div>
           <div class="card-body" id="cardBody"></div>
           <div class="card-actions">
-            <button class="btn-jolt" id="cardJolt">
-              <span class="jolt-label">Jolt the goal</span>
-            </button>
+            <button class="btn-jolt" id="cardJolt"><span class="jolt-label">Jolt</span></button>
             <button class="card-done-btn" id="cardDone">Mark as done</button>
+          </div>
+          <div class="card-reflect" id="cardReflect">
+            <span class="eyebrow" style="margin-bottom:10px">A question for you</span>
+            <div class="card-reflect-q" id="cardReflectQ">Did anything shift?</div>
+            <textarea class="card-reflect-area" id="cardReflectArea" placeholder="Write whatever surfaced..."></textarea>
+            <div class="card-reflect-foot"><button class="btn-dark" id="cardReflectSave">Save</button></div>
           </div>
         </div>
       </section>
@@ -3849,112 +3928,45 @@
       <div class="panel" id="panel">
         <div class="row" id="rowDone" data-nav="done">
           <span class="row-label">Done goals</span>
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
         <div class="divider"></div>
         <div class="row" id="rowNotify">
           <span class="row-label">Notifications</span>
           <span class="toggle on" id="notifyToggle"></span>
         </div>
+        <div class="row" id="rowSound">
+          <span class="row-label">Sound</span>
+          <span class="toggle on" id="soundToggle"></span>
+        </div>
         <div class="row" id="rowDownload">
           <span class="row-label">Download data</span>
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         </div>
         <div class="row danger" id="rowSignout">
           <span class="row-label">Sign out</span>
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-            <polyline points="16 17 21 12 16 7" />
-            <line x1="21" y1="12" x2="9" y2="12" />
-          </svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </div>
+        <div class="divider"></div>
+        <div class="row danger" id="rowDeleteAccount">
+          <span class="row-label">Delete account</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
         </div>
       </div>
 
       <div class="panel add-panel" id="addPanel">
         <div class="row" data-add-kind="goal">
-          <span class="row-label">New goal</span>
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M4 22V4a1 1 0 0 1 1-1h11l-2 4 2 4H5" />
-          </svg>
+          <span class="row-label">Add goal</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4a1 1 0 0 1 1-1h11l-2 4 2 4H5"/></svg>
         </div>
         <div class="divider"></div>
-        <div class="row" data-add-kind="challenge">
-          <span class="row-label">Add a challenge</span>
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="12" cy="12" r="9" />
-            <line x1="12" y1="8" x2="12" y2="13" />
-            <line x1="12" y1="16.5" x2="12" y2="16.5" />
-          </svg>
-        </div>
         <div class="row" data-add-kind="tip">
-          <span class="row-label">Add a tip</span>
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M9 18h6" />
-            <path d="M10 22h4" />
-            <path
-              d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2Z"
-            />
-          </svg>
+          <span class="row-label">Add insight</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2Z"/></svg>
+        </div>
+        <div class="row future" data-add-kind="jolt">
+          <span class="row-label">Send a jolt</span>
+          <span class="soon-pill">Soon</span>
         </div>
       </div>
 
@@ -4708,53 +4720,43 @@
         const ADD_ICON =
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
 
+        const ASK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.6-.8L3 21l1.9-4.9A8.4 8.4 0 0 1 4 11.5 8.5 8.5 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5z"/></svg>';
+        const SPARK_SVG = '<svg class="spark" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l1.7 5.7a3 3 0 0 0 2.1 2.1L21.5 12l-5.7 1.7a3 3 0 0 0-2.1 2.1L12 21.5l-1.7-5.7a3 3 0 0 0-2.1-2.1L2.5 12l5.7-1.7a3 3 0 0 0 2.1-2.1L12 2.5z"/></svg>';
+        const THUMB_UP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11v9"/><path d="M4 11h3v9H4z" fill="none"/><path d="M7 11l4-7a2 2 0 0 1 2.6 2.4L13 9h5.2a2 2 0 0 1 2 2.4l-1.4 7A2 2 0 0 1 16.8 20H7"/></svg>';
+        const THUMB_DOWN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17 13V4"/><path d="M20 13h-3V4h3z" fill="none"/><path d="M17 13l-4 7a2 2 0 0 1-2.6-2.4L11 15H5.8a2 2 0 0 1-2-2.4l1.4-7A2 2 0 0 1 7.2 4H17"/></svg>';
+
+        function renderItem(kind, x) {
+          return `<div class="goal-item ${kind}" data-kind="${kind}" data-item="${x.id}">
+            <span class="gi-mark"></span>
+            <span class="gi-text"><span class="gi-body">${escapeHtml(x.text)}</span>${x.from ? `<span class="gi-from">${escapeHtml(x.from)}</span>` : ""}</span>
+          </div>`;
+        }
+
         function renderGoalBody(g) {
           const desc =
             g.desc && g.desc.trim()
               ? `<div class="goal-box" data-edit-desc><div class="goal-box-desc">${escapeHtml(g.desc)}</div></div>`
               : `<div class="goal-box empty" data-edit-desc><div class="goal-box-desc">Tap to describe this goal.</div></div>`;
-          const challengeItems = g.challenges.length
-            ? `<div class="goal-items">` +
-              g.challenges
-                .map(
-                  (c) => `
-          <div class="goal-item challenge" data-kind="challenge" data-item="${c.id}">
-            <span class="gi-mark"></span>
-            <span class="gi-text"><span class="gi-body">${escapeHtml(c.text)}</span></span>
-          </div>`,
-                )
-                .join("") +
-              `</div>`
-            : `<div class="goal-empty">Nothing yet. What makes this goal hard?</div>`;
-          const tipItems = g.tips.length
-            ? `<div class="goal-items">` +
-              g.tips
-                .map(
-                  (t) => `
-          <div class="goal-item tip" data-kind="tip" data-item="${t.id}">
-            <span class="gi-mark"></span>
-            <span class="gi-text"><span class="gi-body">${escapeHtml(t.text)}</span>${t.from ? `<span class="gi-from">${escapeHtml(t.from)}</span>` : ""}</span>
-          </div>`,
-                )
-                .join("") +
-              `</div>`
-            : `<div class="goal-empty">No tips yet. Ask someone, or add one you've found.</div>`;
+          const tN = g.tips.length;
           return `
       ${desc}
-      <div class="goal-section">
-        <div class="goal-section-head">Challenges <span class="count">${g.challenges.length}</span></div>
-        ${challengeItems}
-        <button class="goal-add" data-add="challenge">${ADD_ICON} Add a challenge</button>
-      </div>
-      <div class="goal-section">
-        <div class="goal-section-head">Tips <span class="count">${g.tips.length}</span></div>
-        ${tipItems}
-        <button class="goal-add tip" data-add="tip">${ADD_ICON} Add a tip</button>
+      <div class="goal-section tip-section" data-section="tip">
+        <div class="goal-section-head">
+          <span class="gs-left">Tips <span class="count">${tN}</span></span>
+          <span class="gs-actions">
+            <button class="goal-add-inline" data-ask>${ASK_ICON} Ask a friend</button>
+            <button class="goal-add-inline primary" data-add="tip">${ADD_ICON} Add</button>
+          </span>
+        </div>
+        <div class="goal-items" data-list="tip">${g.tips.map(t => renderItem("tip", t)).join("")}</div>
+        <div class="goal-empty" data-empty="tip"${tN ? ' style="display:none"' : ""}>No tips yet. Add one, or ask a friend.</div>
+        <div class="ai-suggest loading" id="sugg-tip" data-sugg="tip"></div>
       </div>`;
         }
 
         function openCard(it) {
           currentGoal = it;
+          $("#s-card").classList.remove("reflect-mode");
           $("#cardTitle").textContent = it.title;
           let sub =
             "Created " + escapeHtml(it.date) + "<br>" + escapeHtml(it.place);
@@ -4767,11 +4769,26 @@
           $("#cardBody").innerHTML = renderGoalBody(it);
           resetJoltBtn();
           show("s-card");
+          initSuggestions();
+        }
+        function openCardReflect(it) {
+          currentGoal = it;
+          $("#s-card").classList.remove("reflect-mode");
+          $("#cardTitle").textContent = it.title;
+          let sub = "Created " + escapeHtml(it.date) + "<br>" + escapeHtml(it.place);
+          $("#cardSub").innerHTML = sub;
+          $("#cardBody").innerHTML = renderGoalBody(it);
+          $$("#cardBody [data-sugg]").forEach(el => el.remove());
+          $("#cardReflectQ").textContent = it.q || "What feels possible now?";
+          $("#cardReflectArea").value = "";
+          $("#s-card").classList.add("reflect-mode");
+          show("s-card");
+          setTimeout(() => $("#cardReflectArea").focus(), 340);
         }
         function resetJoltBtn() {
           const b = $("#cardJolt");
           b.classList.remove("is-jolting");
-          b.innerHTML = '<span class="jolt-label">Jolt the goal</span>';
+          b.innerHTML = '<span class="jolt-label">Jolt</span>';
           $$(".jolt-pill").forEach((p) => {
             p.disabled = false;
             p.style.pointerEvents = "";
@@ -4787,6 +4804,14 @@
         });
 
         $("#cardBody").addEventListener("click", (e) => {
+          const vote = e.target.closest("[data-vote]");
+          if (vote) {
+            const slot = vote.closest("[data-sugg]");
+            if (slot) handleVote(slot.dataset.sugg, vote.dataset.vote);
+            return;
+          }
+          const ask = e.target.closest("[data-ask]");
+          if (ask) { askFriend(); return; }
           const add = e.target.closest("[data-add]");
           if (add) {
             openComposeFor(add.dataset.add);
@@ -4804,25 +4829,90 @@
           }
         });
 
-        $("#cardFeedback").addEventListener("click", async () => {
+        /* --- ask a friend (share sheet or WhatsApp fallback) --- */
+        function askFriend() {
           const g = currentGoal;
-          const msg = `I'm working on a goal: "${g.title}". Got any tips that helped you? I'm collecting them in ReWire.`;
+          const msg = `I'm working on a goal: "${g.title}". Got any advice that helped you with something like this? Collecting tips in Jolt.`;
           try {
-            if (navigator.share) {
-              await navigator.share({ title: g.title, text: msg });
-              return;
+            if (navigator.share) { navigator.share({ title: g.title, text: msg }).catch(() => {}); return; }
+          } catch(e) {}
+          window.open("https://wa.me/?text=" + encodeURIComponent(msg), "_blank");
+        }
+
+        /* --- AI suggestions (tips, via backend) --- */
+        const suggestState = { tip: { text: "", token: 0 } };
+
+        function suggLabel(kind) { return kind === "tip" ? "Suggested tip" : "Suggested challenge"; }
+        function renderSuggestLoading(slot, kind) {
+          slot.classList.add("loading"); slot.classList.remove("fading");
+          slot.innerHTML =
+            `<div class="ai-suggest-head">${SPARK_SVG}${suggLabel(kind)}</div>
+             <div class="ai-suggest-body"><span class="ai-load"><i></i><i></i><i></i></span></div>`;
+        }
+        function renderSuggest(slot, kind, text) {
+          slot.classList.remove("loading");
+          slot.innerHTML =
+            `<div class="ai-suggest-head">${SPARK_SVG}${suggLabel(kind)}</div>
+             <div class="ai-suggest-body">${escapeHtml(text)}</div>
+             <div class="ai-suggest-foot">
+               <button class="ai-vote bad" data-vote="bad" aria-label="Show another">${THUMB_DOWN}</button>
+               <button class="ai-vote good" data-vote="good" aria-label="Add this">${THUMB_UP}</button>
+             </div>`;
+        }
+        async function loadSuggestion(kind) {
+          const slot = document.getElementById("sugg-" + kind);
+          if (!slot) return;
+          const token = ++suggestState[kind].token;
+          const goalAtStart = currentGoal;
+          renderSuggestLoading(slot, kind);
+          let text;
+          try {
+            const r = await POST("/goals/" + goalAtStart._id + "/suggest", { kind });
+            text = r.text;
+          } catch(e) { text = "Add a tip that works for you."; }
+          if (token !== suggestState[kind].token || currentGoal !== goalAtStart) return;
+          const live = document.getElementById("sugg-" + kind);
+          if (!live) return;
+          suggestState[kind].text = text;
+          renderSuggest(live, kind, text);
+        }
+        function initSuggestions() {
+          suggestState.tip.text = "";
+          loadSuggestion("tip");
+        }
+        function appendItemDOM(kind, item) {
+          const list = document.querySelector(`[data-list="${kind}"]`);
+          const empty = document.querySelector(`[data-empty="${kind}"]`);
+          if (empty) empty.style.display = "none";
+          if (!list) return;
+          const wrap = document.createElement("div");
+          wrap.innerHTML = renderItem(kind, item).trim();
+          const el = wrap.firstElementChild;
+          el.style.opacity = "0";
+          list.appendChild(el);
+          requestAnimationFrame(() => { el.style.transition = "opacity 360ms ease"; el.style.opacity = "1"; });
+          const count = list.closest(".goal-section")?.querySelector(".count");
+          if (count) count.textContent = (kind === "tip" ? currentGoal.tips : currentGoal.challenges).length;
+        }
+        async function handleVote(kind, verdict) {
+          const text = suggestState[kind].text;
+          if (!text) return;
+          if (verdict === "good") {
+            try {
+              const r = await POST("/goals/" + currentGoal._id + "/tips", { text, from_name: "Jolt" });
+              currentGoal.tips = (r.tips || []).map(t => ({ id: "t" + t.id, _id: t.id, text: t.text, from: t.from_name || "Jolt" }));
+              const item = currentGoal.tips[currentGoal.tips.length - 1];
+              if (item) appendItemDOM("tip", item);
+            } catch(e) {
+              const item = { id: "t" + Date.now(), text, from: "Jolt" };
+              currentGoal.tips.push(item);
+              appendItemDOM("tip", item);
             }
-            await navigator.clipboard.writeText(msg);
-            const btn = $("#cardFeedback");
-            const orig = btn.textContent;
-            btn.textContent = "Copied. Go ask.";
-            btn.style.color = "var(--accent)";
-            setTimeout(() => {
-              btn.textContent = orig;
-              btn.style.color = "";
-            }, 1900);
-          } catch (e) {}
-        });
+          }
+          const slot = document.getElementById("sugg-" + kind);
+          if (slot) { slot.classList.add("fading"); setTimeout(() => loadSuggestion(kind), 220); }
+          else loadSuggestion(kind);
+        }
 
         /* --- jolt --- */
         let TOTAL = 150,
@@ -5202,6 +5292,8 @@
               document.querySelectorAll(".layer").forEach((l) => l.classList.remove("is-active"));
               await goLibrary();
             })();
+          } else if (currentGoal) {
+            openCardReflect(currentGoal);
           } else {
             show("s-complete", true);
           }
@@ -5229,6 +5321,19 @@
               });
             } catch (e) {}
           }
+          await goLibrary();
+        });
+        $("#cardReflectSave").addEventListener("click", async () => {
+          const ans = $("#cardReflectArea").value.trim();
+          if (currentJoltId && ans) {
+            try {
+              await POST("/jolt/" + currentJoltId + "/reflect", {
+                question: currentGoal?.q || "",
+                answer: ans,
+              });
+            } catch (e) {}
+          }
+          $("#s-card").classList.remove("reflect-mode");
           await goLibrary();
         });
 
@@ -5438,6 +5543,7 @@
           const row = e.target.closest("[data-add-kind]");
           if (!row) return;
           const kind = row.dataset.addKind;
+          if (kind === "jolt") return; // future feature, not yet active
           closeAddMenu();
           if (kind === "goal") {
             openCompose({
@@ -5527,10 +5633,15 @@
               const title =
                 txt.length > 60 ? txt.slice(0, 60).trim() + "\u2026" : txt;
               const r = await POST("/goals", { title, place: userPlace });
+              if (r._paywall) {
+                closeCompose();
+                showPaywall();
+                return;
+              }
               goals.unshift({
                 id: "g" + r.id,
                 _id: r.id,
-                title: r.title,
+                title: r.display_title || r.title,
                 date: longDate(new Date()),
                 place: r.place || userPlace || "",
                 desc: "",
@@ -5775,6 +5886,25 @@
           closePanel();
           forceSignIn();
         });
+        $("#rowSound")?.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const tg = $("#soundToggle");
+          tg.classList.toggle("on");
+          soundOn = tg.classList.contains("on");
+        });
+        $("#rowDeleteAccount")?.addEventListener("click", async () => {
+          closePanel();
+          const confirmed = confirm("This will permanently delete your account and all your data. This cannot be undone. Are you sure?");
+          if (!confirmed) return;
+          const doubleConfirm = confirm("Last chance. All goals, jolts, and reflections will be gone forever. Delete account?");
+          if (!doubleConfirm) return;
+          try {
+            await api("/api/auth/account", { method: "DELETE" });
+            forceSignIn();
+          } catch (e) {
+            if (e.message !== "auth") alert("Could not delete account. Please try again.");
+          }
+        });
 
         /* --- nav --- */
         $$("[data-nav]").forEach((b) =>
@@ -5788,6 +5918,7 @@
           }),
         );
         async function goLibrary() {
+          $("#s-card").classList.remove("reflect-mode");
           await loadGoals();
           show("s-library");
           requestAnimationFrame(() => {
@@ -6028,11 +6159,16 @@
           btn.dataset.busy = "1";
           btn.textContent = "Processing...";
           try {
-            await POST("/subscription/purchase", { plan: pwPlan });
+            const r = await POST("/subscription/purchase", { plan: pwPlan });
+            if (r.checkout_url) {
+              window.location.href = r.checkout_url;
+              return;
+            }
+            // Already subscribed or status=ok
             hidePaywall();
             if (currentGoal) triggerJolt(currentGoal, "s-library");
           } catch (e) {
-            alert("Purchase failed. Please try again.");
+            alert(e.message || "Purchase failed. Please try again.");
           }
           delete btn.dataset.busy;
           btn.textContent = "Continue";
@@ -6633,6 +6769,17 @@
 
         /* --- boot --- */
         async function boot() {
+          /* Handle Stripe payment redirect */
+          const urlParams = new URLSearchParams(window.location.search);
+          if (urlParams.has("payment")) {
+            const result = urlParams.get("payment");
+            window.history.replaceState({}, "", "/");
+            if (result === "success") {
+              // Small delay for webhook to process
+              setTimeout(() => {}, 1500);
+            }
+          }
+
           if (!token) {
             showLayer("l-signin", true);
             return;
