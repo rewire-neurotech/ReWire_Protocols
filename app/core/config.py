@@ -72,13 +72,14 @@ class Config:
         },
     }
 
-    TRACK_ORDER = ["hallelujah", "suuvi", "ww2"]
+    # First jolt is Suuvi, then Hallelujah, then WW2, then cycles
+    TRACK_ORDER = ["suuvi", "hallelujah", "ww2"]
 
     def get_track(self, name=None):
         t = self.TRACKS.get(name)
         if not t:
-            t = self.TRACKS["hallelujah"]
-            name = "hallelujah"
+            t = self.TRACKS["suuvi"]
+            name = "suuvi"
         return {
             "name": name,
             "file": self.ASSETS_DIR / t["file"],
@@ -106,6 +107,13 @@ class Config:
     VAPID_PRIVATE_KEY: str = os.getenv("VAPID_PRIVATE_KEY", "")
     VAPID_CONTACT: str = os.getenv("VAPID_CONTACT", "mailto:hello@rewire.bio")
     VAPID_CLAIMS_EMAIL: str = os.getenv("VAPID_CLAIMS_EMAIL", "mailto:hello@rewire.bio")
+
+    # Stripe
+    STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "")
+    STRIPE_PUBLISHABLE_KEY: str = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
+    STRIPE_PRICE_ID_MONTHLY: str = os.getenv("STRIPE_PRICE_ID_MONTHLY", "")
+    STRIPE_PRICE_ID_YEARLY: str = os.getenv("STRIPE_PRICE_ID_YEARLY", "")
+    STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 
 
 cfg = Config()
