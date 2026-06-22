@@ -88,6 +88,26 @@ if Base is not None and engine is not None:
                 print("[migrate] added display_title column to goals")
         except Exception:
             pass  # column already exists
+        # migrate: add stripe_customer_id to users
+        try:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE users ADD COLUMN stripe_customer_id VARCHAR(200)"
+                ))
+                conn.commit()
+                print("[migrate] added stripe_customer_id column to users")
+        except Exception:
+            pass  # column already exists
+        # migrate: add stripe_session_id to subscriptions
+        try:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE subscriptions ADD COLUMN stripe_session_id VARCHAR(200)"
+                ))
+                conn.commit()
+                print("[migrate] added stripe_session_id column to subscriptions")
+        except Exception:
+            pass  # column already exists
     except Exception as e:
         print(f"[startup] db error: {e}")
 
