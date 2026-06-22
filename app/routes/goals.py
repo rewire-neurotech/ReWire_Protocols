@@ -6,10 +6,10 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Goal, Challenge, Tip, Jolt, Reflection, User
+from app.models import Goal, Challenge, Tip, Jolt, Reflection, User, Subscription
 from app.routes.auth import get_current_user_required
 from app.utils.encryption import encrypt_field, decrypt_field
-from app.services.llm import clean_goal_title
+from app.services.llm import clean_goal_title, generate_suggestion
 
 r = APIRouter(prefix="/api/goals", tags=["goals"])
 
@@ -62,6 +62,26 @@ class TextReq(BaseModel):
 class TipReq(BaseModel):
     text: str
     from_name: str = "You"
+
+class SuggestReq(BaseModel):
+    kind: str  # "tip" or "challenge"
+
+class SuggestResp(BaseModel):
+    text: str
+
+
+def _has_sub(uid, db):
+    from datetime import datetime, timezone
+    s = (db.query(Subscription)
+         .filter(Subscription.user_id == uid, Subscription.status == "active")
+         .first())
+    if not s:
+        return False
+    if s.expires_at and s.expires_at < datetime.now(timezone.utc):
+        s.status = "expired"
+        db.commit()
+        return False
+    return True
 
 
 def _ts(dt):
@@ -131,6 +151,14 @@ def create_goal(req: CreateGoalReq, u: User = Depends(get_current_user_required)
                 db: Session = Depends(get_db)):
     if not req.title or not req.title.strip():
         raise HTTPException(400, "title required")
+
+    # Max 3 active goals without a subscription
+    active_count = db.query(Goal).filter(
+        Goal.user_id == u.id, Goal.done_at.is_(None)
+    ).count()
+    if active_count >= 3 and not _has_sub(u.id, db):
+        raise HTTPException(402, "subscription required for additional goals")
+
     g = Goal(
         user_id=u.id,
         title=req.title.strip()[:200],
@@ -250,3 +278,23 @@ def del_tip(gid: int, tid: int, u: User = Depends(get_current_user_required),
     db.delete(t)
     db.commit()
     return Ok(status="ok")
+
+
+@r.post("/{gid}/suggest", response_model=SuggestResp)
+def suggest(gid: int, req: SuggestReq, u: User = Depends(get_current_user_required),
+            db: Session = Depends(get_db)):
+    """Generate an AI suggestion (tip or challenge) for a goal."""
+    if req.kind not in ("tip", "challenge"):
+        raise HTTPException(400, "kind must be 'tip' or 'challenge'")
+    g = _own(gid, u, db)
+    cs = db.query(Challenge).filter(Challenge.goal_id == g.id).all()
+    ts = db.query(Tip).filter(Tip.goal_id == g.id).all()
+
+    text = generate_suggestion(
+        kind=req.kind,
+        goal_title=g.title,
+        goal_desc=decrypt_field(g.description) or "",
+        challenges=[decrypt_field(c.text) or "" for c in cs],
+        tips=[decrypt_field(t.text) or "" for t in ts],
+    )
+    return SuggestResp(text=text)
