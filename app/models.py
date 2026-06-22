@@ -24,10 +24,12 @@ class User(Base):
     disclaimer_version = Column(String(20), nullable=True)
     onboarding_complete = Column(Boolean, default=False, nullable=False, server_default="false")
 
-    # count % 3 -> 0 hallelujah, 1 suuvi, 2 ww2
+    # count % 3 -> 0 suuvi, 1 hallelujah, 2 ww2
     total_jolt_count = Column(Integer, default=0, nullable=False, server_default="0")
     jolt_count_today = Column(Integer, default=0, nullable=False, server_default="0")
     last_jolt_date = Column(Date, nullable=True)
+
+    stripe_customer_id = Column(String(200), nullable=True)
 
 
 class Goal(Base):
@@ -114,6 +116,7 @@ class Subscription(Base):
     plan = Column(String(20), nullable=False)
     status = Column(String(20), nullable=False, default="active")
     code_used = Column(String(50), nullable=True)
+    stripe_session_id = Column(String(200), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     expires_at = Column(DateTime, nullable=True)
 
