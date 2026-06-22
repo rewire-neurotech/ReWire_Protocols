@@ -1,23 +1,25 @@
 """
-Subscription routes for Jolter.
+Subscription routes for Jolt.
 
 Supports:
   - Promo code redemption (server-side validation)
   - Subscription status check
-  - Purchase stub (creates active subscription without real payment)
+  - Stripe Checkout for real payments
+  - Stripe webhook for payment confirmation
+  - Cancel subscription
 
-When Stripe is ready, the /purchase endpoint gets replaced with a
-Stripe Checkout redirect + webhook handler. The Subscription model
-already has plan, status, and expires_at ready for real billing data.
+When STRIPE_SECRET_KEY is not set, the purchase endpoint returns 503.
+Promo code redemption always works regardless of Stripe config.
 """
 
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.core.config import cfg
 from app.db import get_db
 from app.models import User, Subscription, PromoCode
 from app.routes.auth import get_current_user_required
@@ -49,7 +51,8 @@ class RedeemResponse(BaseModel):
 
 class PurchaseResponse(BaseModel):
     status: str
-    message: str
+    message: str = ""
+    checkout_url: Optional[str] = None
 
 
 class StatusResponse(BaseModel):
@@ -159,12 +162,9 @@ def purchase(
     db: Session = Depends(get_db),
 ):
     """
-    Stub purchase endpoint.
-
-    For now, this creates an active subscription immediately without
-    real payment. When Stripe is integrated, this endpoint will instead
-    create a Stripe Checkout session and redirect the user. The webhook
-    handler will then create the Subscription record on successful payment.
+    Create a Stripe Checkout session for the chosen plan.
+    Returns a checkout_url that the frontend redirects to.
+    If Stripe is not configured, returns 503.
     """
     if req.plan not in ("monthly", "yearly"):
         raise HTTPException(status_code=400, detail="Plan must be 'monthly' or 'yearly'")
@@ -176,24 +176,164 @@ def purchase(
         .first()
     )
     if existing:
-        return PurchaseResponse(status="ok", message="You already have an active subscription")
+        if existing.expires_at and existing.expires_at < datetime.now(timezone.utc):
+            existing.status = "expired"
+            db.commit()
+        else:
+            return PurchaseResponse(status="ok", message="You already have an active subscription")
 
-    # Set expiry based on plan
-    if req.plan == "yearly":
-        expires = datetime.now(timezone.utc) + timedelta(days=365)
-    else:
-        expires = datetime.now(timezone.utc) + timedelta(days=30)
+    # Stripe must be configured
+    if not cfg.STRIPE_SECRET_KEY:
+        raise HTTPException(status_code=503, detail="Payments are not configured yet")
 
-    sub = Subscription(
-        user_id=user.id,
-        plan=req.plan,
-        status="active",
-        expires_at=expires,
+    import stripe
+    stripe.api_key = cfg.STRIPE_SECRET_KEY
+
+    # Pick price ID
+    price_id = (
+        cfg.STRIPE_PRICE_ID_MONTHLY if req.plan == "monthly"
+        else cfg.STRIPE_PRICE_ID_YEARLY
     )
-    db.add(sub)
-    db.commit()
+    if not price_id:
+        raise HTTPException(status_code=503, detail="Payment plan not configured")
 
-    return PurchaseResponse(status="ok", message="Subscription activated")
+    # Create or reuse Stripe customer
+    try:
+        if user.stripe_customer_id:
+            customer_id = user.stripe_customer_id
+        else:
+            customer = stripe.Customer.create(
+                email=user.email,
+                name=f"{user.first_name or ''} {user.last_name or ''}".strip() or None,
+                metadata={"rewire_user_id": str(user.id)},
+            )
+            customer_id = customer.id
+            user.stripe_customer_id = customer_id
+            db.commit()
+    except Exception as e:
+        print(f"[stripe] customer creation error: {e}")
+        raise HTTPException(status_code=502, detail="Could not connect to payment provider")
+
+    # Build redirect URLs
+    base_url = cfg.PUBLIC_BASE_URL.rstrip("/") if cfg.PUBLIC_BASE_URL else ""
+    success_url = f"{base_url}/?payment=success"
+    cancel_url = f"{base_url}/?payment=cancel"
+
+    # Create Checkout Session
+    try:
+        session = stripe.checkout.Session.create(
+            customer=customer_id,
+            payment_method_types=["card"],
+            line_items=[{"price": price_id, "quantity": 1}],
+            mode="payment",
+            success_url=success_url,
+            cancel_url=cancel_url,
+            metadata={
+                "rewire_user_id": str(user.id),
+                "plan": req.plan,
+            },
+        )
+    except Exception as e:
+        print(f"[stripe] checkout session error: {e}")
+        raise HTTPException(status_code=502, detail="Could not create checkout session")
+
+    return PurchaseResponse(
+        status="checkout",
+        checkout_url=session.url,
+    )
+
+
+@r.post("/webhook")
+async def stripe_webhook(request: Request):
+    """
+    Stripe webhook endpoint. Called by Stripe after successful payment.
+    Verifies the webhook signature, then creates a Subscription record.
+    """
+    if not cfg.STRIPE_SECRET_KEY or not cfg.STRIPE_WEBHOOK_SECRET:
+        raise HTTPException(status_code=503, detail="Stripe not configured")
+
+    import stripe
+    stripe.api_key = cfg.STRIPE_SECRET_KEY
+
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature", "")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig, cfg.STRIPE_WEBHOOK_SECRET
+        )
+    except stripe.error.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Invalid signature")
+    except Exception as e:
+        print(f"[stripe] webhook parse error: {e}")
+        raise HTTPException(status_code=400, detail="Webhook error")
+
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        meta = session.get("metadata", {})
+        user_id_str = meta.get("rewire_user_id")
+        plan = meta.get("plan", "monthly")
+        session_id = session.get("id", "")
+
+        if not user_id_str:
+            print("[stripe] webhook: no rewire_user_id in metadata")
+            return {"status": "ignored"}
+
+        user_id = int(user_id_str)
+
+        # Set expiry based on plan
+        if plan == "yearly":
+            expires = datetime.now(timezone.utc) + timedelta(days=365)
+        else:
+            expires = datetime.now(timezone.utc) + timedelta(days=30)
+
+        # Use a fresh DB session for the webhook
+        from app.db import SessionLocal
+        db = SessionLocal()
+        try:
+            # Check if subscription already exists for this session
+            existing = (
+                db.query(Subscription)
+                .filter(Subscription.stripe_session_id == session_id)
+                .first()
+            )
+            if existing:
+                print(f"[stripe] webhook: subscription already exists for session {session_id}")
+                return {"status": "ok"}
+
+            # Deactivate any existing active subscriptions
+            old_subs = (
+                db.query(Subscription)
+                .filter(Subscription.user_id == user_id, Subscription.status == "active")
+                .all()
+            )
+            for s in old_subs:
+                s.status = "replaced"
+
+            # Create new subscription
+            sub = Subscription(
+                user_id=user_id,
+                plan=plan,
+                status="active",
+                stripe_session_id=session_id,
+                expires_at=expires,
+            )
+            db.add(sub)
+            db.commit()
+            print(f"[stripe] subscription created for user {user_id}, plan={plan}")
+        except Exception as e:
+            print(f"[stripe] webhook db error: {e}")
+            db.rollback()
+        finally:
+            db.close()
+
+    return {"status": "ok"}
+
+
+@r.get("/config")
+def get_stripe_config():
+    """Return the Stripe publishable key for the frontend."""
+    return {"publishable_key": cfg.STRIPE_PUBLISHABLE_KEY or ""}
 
 
 @r.post("/cancel", response_model=StatusResponse)
