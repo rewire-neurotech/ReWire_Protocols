@@ -135,6 +135,10 @@ FAIL_SAFE = {
 
 def run(title, why="", challenges=None, tips=None, reflection=""):
     """call haiku, parse json verdict, fail safe to block."""
+    if cfg.DEV_MODE:
+        return {"status": "allow", "category": "healthy", "severity": "none",
+                "reason": "DEV_MODE: auto-allow", "user_message": ""}
+
     prompt = build_healthcheck_prompt(title, why, challenges, tips, reflection)
     client = anthropic.Anthropic(api_key=cfg.ANTHROPIC_API_KEY)
 
