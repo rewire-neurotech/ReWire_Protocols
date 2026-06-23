@@ -4,6 +4,8 @@ from pathlib import Path
 
 class Config:
 
+    DEV_MODE: bool = os.getenv("DEV_MODE", "").lower() in ("true", "1", "yes")
+
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
     ELEVENLABS_API_KEY: str = os.getenv("ELEVENLABS_API_KEY", "")
     CLAUDE_MODEL: str = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-6")
