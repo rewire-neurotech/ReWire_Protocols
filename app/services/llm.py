@@ -14,6 +14,17 @@ class SafetyHalt(Exception):
 
 
 def generate_speech(user_prompt: str, max_retries: int = 4, backoff_base: float = 2.0) -> str:
+    if cfg.DEV_MODE:
+        return ("You set a goal. That matters. Most people never even get that far. "
+                "They stay in the comfort of dreaming without ever writing it down. "
+                "But you did. You made it real. Now here is what I need you to understand. "
+                "The gap between where you are and where you want to be is not filled with talent. "
+                "It is filled with showing up. Again. And again. Even when it is boring. "
+                "Even when nobody is watching. Especially then. So do not wait for motivation. "
+                "Start before you are ready. Start messy. Start scared. Just start. "
+                "Because the version of you that finishes this is already in the room. "
+                "You just have to let them take over. Now go. Your first step is waiting.")
+
     client = anthropic.Anthropic(api_key=cfg.ANTHROPIC_API_KEY)
     last_exc = None
 
@@ -149,6 +160,10 @@ Title: Meditate each morning"""
 
 def clean_goal_title(raw_title: str) -> str:
     """Use Claude Haiku to turn a raw goal into a clean 4-5 word display title."""
+    if cfg.DEV_MODE:
+        words = raw_title.strip().split()
+        return " ".join(words[:5]) if len(words) > 5 else raw_title.strip()
+
     client = anthropic.Anthropic(api_key=cfg.ANTHROPIC_API_KEY)
     try:
         msg = client.messages.create(
@@ -251,6 +266,14 @@ def generate_suggestion(
 
     challenges = challenges or []
     tips = tips or []
+
+    if cfg.DEV_MODE:
+        pool = _FALLBACK_TIPS if kind == "tip" else _FALLBACK_CHALLENGES
+        existing = tips if kind == "tip" else challenges
+        fresh = [t for t in pool if t not in existing]
+        arr = fresh if fresh else pool
+        return random.choice(arr)
+
     system = _TIP_SYSTEM if kind == "tip" else _CHALLENGE_SYSTEM
     user_msg = _build_suggestion_user_msg(kind, goal_title, goal_desc, challenges, tips)
 
