@@ -123,6 +123,25 @@ def _notify_user(user_id, title, body):
 def _run_gen(jolt_id, user_id, title, why, challenges, tips, reflection, track_name):
     try:
         t0 = time.time()
+
+        if cfg.DEV_MODE:
+            # Generate a 10-second silent WAV, skip all API calls
+            import wave, struct
+            _update(jolt_id, stage="generating", progress=20)
+            af = f"{jolt_id}.wav"
+            out_path = str(cfg.out_dir_path / af)
+            with wave.open(out_path, "w") as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(44100)
+                wf.writeframes(struct.pack("<" + "h" * 441000, *([0] * 441000)))
+            _update(jolt_id, stage="mixing", progress=70)
+            elapsed = round(time.time() - t0, 1)
+            _update(jolt_id, audio_filename=af,
+                    stage="done", progress=100)
+            print(f"[jolt] {jolt_id} DEV_MODE done in {elapsed}s (silent audio)")
+            return
+
         t = cfg.get_track(track_name)
 
         _update(jolt_id, stage="generating", progress=20)
