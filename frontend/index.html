@@ -32,7 +32,6 @@
           0 1px 2px rgba(0, 0, 0, 0.04), 0 10px 30px rgba(0, 0, 0, 0.07);
         --shadow-lift:
           0 2px 6px rgba(0, 0, 0, 0.06), 0 22px 50px rgba(0, 0, 0, 0.12);
-        --frame: 440px;
       }
 
       * {
@@ -100,7 +99,6 @@
         overflow: hidden;
         opacity: 0;
         pointer-events: none;
-        transform: translateX(26px) scale(0.992);
         transition:
           opacity 360ms ease,
           transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -110,9 +108,9 @@
         pointer-events: auto;
         transform: none;
       }
-      .screen.is-back {
+      /*.screen.is-back {
         transform: translateX(-26px) scale(0.992);
-      }
+      }*/
 
       .inner {
         position: absolute;
@@ -998,11 +996,46 @@
         color: var(--muted);
         margin-bottom: 12px;
       }
+      .cp-scroll-row {
+        display: none;
+        align-items: center;
+        gap: 6px;
+      }
+      .cp-scroll-row.show {
+        display: flex;
+      }
+      .cp-scroll-btn {
+        flex-shrink: 0;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: var(--chip);
+        color: var(--ink-soft);
+        display: grid;
+        place-items: center;
+        transition: background 180ms ease, transform 180ms ease, opacity 180ms ease;
+        opacity: 0.7;
+      }
+      .cp-scroll-btn:active {
+        transform: scale(0.9);
+        background: #e3dfd4;
+      }
+      .cp-scroll-btn:disabled {
+        opacity: 0.25;
+        pointer-events: none;
+      }
       .cp-cats {
         display: none;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         gap: 9px;
+        overflow-x: auto;
+        scrollbar-width: none;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        flex: 1;
+        min-width: 0;
       }
+      .cp-cats::-webkit-scrollbar { display: none; }
       .cp-cats.show {
         display: flex;
       }
@@ -1043,14 +1076,23 @@
       }
       .cp-sub-list {
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         gap: 9px;
+        overflow-x: auto;
+        scrollbar-width: none;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        flex: 1;
+        min-width: 0;
       }
+      .cp-sub-list::-webkit-scrollbar { display: none; }
       .cp-chip {
         padding: 11px 16px;
         border-radius: 999px;
         background: var(--chip);
         color: var(--ink);
+        white-space: nowrap;
+        flex-shrink: 0;
         font-size: 15px;
         font-weight: 500;
         letter-spacing: -0.01em;
@@ -1177,7 +1219,11 @@
       }
 
       /* ===================== ONBOARDING (front overlay) ===================== */
+      .layer:not(.is-active) {
+        pointer-events: none;
+      }
       .layer {
+        display: none;
         position: absolute;
         inset: 0;
         z-index: 100;
@@ -1190,6 +1236,7 @@
           transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
       }
       .layer.is-active {
+        display: block;
         opacity: 1;
         pointer-events: auto;
         transform: none;
@@ -1375,7 +1422,22 @@
         display: flex;
         align-items: center;
         gap: 14px;
-        min-height: 36px;
+        flex-shrink: 0;
+        overflow: hidden;
+        max-height: 60px;
+        opacity: 1;
+        pointer-events: auto;
+        transition: max-height 340ms cubic-bezier(0.4,0,0.2,1),
+                    opacity 260ms ease,
+                    margin-top 340ms cubic-bezier(0.4,0,0.2,1),
+                    margin-bottom 340ms cubic-bezier(0.4,0,0.2,1);
+      }
+      .signup-top.kb-hidden {
+        max-height: 0 !important;
+        opacity: 0;
+        pointer-events: none;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
       }
       .signup-title {
         margin-top: 22px;
@@ -1383,11 +1445,91 @@
         font-weight: 700;
         letter-spacing: -0.03em;
         color: var(--ink);
+        flex-shrink: 0;
+        overflow: hidden;
+        max-height: 80px;
+        opacity: 1;
+        transition: max-height 340ms cubic-bezier(0.4,0,0.2,1),
+                    opacity 260ms ease,
+                    margin-top 340ms cubic-bezier(0.4,0,0.2,1),
+                    margin-bottom 340ms cubic-bezier(0.4,0,0.2,1);
+      }
+      .signup-title.kb-hidden {
+        max-height: 0 !important;
+        opacity: 0;
+        pointer-events: none;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+      }
+      /* Progress dots */
+      .signup-progress {
+        display: flex;
+        gap: 6px;
+        margin-top: 20px;
+        flex-shrink: 0;
+        overflow: hidden;
+        max-height: 20px;
+        opacity: 1;
+        transition: max-height 340ms cubic-bezier(0.4,0,0.2,1),
+                    opacity 260ms ease,
+                    margin-top 340ms cubic-bezier(0.4,0,0.2,1),
+                    margin-bottom 340ms cubic-bezier(0.4,0,0.2,1);
+      }
+      .signup-progress.kb-hidden {
+        max-height: 0 !important;
+        opacity: 0;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+      }
+      .su-dot {
+        width: 6px; height: 6px; border-radius: 50%;
+        background: var(--faint);
+        transition: background 260ms ease, transform 260ms cubic-bezier(0.34,1.56,0.5,1);
+      }
+      .su-dot.active { background: var(--ink); transform: scale(1.3); }
+      .su-dot.done { background: var(--accent); }
+      /* Step container */
+      .signup-steps {
+        flex: 1;
+        min-height: 0;
+        position: relative;
+        margin-top: 28px;
+        transition: margin-top 340ms cubic-bezier(0.4,0,0.2,1);
+      }
+      .signup-inner.kb-active .signup-steps {
+        margin-top: 10px;
+      }
+      .su-step {
+        gap: 8px;
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateX(22px);
+        transition: opacity 320ms ease, transform 380ms cubic-bezier(0.22,1,0.36,1);
+      }
+      .su-step.is-active {
+        opacity: 1;
+        pointer-events: auto;
+        transform: none;
+      }
+      .su-step.is-past {
+        opacity: 0;
+        transform: translateX(-22px);
+      }
+      .su-step-label {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 10px;
       }
       .signup-scroll {
         flex: 1;
         overflow-y: auto;
-        margin-top: 26px;
         display: flex;
         flex-direction: column;
         gap: 18px;
@@ -2201,20 +2343,67 @@
         text-align: right;
       }
 
-      .qp-cats {
+      .qp-scroll-row {
         display: none;
-        flex-wrap: wrap;
-        gap: 9px;
-        justify-content: flex-end;
+        align-items: center;
+        gap: 6px;
       }
-      .qp-cats.show {
+      .qp-scroll-row.show {
         display: flex;
       }
+      .qp-scroll-btn {
+        flex-shrink: 0;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: var(--chip);
+        color: var(--ink-soft);
+        display: grid;
+        place-items: center;
+        transition: background 180ms ease, transform 180ms ease, opacity 180ms ease;
+        opacity: 0.7;
+      }
+      .qp-scroll-btn:active {
+        transform: scale(0.9);
+        background: #e3dfd4;
+      }
+      .qp-scroll-btn:disabled {
+        opacity: 0.25;
+        pointer-events: none;
+      }
+      .qp-cats {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 9px;
+        overflow-x: auto;
+        scrollbar-width: none;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        flex: 1;
+        min-width: 0;
+        opacity: 0;
+        max-height: 0;
+        overflow: hidden;
+        pointer-events: none;
+      }
+      .qp-cats::-webkit-scrollbar { display: none; }
+      .qp-cats.show {
+        opacity: 1;
+        max-height: 200px;
+        overflow-x: auto;
+        pointer-events: auto;
+      }
       .qp-subs {
-        display: none;
+        opacity: 0;
+        max-height: 0;
+        overflow: hidden;
+        pointer-events: none;
       }
       .qp-subs.show {
-        display: block;
+        opacity: 1;
+        max-height: 600px;
+        overflow: visible;
+        pointer-events: auto;
       }
 
       .qp-head {
@@ -2249,16 +2438,24 @@
       }
       .qp-sub-list {
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         gap: 9px;
-        justify-content: flex-end;
+        overflow-x: auto;
+        scrollbar-width: none;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        flex: 1;
+        min-width: 0;
       }
+      .qp-sub-list::-webkit-scrollbar { display: none; }
 
       .qp-chip {
         padding: 11px 16px;
         border-radius: 999px;
         background: var(--chip);
         color: var(--ink);
+        white-space: nowrap;
+        flex-shrink: 0;
         font-size: 15px;
         font-weight: 500;
         letter-spacing: -0.01em;
@@ -2267,6 +2464,7 @@
           transform 180ms ease,
           background 180ms ease;
       }
+
       .qp-chip.pop {
         animation: chipPop 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
       }
@@ -2280,9 +2478,10 @@
           transform: none;
         }
       }
-      .qp-chip:active {
-        transform: scale(0.93);
-        background: #e3dfd4;
+      @media (prefers-reduced-motion: reduce) {
+        .qp-chip.pop {
+          animation: none;
+        }
       }
       .qp-cat {
         font-weight: 500;
@@ -2293,11 +2492,7 @@
         background: #e3dfd4;
       }
 
-      @media (prefers-reduced-motion: reduce) {
-        .qp-chip.pop {
-          animation: none;
-        }
-      }
+
 
       /* ---------- pre-stimulus primer ---------- */
       #s-primer .primer-stage {
@@ -2801,7 +2996,7 @@
       <!-- ===== SIGN UP ===== -->
       <div class="layer" id="l-signup">
         <div class="signup-inner">
-          <div class="signup-top">
+          <div class="signup-top" id="suTop">
             <button class="icon-btn" id="signupBack" aria-label="Back">
               <svg
                 width="22"
@@ -2819,9 +3014,11 @@
             </button>
             <span class="eyebrow">Create account</span>
           </div>
-          <h1 class="signup-title">A little about you.</h1>
-          <div class="signup-scroll">
-            <div class="field">
+          <h1 class="signup-title" id="suTitle">A little about you.</h1>
+
+          <div class="signup-steps" id="suSteps">
+            <!-- Step 0: Email -->
+            <div class="su-step is-active" data-su-step="0">
               <label class="field-label" for="suEmail">Email</label>
               <input
                 class="field-input"
@@ -2830,6 +3027,9 @@
                 autocomplete="email"
                 placeholder="Email"
               />
+            </div>
+            <!-- Step 1: Password -->
+            <div class="su-step" data-su-step="1">
               <label class="field-label" for="suPassword">Password</label>
               <input
                 class="field-input"
@@ -2838,6 +3038,9 @@
                 autocomplete="new-password"
                 placeholder="Password"
               />
+            </div>
+            <!-- Step 2: First name -->
+            <div class="su-step" data-su-step="2">
               <label class="field-label" for="suFirst">First name</label>
               <input
                 class="field-input"
@@ -2847,7 +3050,8 @@
                 placeholder="First name"
               />
             </div>
-            <div class="field">
+            <!-- Step 3: Last name -->
+            <div class="su-step" data-su-step="3">
               <label class="field-label" for="suLast">Last name</label>
               <input
                 class="field-input"
@@ -2857,7 +3061,8 @@
                 placeholder="Last name"
               />
             </div>
-            <div class="field">
+            <!-- Step 4: Date of birth-->
+            <div class="su-step" data-su-step="4">
               <label class="field-label">Date of birth</label>
               <div class="dob-wheels" id="dobWheels">
                 <div class="wheel" data-wheel="month" id="wheelMonth"></div>
@@ -2866,7 +3071,8 @@
                 <div class="wheel-band"></div>
               </div>
             </div>
-            <div class="field">
+            <!-- Step 5: Gender -->
+            <div class="su-step" data-su-step="5">
               <label class="field-label" for="suGender">Gender</label>
               <div class="select-wrap">
                 <select class="field-input" id="suGender">
@@ -2892,6 +3098,7 @@
               </div>
             </div>
           </div>
+
           <div class="signup-foot">
             <button class="auth-btn dark" id="signupContinue">Continue</button>
           </div>
@@ -3559,7 +3766,15 @@
             <div class="qp-label" id="qpLabel">
               Need a starting point? Pick an area.
             </div>
-            <div class="qp-cats" id="qpCats"></div>
+            <div class="qp-scroll-row" id="qpCatsRow">
+              <button class="qp-scroll-btn" id="qpCatsLeft" aria-label="Scroll left">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <div class="qp-cats" id="qpCats"></div>
+              <button class="qp-scroll-btn" id="qpCatsRight" aria-label="Scroll right">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
             <div class="qp-subs" id="qpSubs">
               <div class="qp-head">
                 <button class="qp-back" id="qpBack">
@@ -3578,7 +3793,15 @@
                 </button>
                 <span class="qp-cat-name" id="qpCatName"></span>
               </div>
-              <div class="qp-sub-list" id="qpSubList"></div>
+              <div class="qp-scroll-row" id="qpSubsRow">
+                <button class="qp-scroll-btn" id="qpSubsLeft" aria-label="Scroll left">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <div class="qp-sub-list" id="qpSubList"></div>
+                <button class="qp-scroll-btn" id="qpSubsRight" aria-label="Scroll right">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
             </div>
           </div>
           <textarea
@@ -3995,7 +4218,15 @@
             <div class="cp-label" id="cpLabel">
               Need a starting point? Pick one.
             </div>
-            <div class="cp-cats" id="cpCats"></div>
+            <div class="cp-scroll-row" id="cpCatsRow">
+              <button class="cp-scroll-btn" id="cpCatsLeft" aria-label="Scroll left">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <div class="cp-cats" id="cpCats"></div>
+              <button class="cp-scroll-btn" id="cpCatsRight" aria-label="Scroll right">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
             <div class="cp-subs" id="cpSubs">
               <div class="cp-head">
                 <button class="cp-back" id="cpBack">
@@ -4014,7 +4245,15 @@
                 </button>
                 <span class="cp-cat-name" id="cpCatName"></span>
               </div>
-              <div class="cp-sub-list" id="cpSubList"></div>
+              <div class="cp-scroll-row" id="cpSubsRow">
+                <button class="cp-scroll-btn" id="cpSubsLeft" aria-label="Scroll left">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <div class="cp-sub-list" id="cpSubList"></div>
+                <button class="cp-scroll-btn" id="cpSubsRight" aria-label="Scroll right">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
             </div>
           </div>
           <textarea
@@ -4478,11 +4717,20 @@
         function syncViewport() {
           const vv = window.visualViewport;
           if (!vv) return;
-          const W = Math.min(vv.width, 440);
-          app.style.height = vv.height + "px";
-          app.style.width = W + "px";
-          app.style.top = vv.offsetTop + "px";
-          app.style.left = vv.offsetLeft + (vv.width - W) / 2 + "px";
+          const isMobile = window.matchMedia("(max-width: 1024px)").matches;
+          if (isMobile) {
+            const W = vv.width;
+            app.style.height = vv.height + "px";
+            app.style.width = W + "px";
+            app.style.top = vv.offsetTop + "px";
+            app.style.left = vv.offsetLeft + "px";
+          } else {
+            const W = Math.min(vv.width, 540);
+            app.style.height = vv.height + "px";
+            app.style.width = W + "px";
+            app.style.top = vv.offsetTop + "px";
+            app.style.left = vv.offsetLeft + (vv.width - W) / 2 + "px";
+          }
         }
         if (window.visualViewport) {
           window.visualViewport.addEventListener("resize", syncViewport);
@@ -5434,6 +5682,8 @@
             labelText || "Pick a starting point, or just type.";
           cpLabel.style.display = "";
           cpSubs.classList.remove("show");
+          const cpSubsRow = $("#cpSubsRow");
+          if (cpSubsRow) cpSubsRow.classList.remove("show");
           if (kind === "goal") {
             cpCats.innerHTML =
               Object.keys(GOAL_AREAS)
@@ -5456,6 +5706,8 @@
               `<button class="cp-chip" data-cpother>Other</button>`;
           }
           cpCats.classList.add("show");
+          const cpCatsRow = $("#cpCatsRow");
+          if (cpCatsRow) cpCatsRow.classList.add("show");
         }
         function cpShowSubs(cat) {
           cpLabel.style.display = "none";
@@ -5468,7 +5720,11 @@
               )
               .join("") + `<button class="cp-chip" data-cpother>Other</button>`;
           cpCats.classList.remove("show");
+          const cpCatsRow = $("#cpCatsRow");
+          if (cpCatsRow) cpCatsRow.classList.remove("show");
           cpSubs.classList.add("show");
+          const cpSubsRow = $("#cpSubsRow");
+          if (cpSubsRow) cpSubsRow.classList.add("show");
         }
         function cpPick(stem) {
           composeArea.value = stem;
@@ -5498,6 +5754,22 @@
         cpBack.addEventListener("click", () =>
           cpSetup(composeCtx.picker, composeCtx.pickerLabel),
         );
+
+        /* --- cp scroll buttons --- */
+        function cpWireScroll(scrollEl, leftBtn, rightBtn) {
+          if (!scrollEl || !leftBtn || !rightBtn) return;
+          function update() {
+            leftBtn.disabled = scrollEl.scrollLeft <= 2;
+            rightBtn.disabled = scrollEl.scrollLeft >= scrollEl.scrollWidth - scrollEl.clientWidth - 2;
+          }
+          leftBtn.addEventListener("click", () => { scrollEl.scrollLeft -= 120; });
+          rightBtn.addEventListener("click", () => { scrollEl.scrollLeft += 120; });
+          scrollEl.addEventListener("scroll", update, { passive: true });
+          new MutationObserver(() => { setTimeout(update, 60); }).observe(scrollEl, { childList: true });
+          update();
+        }
+        cpWireScroll(cpCats, $("#cpCatsLeft"), $("#cpCatsRight"));
+        cpWireScroll(cpSubList, $("#cpSubsLeft"), $("#cpSubsRight"));
 
         function openCompose(cfg) {
           composeCtx = cfg;
@@ -6276,60 +6548,146 @@
             alert("Invalid email or password");
           }
         });
-        $("#createBtn").addEventListener("click", () => showLayer("l-signup"));
-        $("#signupBack").addEventListener("click", () => showLayer("l-signin"));
-        $("#signupContinue").addEventListener("click", async () => {
-          const btn = $("#signupContinue");
+        $("#createBtn").addEventListener("click", () => {
+          suGoToStep(0);
+          showLayer("l-signup");
+        });
+
+        /* ---- Sign-up flow ---- */
+        const SU_STEPS = 6;
+        const SU_NO_KB = new Set([4, 5]);
+        let suStep = 0;
+
+        const suDots = $$(".su-dot", $("#l-signup"));
+        const suStepEls = $$(".su-step", $("#suSteps"));
+        const suTop = $("#suTop");
+        const suTitle = $("#suTitle");
+        const suProgress = $("#suProgress");
+        const suContinueBtn = $("#signupContinue");
+
+        let dobScrolled = false;
+        function suGoToStep(n) {
+          const prev = suStep;
+          suStep = n;
+          suStepEls.forEach((el, i) => {
+            el.classList.toggle("is-active", i === n);
+            el.classList.toggle("is-past", i < n);
+            if (i > n) {
+              el.classList.remove("is-active", "is-past");
+            }
+          });
+          suDots.forEach((d, i) => {
+            d.classList.toggle("active", i === n);
+            d.classList.toggle("done", i < n);
+          });
+          suContinueBtn.textContent = n === SU_STEPS - 1 ? "Create account" : "Continue";
+          if (SU_NO_KB.has(n)) {
+            if (document.activeElement) document.activeElement.blur();
+            if (n === 4 && !dobScrolled) {
+              dobScrolled = true;
+              const ITEM = 38;
+              const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+              const years = [];
+              for (let y = 2010; y >= 1945; y--) years.push(y);
+              requestAnimationFrame(() => {
+                $("#wheelMonth").scrollTop = 0;                          
+                $("#wheelDay").scrollTop = 14 * ITEM;
+                $("#wheelYear").scrollTop = years.indexOf(1998) * ITEM;
+                // fire scroll so markSel highlights the right item
+                ["#wheelMonth","#wheelDay","#wheelYear"].forEach(id =>
+                  $(id).dispatchEvent(new Event("scroll"))
+                );
+              });
+            }
+          } else {
+            if (document.activeElement) document.activeElement.blur();
+            const newStepEl = suStepEls[n];
+            if (newStepEl) {
+              const inp = newStepEl.querySelector("input");
+              if (inp) setTimeout(() => inp.focus(), 380);
+            }
+          }
+        }
+
+        const suInner = $("#l-signup").querySelector(".signup-inner");
+
+        // Keyboard visibile
+        function suHandleKbVisibility(kbOpen) {
+          const isTextStep = !SU_NO_KB.has(suStep);
+          const hide = kbOpen && isTextStep;
+          suTop.classList.toggle("kb-hidden", hide);
+          suTitle.classList.toggle("kb-hidden", hide);
+          suProgress.classList.toggle("kb-hidden", hide);
+          suInner.classList.toggle("kb-active", hide);
+        }
+
+        if ("visualViewport" in window) {
+          window.visualViewport.addEventListener("resize", () => {
+            const ratio = window.visualViewport.height / window.innerHeight;
+            suHandleKbVisibility(ratio < 0.75);
+          });
+        }
+
+        $$("input", $("#suSteps")).forEach(inp => {
+          inp.addEventListener("keydown", e => {
+            if (e.key === "Enter") { e.preventDefault(); suContinueBtn.click(); }
+          });
+        });
+
+        $("#signupBack").addEventListener("click", () => {
+          if (suStep > 0) {
+            suGoToStep(suStep - 1);
+          } else {
+            showLayer("l-signin");
+          }
+        });
+
+        suContinueBtn.addEventListener("click", async () => {
+          const btn = suContinueBtn;
           if (btn.dataset.busy) return;
-          const first = $("#suFirst").value.trim();
-          const last = $("#suLast").value.trim();
-          const gender = $("#suGender").value;
-          const mSel = $("#wheelMonth").querySelector(".sel");
-          const dSel = $("#wheelDay").querySelector(".sel");
-          const ySel = $("#wheelYear").querySelector(".sel");
-          const email = $("#suEmail").value.trim();
-          const pw = $("#suPassword").value;
-          if (!email) {
-            alert("Email is required.");
+
+          // Validate current step
+          if (suStep === 0) {
+            const email = $("#suEmail").value.trim();
+            if (!email || !email.includes("@")) { alert("Please enter a valid email."); return; }
+          } else if (suStep === 1) {
+            const pw = $("#suPassword").value;
+            if (!pw || pw.length < 6) { alert("Password must be at least 6 characters."); return; }
+          } else if (suStep === 2) {
+            const first = $("#suFirst").value.trim();
+            if (!first) { alert("First name is required."); return; }
+          } else if (suStep === 3) {
+            const last = $("#suLast").value.trim();
+            if (!last) { alert("Last name is required."); return; }
+          }
+
+          if (suStep < SU_STEPS - 1) {
+            suGoToStep(suStep + 1);
             return;
           }
-          if (!pw || pw.length < 6) {
-            alert("Password must be at least 6 characters.");
-            return;
-          }
-          if (!first) {
-            alert("First name is required.");
-            return;
-          }
+
+          // Last step — submit
           btn.dataset.busy = "1";
           btn.disabled = true;
           btn.textContent = "Creating account...";
-          const months = [
-            "Jan",
-            "Feb",
-            "Mar",
-            "Apr",
-            "May",
-            "Jun",
-            "Jul",
-            "Aug",
-            "Sep",
-            "Oct",
-            "Nov",
-            "Dec",
-          ];
+
+          const mSel = $("#wheelMonth").querySelector(".sel");
+          const dSel = $("#wheelDay").querySelector(".sel");
+          const ySel = $("#wheelYear").querySelector(".sel");
+          const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
           const mi = mSel ? months.indexOf(mSel.textContent) + 1 : 1;
           const di = dSel ? parseInt(dSel.textContent) : 15;
           const yi = ySel ? parseInt(ySel.textContent) : 1998;
           const dob = `${yi}-${String(mi).padStart(2, "0")}-${String(di).padStart(2, "0")}`;
+
           try {
             const r = await POST("/auth/register", {
-              email,
-              password: pw,
-              first_name: first,
-              last_name: last,
+              email: $("#suEmail").value.trim(),
+              password: $("#suPassword").value,
+              first_name: $("#suFirst").value.trim(),
+              last_name: $("#suLast").value.trim(),
               dob,
-              gender: gender || "",
+              gender: $("#suGender").value || "",
             });
             setToken(r.token);
             if (r.onboarding_complete) {
@@ -6350,7 +6708,7 @@
           }
           delete btn.dataset.busy;
           btn.disabled = false;
-          btn.textContent = "Continue";
+          btn.textContent = "Create account";
         });
 
         /* --- google auth --- */
@@ -6619,6 +6977,10 @@
             qPicker.classList.remove("is-open");
             qpCats.classList.remove("show");
             qpSubs.classList.remove("show");
+            const catsRow = $("#qpCatsRow");
+            if (catsRow) catsRow.classList.remove("show");
+            const subsRow = $("#qpSubsRow");
+            if (subsRow) subsRow.classList.remove("show");
           }
           [qHead, qArea].forEach((el) => {
             el.classList.remove("in");
@@ -6630,7 +6992,8 @@
           }, 30);
           setTimeout(() => qArea.focus(), 380);
         }
-        function qpStagger(container) {
+        function qpStagger(container, animate) {
+          if (!animate) return;
           const chips = $$(".qp-chip", container);
           chips.forEach((ch, i) => {
             ch.classList.remove("pop");
@@ -6640,6 +7003,7 @@
         }
         function qpShowCats() {
           qpSubs.classList.remove("show");
+          $("#qpSubsRow") && $("#qpSubsRow").classList.remove("show");
           qpLabel.style.display = "";
           qpCats.innerHTML =
             Object.keys(Q1_PICKER)
@@ -6650,7 +7014,9 @@
               .join("") +
             `<button class="qp-chip qp-cat" data-qpother>Other</button>`;
           qpCats.classList.add("show");
-          qpStagger(qpCats);
+          const catsRow = $("#qpCatsRow");
+          if (catsRow) catsRow.classList.add("show");
+          qpStagger(qpCats, true);
         }
         function qpShowSubs(cat) {
           selectedCategory = cat;
@@ -6664,8 +7030,12 @@
               )
               .join("") + `<button class="qp-chip" data-qpother>Other</button>`;
           qpCats.classList.remove("show");
+          const catsRow = $("#qpCatsRow");
+          if (catsRow) catsRow.classList.remove("show");
           qpSubs.classList.add("show");
-          qpStagger(qpSubList);
+          const subsRow = $("#qpSubsRow");
+          if (subsRow) subsRow.classList.add("show");
+          qpStagger(qpSubList, false);
         }
         function qpPick(stem) {
           qArea.value = stem;
@@ -6694,6 +7064,22 @@
           }
         });
         qpBack.addEventListener("click", qpShowCats);
+
+        /* --- qp scroll buttons --- */
+        function qpWireScroll(scrollEl, leftBtn, rightBtn, rowEl) {
+          if (!scrollEl || !leftBtn || !rightBtn) return;
+          function update() {
+            leftBtn.disabled = scrollEl.scrollLeft <= 2;
+            rightBtn.disabled = scrollEl.scrollLeft >= scrollEl.scrollWidth - scrollEl.clientWidth - 2;
+          }
+          leftBtn.addEventListener("click", () => { scrollEl.scrollLeft -= 120; });
+          rightBtn.addEventListener("click", () => { scrollEl.scrollLeft += 120; });
+          scrollEl.addEventListener("scroll", update, { passive: true });
+          new MutationObserver(() => { setTimeout(update, 60); }).observe(scrollEl, { childList: true });
+          update();
+        }
+        qpWireScroll(qpCats, $("#qpCatsLeft"), $("#qpCatsRight"), $("#qpCatsRow"));
+        qpWireScroll(qpSubList, $("#qpSubsLeft"), $("#qpSubsRight"), $("#qpSubsRow"));
         qArea.addEventListener("input", () => {
           obAnswers[obQi] = qArea.value;
           qCta.toggleAttribute("disabled", !ctaShouldEnable());
