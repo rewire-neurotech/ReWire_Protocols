@@ -16,3 +16,4 @@ cryptography>=42.0.0
 pywebpush>=2.0.0
 noisereduce>=3.0.0
 stripe>=8.0.0
+google-auth>=2.0.0
