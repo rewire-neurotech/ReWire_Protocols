@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 from fastapi import FastAPI, Request, Depends
@@ -133,22 +134,83 @@ app.include_router(sub_r)
 
 
 _SW_JS = """
-self.addEventListener('install', e => self.skipWaiting());
-self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
-self.addEventListener('push', e => {
-  let data = {title: 'ReWire', body: 'Your Jolt is ready'};
-  try { data = e.data.json(); } catch(_) {}
+var CACHE_NAME = 'jolt-v4-v1';
+var APP_SHELL = ['/', '/assets/logo.png'];
+
+self.addEventListener('install', function(e) {
+  e.waitUntil(
+    caches.open(CACHE_NAME).then(function(cache) {
+      return cache.addAll(APP_SHELL);
+    })
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', function(e) {
+  e.waitUntil(
+    caches.keys().then(function(keys) {
+      return Promise.all(
+        keys.filter(function(k) { return k !== CACHE_NAME; })
+            .map(function(k) { return caches.delete(k); })
+      );
+    }).then(function() { return self.clients.claim(); })
+  );
+});
+
+self.addEventListener('fetch', function(e) {
+  if (e.request.method !== 'GET') return;
+  var url = new URL(e.request.url);
+  if (url.pathname.startsWith('/api/') || url.pathname === '/sw.js' || url.pathname === '/manifest.json') return;
+  e.respondWith(
+    fetch(e.request).then(function(resp) {
+      if (resp.ok) {
+        var clone = resp.clone();
+        caches.open(CACHE_NAME).then(function(cache) { cache.put(e.request, clone); });
+      }
+      return resp;
+    }).catch(function() {
+      return caches.match(e.request).then(function(r) { return r || caches.match('/'); });
+    })
+  );
+});
+
+self.addEventListener('push', function(e) {
+  var data = {title: 'Jolt', body: 'Your Jolt is ready'};
+  try { data = e.data.json(); } catch(err) {}
   e.waitUntil(self.registration.showNotification(data.title, {
     body: data.body,
     icon: '/assets/logo.png',
+    badge: '/assets/logo.png',
+    vibrate: [100, 50, 100],
+    data: {url: '/'}
   }));
 });
-self.addEventListener('notificationclick', e => {
+
+self.addEventListener('notificationclick', function(e) {
   e.notification.close();
-  e.waitUntil(clients.matchAll({type:'window'}).then(cs => {
-    for (const c of cs) { if (c.url.includes(self.location.origin)) return c.focus(); }
-    return clients.openWindow('/');
-  }));
+  e.waitUntil(
+    clients.matchAll({type: 'window', includeUncontrolled: true}).then(function(cs) {
+      for (var i = 0; i < cs.length; i++) {
+        if (cs[i].url.indexOf(self.location.origin) !== -1) return cs[i].focus();
+      }
+      return clients.openWindow('/');
+    })
+  );
+});
+
+self.addEventListener('pushsubscriptionchange', function(e) {
+  e.waitUntil(
+    self.registration.pushManager.subscribe(
+      e.oldSubscription ? e.oldSubscription.options : {userVisibleOnly: true}
+    ).then(function(sub) {
+      var j = sub.toJSON();
+      return fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth})
+      });
+    })
+  );
 });
 """.strip()
 
@@ -156,6 +218,40 @@ self.addEventListener('notificationclick', e => {
 def serve_sw():
     return Response(content=_SW_JS, media_type="application/javascript",
                     headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"})
+
+
+@app.get("/manifest.json")
+def serve_manifest():
+    manifest = {
+        "name": "Jolt by ReWire",
+        "short_name": "Jolt",
+        "description": "Behavioral activation powered by music and AI",
+        "start_url": "/",
+        "scope": "/",
+        "display": "standalone",
+        "background_color": "#fbf9f4",
+        "theme_color": "#1c1a16",
+        "orientation": "portrait",
+        "icons": [
+            {
+                "src": "/assets/icon-192.png",
+                "sizes": "192x192",
+                "type": "image/png",
+                "purpose": "any maskable"
+            },
+            {
+                "src": "/assets/icon-512.png",
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "any maskable"
+            }
+        ]
+    }
+    return Response(
+        content=json.dumps(manifest),
+        media_type="application/manifest+json",
+        headers={"Cache-Control": "public, max-age=86400"}
+    )
 
 
 class PushSubReq(BaseModel):
