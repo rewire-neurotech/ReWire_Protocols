@@ -8,6 +8,9 @@ from sqlalchemy.orm import Session
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
+from google.oauth2 import id_token as google_id_token
+from google.auth.transport import requests as google_auth_requests
+
 from app.core.config import cfg
 from app.db import get_db
 from app.models import (
@@ -181,20 +184,16 @@ def login(req: LoginReq, db: Session = Depends(get_db)):
 
 @r.post("/google", response_model=AuthResp)
 def google_login(req: GoogleReq, db: Session = Depends(get_db)):
-    import requests as http_req
-
     try:
-        resp = http_req.get("https://oauth2.googleapis.com/tokeninfo",
-                            params={"id_token": req.credential}, timeout=10)
-    except Exception:
-        raise HTTPException(502, "could not reach Google")
-
-    if resp.status_code != 200:
+        info = google_id_token.verify_oauth2_token(
+            req.credential,
+            google_auth_requests.Request(),
+            cfg.GOOGLE_CLIENT_ID or None,
+        )
+    except ValueError:
         raise HTTPException(401, "invalid Google token")
-
-    info = resp.json()
-    if cfg.GOOGLE_CLIENT_ID and info.get("aud") != cfg.GOOGLE_CLIENT_ID:
-        raise HTTPException(401, "Google token audience mismatch")
+    except Exception:
+        raise HTTPException(502, "could not verify Google token")
 
     g_email = info.get("email", "").strip().lower()
     g_id = info.get("sub", "")
