@@ -13,6 +13,11 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#1c1a16" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="apple-touch-icon" href="/assets/logo.png" />
     <style>
       :root {
         --screen: #fbf9f4;
@@ -6736,7 +6741,23 @@
             client_id: clientId,
             callback: handleGoogleResponse,
           });
-          google.accounts.id.prompt();
+          var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+          if (isStandalone) {
+            /* One Tap fails in standalone PWA mode (no browser chrome / 3rd-party cookie issues).
+               Render an invisible button and auto-trigger the full popup flow instead. */
+            var gDiv = document.createElement('div');
+            gDiv.id = '_gsi_btn';
+            gDiv.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;pointer-events:none;';
+            document.body.appendChild(gDiv);
+            google.accounts.id.renderButton(gDiv, { type: 'standard', size: 'large' });
+            setTimeout(function() {
+              var btn = gDiv.querySelector('div[role="button"]') || gDiv.querySelector('iframe');
+              if (btn) btn.click();
+              setTimeout(function() { if (gDiv.parentNode) gDiv.parentNode.removeChild(gDiv); }, 5000);
+            }, 300);
+          } else {
+            google.accounts.id.prompt();
+          }
         }
         async function handleGoogleResponse(resp) {
           try {
@@ -7155,14 +7176,27 @@
 
         /* --- boot --- */
         async function boot() {
+          /* Register service worker for PWA */
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(function(e) {
+              console.log('[SW] registration failed:', e);
+            });
+          }
+
           /* Handle Stripe payment redirect */
           const urlParams = new URLSearchParams(window.location.search);
           if (urlParams.has("payment")) {
             const result = urlParams.get("payment");
             window.history.replaceState({}, "", "/");
             if (result === "success") {
-              // Small delay for webhook to process
-              setTimeout(() => {}, 1500);
+              /* Poll for webhook to create subscription */
+              for (let _pw = 0; _pw < 8; _pw++) {
+                try {
+                  const sub = await GET("/subscription/status");
+                  if (sub.has_subscription) break;
+                } catch (e) {}
+                await new Promise(function(r) { setTimeout(r, 1500); });
+              }
             }
           }
 
