@@ -6,6 +6,7 @@ Supports:
   - Subscription status check
   - Stripe Checkout for real payments
   - Stripe webhook for payment confirmation
+  - Post-redirect session verification (fallback if webhook is slow)
   - Cancel subscription
 
 When STRIPE_SECRET_KEY is not set, the purchase endpoint returns 503.
@@ -20,11 +21,98 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.config import cfg
-from app.db import get_db
+from app.db import get_db, SessionLocal
 from app.models import User, Subscription, PromoCode
 from app.routes.auth import get_current_user_required
 
 r = APIRouter(prefix="/api/subscription", tags=["subscription"])
+
+
+def _as_aware_utc(dt):
+    """
+    Normalize a datetime to timezone-aware UTC.
+
+    Postgres TIMESTAMP columns return naive datetimes, but we compare
+    against datetime.now(timezone.utc) which is aware. Comparing naive
+    and aware datetimes raises TypeError in Python, so we treat naive
+    values as UTC (which is how they were written).
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _frontend_base_url(request: Request) -> str:
+    """
+    Base URL to send the user back to after Stripe Checkout.
+
+    Prefer the Origin header (the exact origin the user is on), then the
+    Referer's origin, then PUBLIC_BASE_URL. This guarantees the user
+    returns to the same origin that holds their login token in
+    localStorage, instead of a mismatched domain.
+    """
+    origin = (request.headers.get("origin") or "").strip().rstrip("/")
+    if origin.startswith("http://") or origin.startswith("https://"):
+        return origin
+
+    referer = (request.headers.get("referer") or "").strip()
+    if referer.startswith("http://") or referer.startswith("https://"):
+        # Reduce referer to scheme://host[:port]
+        try:
+            from urllib.parse import urlsplit
+            parts = urlsplit(referer)
+            if parts.scheme and parts.netloc:
+                return f"{parts.scheme}://{parts.netloc}"
+        except Exception:
+            pass
+
+    return cfg.PUBLIC_BASE_URL.rstrip("/") if cfg.PUBLIC_BASE_URL else ""
+
+
+def _plan_expiry(plan: str) -> datetime:
+    if plan == "yearly":
+        return datetime.now(timezone.utc) + timedelta(days=365)
+    return datetime.now(timezone.utc) + timedelta(days=30)
+
+
+def _activate_subscription(db: Session, user_id: int, plan: str, session_id: str) -> str:
+    """
+    Create an active subscription for a paid Stripe Checkout session.
+    Idempotent on stripe_session_id: safe to call from both the webhook
+    and the /verify endpoint without creating duplicates.
+
+    Returns: "created" | "exists"
+    """
+    existing = (
+        db.query(Subscription)
+        .filter(Subscription.stripe_session_id == session_id)
+        .first()
+    )
+    if existing:
+        return "exists"
+
+    # Deactivate any existing active subscriptions
+    old_subs = (
+        db.query(Subscription)
+        .filter(Subscription.user_id == user_id, Subscription.status == "active")
+        .all()
+    )
+    for s in old_subs:
+        s.status = "replaced"
+
+    sub = Subscription(
+        user_id=user_id,
+        plan=plan,
+        status="active",
+        stripe_session_id=session_id,
+        expires_at=_plan_expiry(plan),
+    )
+    db.add(sub)
+    db.commit()
+    print(f"[stripe] subscription created for user {user_id}, plan={plan}, session={session_id}")
+    return "created"
 
 
 # --- Request / Response schemas ---
@@ -35,6 +123,10 @@ class RedeemRequest(BaseModel):
 
 class PurchaseRequest(BaseModel):
     plan: str  # "monthly" or "yearly"
+
+
+class VerifyRequest(BaseModel):
+    session_id: str
 
 
 class SubscriptionStatusResponse(BaseModel):
@@ -53,6 +145,11 @@ class PurchaseResponse(BaseModel):
     status: str
     message: str = ""
     checkout_url: Optional[str] = None
+
+
+class VerifyResponse(BaseModel):
+    status: str
+    has_subscription: bool = False
 
 
 class StatusResponse(BaseModel):
@@ -77,7 +174,8 @@ def get_status(
         return SubscriptionStatusResponse(has_subscription=False)
 
     # Check if expired
-    if sub.expires_at and sub.expires_at < datetime.now(timezone.utc):
+    exp = _as_aware_utc(sub.expires_at)
+    if exp and exp < datetime.now(timezone.utc):
         sub.status = "expired"
         db.commit()
         return SubscriptionStatusResponse(has_subscription=False)
@@ -158,6 +256,7 @@ def redeem_code(
 @r.post("/purchase", response_model=PurchaseResponse)
 def purchase(
     req: PurchaseRequest,
+    request: Request,
     user: User = Depends(get_current_user_required),
     db: Session = Depends(get_db),
 ):
@@ -176,7 +275,8 @@ def purchase(
         .first()
     )
     if existing:
-        if existing.expires_at and existing.expires_at < datetime.now(timezone.utc):
+        exp = _as_aware_utc(existing.expires_at)
+        if exp and exp < datetime.now(timezone.utc):
             existing.status = "expired"
             db.commit()
         else:
@@ -214,9 +314,12 @@ def purchase(
         print(f"[stripe] customer creation error: {e}")
         raise HTTPException(status_code=502, detail="Could not connect to payment provider")
 
-    # Build redirect URLs
-    base_url = cfg.PUBLIC_BASE_URL.rstrip("/") if cfg.PUBLIC_BASE_URL else ""
-    success_url = f"{base_url}/?payment=success"
+    # Build redirect URLs from the origin the user is actually on,
+    # so they return to the same origin that holds their login token.
+    base_url = _frontend_base_url(request)
+    if not base_url:
+        print("[stripe] WARNING: no origin/referer and PUBLIC_BASE_URL is empty")
+    success_url = f"{base_url}/?payment=success&session_id={{CHECKOUT_SESSION_ID}}"
     cancel_url = f"{base_url}/?payment=cancel"
 
     # Create Checkout Session
@@ -241,6 +344,51 @@ def purchase(
         status="checkout",
         checkout_url=session.url,
     )
+
+
+@r.post("/verify", response_model=VerifyResponse)
+def verify_session(
+    req: VerifyRequest,
+    user: User = Depends(get_current_user_required),
+    db: Session = Depends(get_db),
+):
+    """
+    Verify a Stripe Checkout session after the success redirect and
+    activate the subscription immediately, without waiting for the
+    webhook. Idempotent with the webhook via stripe_session_id.
+    """
+    if not cfg.STRIPE_SECRET_KEY:
+        raise HTTPException(status_code=503, detail="Payments are not configured yet")
+
+    session_id = (req.session_id or "").strip()
+    if not session_id:
+        raise HTTPException(status_code=400, detail="session_id is required")
+
+    import stripe
+    stripe.api_key = cfg.STRIPE_SECRET_KEY
+
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+    except Exception as e:
+        print(f"[stripe] verify: could not retrieve session {session_id}: {e}")
+        raise HTTPException(status_code=404, detail="Checkout session not found")
+
+    # The session must belong to this user
+    meta = getattr(session, "metadata", None)
+    meta_uid = getattr(meta, "rewire_user_id", None) if meta else None
+    if not meta_uid or int(meta_uid) != user.id:
+        print(f"[stripe] verify: session {session_id} does not belong to user {user.id}")
+        raise HTTPException(status_code=403, detail="This payment does not belong to your account")
+
+    # The session must actually be paid
+    payment_status = getattr(session, "payment_status", "") or ""
+    if payment_status != "paid":
+        print(f"[stripe] verify: session {session_id} not paid (status={payment_status})")
+        return VerifyResponse(status="pending", has_subscription=False)
+
+    plan = getattr(meta, "plan", "monthly") if meta else "monthly"
+    _activate_subscription(db, user.id, plan, session_id)
+    return VerifyResponse(status="ok", has_subscription=True)
 
 
 @r.post("/webhook")
@@ -282,46 +430,12 @@ async def stripe_webhook(request: Request):
 
         user_id = int(user_id_str)
 
-        # Set expiry based on plan
-        if plan == "yearly":
-            expires = datetime.now(timezone.utc) + timedelta(days=365)
-        else:
-            expires = datetime.now(timezone.utc) + timedelta(days=30)
-
         # Use a fresh DB session for the webhook
-        from app.db import SessionLocal
         db = SessionLocal()
         try:
-            # Check if subscription already exists for this session
-            existing = (
-                db.query(Subscription)
-                .filter(Subscription.stripe_session_id == session_id)
-                .first()
-            )
-            if existing:
+            result = _activate_subscription(db, user_id, plan, session_id)
+            if result == "exists":
                 print(f"[stripe] webhook: subscription already exists for session {session_id}")
-                return {"status": "ok"}
-
-            # Deactivate any existing active subscriptions
-            old_subs = (
-                db.query(Subscription)
-                .filter(Subscription.user_id == user_id, Subscription.status == "active")
-                .all()
-            )
-            for s in old_subs:
-                s.status = "replaced"
-
-            # Create new subscription
-            sub = Subscription(
-                user_id=user_id,
-                plan=plan,
-                status="active",
-                stripe_session_id=session_id,
-                expires_at=expires,
-            )
-            db.add(sub)
-            db.commit()
-            print(f"[stripe] subscription created for user {user_id}, plan={plan}")
         except Exception as e:
             print(f"[stripe] webhook db error: {e}")
             db.rollback()
