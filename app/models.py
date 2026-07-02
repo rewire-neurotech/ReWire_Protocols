@@ -154,7 +154,7 @@ class AuditLog(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     user_email = Column(String(200), nullable=True)
-    action = Column(String(100), nullable=True)
+    action = Column(String(100), nullable=False)
     target = Column(String(300), nullable=True)
     ip_address = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
