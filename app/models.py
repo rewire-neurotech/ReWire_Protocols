@@ -93,11 +93,6 @@ class Jolt(Base):
     gen_time_sec = Column(Float, nullable=True)
     hc_status = Column(String(20), nullable=True)
     hc_category = Column(String(30), nullable=True)
-    # Set the first time the final mix mp3 is fetched by the client.
-    # The free-jolt paywall gate counts jolts with played_at set, so a
-    # jolt that generated in the background but was never listened to
-    # does not consume the user's free jolt.
-    played_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
