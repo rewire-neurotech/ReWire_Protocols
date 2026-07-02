@@ -37,12 +37,29 @@ def _count_spoken_words(text: str) -> int:
     return len(stripped.split())
 
 
+def _as_aware_utc(dt):
+    """
+    Normalize a datetime to timezone-aware UTC.
+
+    Postgres TIMESTAMP columns return naive datetimes, but we compare
+    against datetime.now(timezone.utc) which is aware. Comparing naive
+    and aware datetimes raises TypeError in Python, so we treat naive
+    values as UTC (which is how they were written).
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
 class StartResp(BaseModel):
     status: str
     jolt_id: Optional[int] = None
     hc_status: Optional[str] = None
     hc_category: Optional[str] = None
     user_message: Optional[str] = None
+    audio_url: Optional[str] = None  # set when status == "replay"
 
 class StatusResp(BaseModel):
     jolt_id: int
@@ -50,6 +67,11 @@ class StatusResp(BaseModel):
     progress: int
     audio_url: Optional[str] = None
     error: Optional[str] = None
+
+class LatestResp(BaseModel):
+    jolt_id: Optional[int] = None
+    audio_url: Optional[str] = None
+    created_at: Optional[str] = None
 
 class ReflectReq(BaseModel):
     question: str = ""
@@ -80,11 +102,28 @@ def _has_sub(uid, db):
          .filter(Subscription.user_id == uid, Subscription.status == "active")
          .first())
     if not s: return False
-    if s.expires_at and s.expires_at < datetime.now(timezone.utc):
+    exp = _as_aware_utc(s.expires_at)
+    if exp and exp < datetime.now(timezone.utc):
         s.status = "expired"
         db.commit()
         return False
     return True
+
+
+def _audio_url_for(filename: str) -> str:
+    base = cfg.PUBLIC_BASE_URL.rstrip("/") if cfg.PUBLIC_BASE_URL else ""
+    return f"{base}/api/jolt/audio/{filename}"
+
+
+def _latest_done_jolt(gid, uid, db):
+    """Most recent completed jolt for this goal, or None."""
+    return (db.query(Jolt)
+            .filter(Jolt.goal_id == gid,
+                    Jolt.user_id == uid,
+                    Jolt.stage == "done",
+                    Jolt.audio_filename.isnot(None))
+            .order_by(Jolt.created_at.desc())
+            .first())
 
 
 def _notify_user(user_id, title, body):
@@ -241,11 +280,22 @@ def start_jolt(gid: int, skip_hc: bool = False,
     if not g:
         raise HTTPException(404, "goal not found")
 
-    # first jolt is free, subsequent need subscription
+    # Paywall rule:
+    #   - First jolt generation is free.
+    #   - Generating any further NEW jolt requires a subscription.
+    #   - BUT if this goal already has a completed jolt, a free user can
+    #     always replay it: return the existing mix instead of a 402.
     total_done = db.query(Jolt).filter(
         Jolt.user_id == u.id, Jolt.stage == "done"
     ).count()
     if total_done >= 1 and not _has_sub(u.id, db):
+        existing = _latest_done_jolt(gid, u.id, db)
+        if existing:
+            return StartResp(
+                status="replay",
+                jolt_id=existing.id,
+                audio_url=_audio_url_for(existing.audio_filename),
+            )
         raise HTTPException(402, "subscription required for additional jolts")
 
     data = _gather(g, db)
@@ -349,6 +399,25 @@ def serve_audio(fname: str, request: Request):
     )
 
 
+@r.get("/{gid}/latest", response_model=LatestResp)
+def get_latest(gid: int, u: User = Depends(get_current_user_required),
+               db: Session = Depends(get_db)):
+    """Return the most recent completed jolt for a goal (for replay)."""
+    g = db.query(Goal).filter(Goal.id == gid, Goal.user_id == u.id).first()
+    if not g:
+        raise HTTPException(404, "goal not found")
+
+    j = _latest_done_jolt(gid, u.id, db)
+    if not j:
+        return LatestResp()
+
+    return LatestResp(
+        jolt_id=j.id,
+        audio_url=_audio_url_for(j.audio_filename),
+        created_at=j.created_at.isoformat() if j.created_at else None,
+    )
+
+
 @r.get("/{jid}/status", response_model=StatusResp)
 def get_status(jid: int, u: User = Depends(get_current_user_required),
                db: Session = Depends(get_db)):
@@ -358,8 +427,7 @@ def get_status(jid: int, u: User = Depends(get_current_user_required),
 
     url = None
     if j.stage == "done" and j.audio_filename:
-        base = cfg.PUBLIC_BASE_URL.rstrip("/") if cfg.PUBLIC_BASE_URL else ""
-        url = f"{base}/api/jolt/audio/{j.audio_filename}"
+        url = _audio_url_for(j.audio_filename)
 
     return StatusResp(jolt_id=j.id, stage=j.stage, progress=j.progress,
                       audio_url=url, error=j.gen_error)
