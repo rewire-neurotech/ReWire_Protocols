@@ -1804,6 +1804,23 @@
         cursor: pointer;
       }
 
+      /* ---------- Google sign-in (official button host) ---------- */
+      .g-wrap {
+        position: relative;
+        width: 100%;
+      }
+      #gsiHost {
+        display: none;
+        width: 100%;
+        justify-content: center;
+      }
+      #gsiHost.ready {
+        display: flex;
+      }
+      .g-wrap.native #googleBtn {
+        display: none;
+      }
+
       /* ---------- TERMS sheet ---------- */
       .dc-sheet-backdrop {
         position: absolute;
@@ -2965,6 +2982,7 @@
               Don't have an account? <b>Sign up</b>
             </button>
             <div class="auth-divider">or</div>
+            <div class="g-wrap" id="gWrap">
             <button class="auth-btn light" id="googleBtn">
               <svg
                 width="18"
@@ -2991,6 +3009,8 @@
               </svg>
               Continue with Google
             </button>
+            <div id="gsiHost"></div>
+            </div>
             <p class="signin-legal">
               By continuing you agree to our Terms and Privacy Policy.
             </p>
@@ -4646,6 +4666,8 @@
             .forEach((s) => s.classList.remove("is-active"));
           navLock = false;
           showLayer("l-signin", true);
+          if (window.google?.accounts?.id && gsiClientId)
+            setTimeout(gsiRenderButton, 80);
         }
         async function api(path, opts = {}) {
           const h = { "Content-Type": "application/json" };
@@ -5226,6 +5248,12 @@
                 show("s-primer", true);
                 runPrimer();
               }
+            } else if (r.status === "replay" && r.audio_url) {
+              /* Free user replaying an already-generated mix */
+              currentJoltId = r.jolt_id;
+              closePanel();
+              closeAddMenu();
+              playReplay(r.audio_url, from || "s-library");
             } else if (r.status === "reframe") {
               currentJoltId = r.jolt_id;
               showFeedback("reframe", r.user_message || "");
@@ -5370,6 +5398,25 @@
           }
         }
         $("#primerStart").addEventListener("click", beginStimulus);
+
+        function playReplay(audioUrl, from) {
+          /* Skip the primer + meditation and play an existing mix directly */
+          primerActive = false;
+          const pj = pendingJolt || {};
+          currentGoal = pj.it || currentGoal;
+          joltReturn = from || pj.from || "s-library";
+          buildParticles();
+          joltPhase = "mix";
+          joltMixUrl = null;
+          pendingAudioUrl = null;
+          paused = false;
+          timeRemain.textContent = "--:--";
+          playBtn.innerHTML = ICON_PAUSE;
+          core.classList.remove("paused");
+          controls.classList.remove("show");
+          show("s-jolt", true);
+          switchToMix(audioUrl);
+        }
 
         function switchToMix(audioUrl) {
           joltPhase = "mix";
@@ -5545,6 +5592,7 @@
               document.querySelectorAll(".layer").forEach((l) => l.classList.remove("is-active"));
               await goLibrary();
             })();
+            maybeOfferNotifications();
           } else if (currentGoal) {
             openCardReflect(currentGoal);
           } else {
@@ -6021,6 +6069,7 @@
           addBtn = $("#addBtn");
         function openPanel() {
           closeAddMenu();
+          checkNotifState();
           panel.classList.add("is-open");
           scrim.classList.add("is-open");
           gearBtn.classList.add("is-open");
@@ -6083,63 +6132,100 @@
           }
         }
         checkNotifState();
+        async function enablePushNotifications() {
+          if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+            alert("Notifications are not supported in this browser.");
+            return false;
+          }
+          try {
+            const perm = await Notification.requestPermission();
+            if (perm !== "granted") {
+              alert(
+                "Notifications blocked. Enable them in your browser settings.",
+              );
+              return false;
+            }
+            const reg = await navigator.serviceWorker.register("/sw.js");
+            const vapid = await GET("/push/vapid-key");
+            if (!vapid.vapid_public_key) {
+              alert("Notifications are not configured on this server.");
+              return false;
+            }
+            const sub = await reg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(
+                vapid.vapid_public_key,
+              ),
+            });
+            const j = sub.toJSON();
+            await POST("/push/subscribe", {
+              endpoint: j.endpoint,
+              p256dh: j.keys.p256dh,
+              auth: j.keys.auth,
+            });
+            return true;
+          } catch (err) {
+            console.error("Notification setup failed:", err);
+            alert("Could not enable notifications.");
+            return false;
+          }
+        }
+        async function disablePushNotifications() {
+          try {
+            const reg = await navigator.serviceWorker.ready;
+            const sub = await reg.pushManager.getSubscription();
+            if (sub) {
+              const j = sub.toJSON();
+              await POST("/push/unsubscribe", {
+                endpoint: j.endpoint,
+                p256dh: j.keys.p256dh,
+                auth: j.keys.auth,
+              });
+              await sub.unsubscribe();
+            }
+            return true;
+          } catch (err) {
+            console.error("Notification removal failed:", err);
+            return false;
+          }
+        }
+        let notifOffered = false;
+        async function maybeOfferNotifications() {
+          if (notifOffered) return;
+          notifOffered = true;
+          if (!("serviceWorker" in navigator) || !("PushManager" in window))
+            return;
+          if (
+            !("Notification" in window) ||
+            Notification.permission !== "default"
+          )
+            return;
+          try {
+            const reg =
+              await navigator.serviceWorker.getRegistration("/sw.js");
+            if (reg) {
+              const sub = await reg.pushManager.getSubscription();
+              if (sub) return;
+            }
+          } catch (e) {}
+          const wants = confirm(
+            "Want a notification when your Jolt is ready? You can change this anytime in settings.",
+          );
+          if (wants) {
+            await enablePushNotifications();
+            checkNotifState();
+          }
+        }
         $("#rowNotify").addEventListener("click", async (e) => {
           e.stopPropagation();
           const toggle = $("#notifyToggle");
           const isOn = toggle.classList.contains("on");
           if (!isOn) {
-            if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-              alert("Notifications are not supported in this browser.");
-              return;
-            }
-            try {
-              const perm = await Notification.requestPermission();
-              if (perm !== "granted") {
-                alert(
-                  "Notifications blocked. Enable them in your browser settings.",
-                );
-                return;
-              }
-              const reg = await navigator.serviceWorker.register("/sw.js");
-              const vapid = await GET("/push/vapid-key");
-              if (!vapid.vapid_public_key) {
-                alert("Notifications are not configured on this server.");
-                return;
-              }
-              const sub = await reg.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(
-                  vapid.vapid_public_key,
-                ),
-              });
-              const j = sub.toJSON();
-              await POST("/push/subscribe", {
-                endpoint: j.endpoint,
-                p256dh: j.keys.p256dh,
-                auth: j.keys.auth,
-              });
-              toggle.classList.add("on");
-            } catch (err) {
-              console.error("Notification setup failed:", err);
-              alert("Could not enable notifications.");
-            }
+            const ok = await enablePushNotifications();
+            if (ok) toggle.classList.add("on");
           } else {
-            try {
-              const reg = await navigator.serviceWorker.ready;
-              const sub = await reg.pushManager.getSubscription();
-              if (sub) {
-                const j = sub.toJSON();
-                await POST("/push/unsubscribe", {
-                  endpoint: j.endpoint,
-                  p256dh: j.keys.p256dh,
-                  auth: j.keys.auth,
-                });
-                await sub.unsubscribe();
-              }
-              toggle.classList.remove("on");
-            } catch (err) {
-              console.error("Notification removal failed:", err);
-            }
+            const ok = await disablePushNotifications();
+            if (ok) toggle.classList.remove("on");
           }
         });
         $("#rowDownload").addEventListener("click", async () => {
@@ -6538,6 +6624,7 @@
           try {
             const r = await POST("/auth/login", { email, password: pw });
             setToken(r.token);
+            await maybeVerifyPending();
             if (r.onboarding_complete) {
               await goLibrary();
               document
@@ -6695,6 +6782,7 @@
               gender: $("#suGender").value || "",
             });
             setToken(r.token);
+            await maybeVerifyPending();
             if (r.onboarding_complete) {
               await goLibrary();
               document
@@ -6717,54 +6805,118 @@
         });
 
         /* --- google auth --- */
-        $("#googleBtn").addEventListener("click", async () => {
+        let gsiReady = false;
+        let gsiClientId = "";
+
+        function gsiRenderButton() {
+          const host = document.getElementById("gsiHost");
+          const wrap = document.getElementById("gWrap");
+          const btn = document.getElementById("googleBtn");
+          if (!host || !window.google?.accounts?.id || !gsiClientId) return false;
           try {
-            const cfg = await GET("/auth/config");
-            if (!cfg.google_client_id) {
-              alert("Google login not configured.");
+            host.innerHTML = "";
+            let w = 300;
+            if (btn && btn.offsetWidth) {
+              w = Math.max(200, Math.min(400, Math.round(btn.offsetWidth)));
+            } else if (wrap && wrap.offsetWidth) {
+              w = Math.max(200, Math.min(400, Math.round(wrap.offsetWidth)));
+            }
+            google.accounts.id.renderButton(host, {
+              type: "standard",
+              theme: "outline",
+              size: "large",
+              shape: "pill",
+              text: "continue_with",
+              logo_alignment: "left",
+              width: w,
+            });
+            if (host.childNodes.length) {
+              host.classList.add("ready");
+              if (wrap) wrap.classList.add("native");
+              gsiReady = true;
+              return true;
+            }
+          } catch (e) {
+            console.error("[google] renderButton failed:", e);
+          }
+          return false;
+        }
+
+        function gsiInit(clientId) {
+          gsiClientId = clientId;
+          try {
+            google.accounts.id.initialize({
+              client_id: clientId,
+              callback: handleGoogleResponse,
+              ux_mode: "popup",
+            });
+          } catch (e) {
+            console.error("[google] initialize failed:", e);
+            return;
+          }
+          gsiRenderButton();
+        }
+
+        async function setupGoogleAuth() {
+          try {
+            const cfgResp = await GET("/auth/config");
+            if (!cfgResp.google_client_id) {
+              console.log("[google] no client id configured");
               return;
             }
             if (!window.google?.accounts?.id) {
               const s = document.createElement("script");
               s.src = "https://accounts.google.com/gsi/client";
-              s.onload = () => initGoogle(cfg.google_client_id);
+              s.async = true;
+              s.defer = true;
+              s.onload = () => gsiInit(cfgResp.google_client_id);
+              s.onerror = () =>
+                console.error("[google] GSI script failed to load");
               document.head.appendChild(s);
             } else {
-              initGoogle(cfg.google_client_id);
+              gsiInit(cfgResp.google_client_id);
+            }
+          } catch (e) {
+            console.error("[google] setup failed:", e);
+          }
+        }
+
+        /* Fallback: only fires if the official button could not render */
+        $("#googleBtn").addEventListener("click", async () => {
+          if (gsiReady) return; /* official button is shown instead */
+          try {
+            if (!gsiClientId) {
+              const cfgResp = await GET("/auth/config");
+              gsiClientId = cfgResp.google_client_id || "";
+            }
+            if (!gsiClientId) {
+              alert("Google login is not configured.");
+              return;
+            }
+            if (!window.google?.accounts?.id) {
+              const s = document.createElement("script");
+              s.src = "https://accounts.google.com/gsi/client";
+              s.onload = () => {
+                gsiInit(gsiClientId);
+                if (!gsiReady) google.accounts.id.prompt();
+              };
+              document.head.appendChild(s);
+            } else {
+              gsiInit(gsiClientId);
+              if (!gsiReady) google.accounts.id.prompt();
             }
           } catch (e) {
             alert("Could not initialize Google login.");
           }
         });
-        function initGoogle(clientId) {
-          google.accounts.id.initialize({
-            client_id: clientId,
-            callback: handleGoogleResponse,
-          });
-          var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-          if (isStandalone) {
-            /* One Tap fails in standalone PWA mode (no browser chrome / 3rd-party cookie issues).
-               Render an invisible button and auto-trigger the full popup flow instead. */
-            var gDiv = document.createElement('div');
-            gDiv.id = '_gsi_btn';
-            gDiv.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;pointer-events:none;';
-            document.body.appendChild(gDiv);
-            google.accounts.id.renderButton(gDiv, { type: 'standard', size: 'large' });
-            setTimeout(function() {
-              var btn = gDiv.querySelector('div[role="button"]') || gDiv.querySelector('iframe');
-              if (btn) btn.click();
-              setTimeout(function() { if (gDiv.parentNode) gDiv.parentNode.removeChild(gDiv); }, 5000);
-            }, 300);
-          } else {
-            google.accounts.id.prompt();
-          }
-        }
+
         async function handleGoogleResponse(resp) {
           try {
             const r = await POST("/auth/google", {
               credential: resp.credential,
             });
             setToken(r.token);
+            await maybeVerifyPending();
             if (r.onboarding_complete) {
               await goLibrary();
               document
@@ -6777,7 +6929,11 @@
               showLayer("l-disclaimer");
             }
           } catch (e) {
-            alert("Google login failed.");
+            alert(
+              e && e.message && e.message !== "auth"
+                ? "Google login failed: " + e.message
+                : "Google login failed.",
+            );
           }
         }
 
@@ -7175,6 +7331,40 @@
         }
 
         /* --- boot --- */
+        async function verifyPendingPayment() {
+          const sid = localStorage.getItem("rw_pending_session");
+          if (sid) {
+            try {
+              const v = await POST("/subscription/verify", {
+                session_id: sid,
+              });
+              if (v && v.has_subscription) {
+                localStorage.removeItem("rw_pending_session");
+                return true;
+              }
+            } catch (e) {
+              console.error("[stripe] verify failed:", e);
+            }
+          }
+          /* Fallback: poll for the webhook to land */
+          for (let i = 0; i < 6; i++) {
+            try {
+              const sub = await GET("/subscription/status");
+              if (sub.has_subscription) {
+                localStorage.removeItem("rw_pending_session");
+                return true;
+              }
+            } catch (e) {}
+            await new Promise(function (r) { setTimeout(r, 1500); });
+          }
+          localStorage.removeItem("rw_pending_session");
+          return false;
+        }
+        async function maybeVerifyPending() {
+          if (!localStorage.getItem("rw_pending_session")) return;
+          await verifyPendingPayment();
+        }
+
         async function boot() {
           /* Register service worker for PWA */
           if ('serviceWorker' in navigator) {
@@ -7183,26 +7373,34 @@
             });
           }
 
+          /* Initialize Google sign-in (renders the official button) */
+          setupGoogleAuth();
+
           /* Handle Stripe payment redirect */
           const urlParams = new URLSearchParams(window.location.search);
-          if (urlParams.has("payment")) {
-            const result = urlParams.get("payment");
+          const payResult = urlParams.has("payment")
+            ? urlParams.get("payment")
+            : "";
+          const paySession = urlParams.get("session_id") || "";
+          if (payResult) {
             window.history.replaceState({}, "", "/");
-            if (result === "success") {
-              /* Poll for webhook to create subscription */
-              for (let _pw = 0; _pw < 8; _pw++) {
-                try {
-                  const sub = await GET("/subscription/status");
-                  if (sub.has_subscription) break;
-                } catch (e) {}
-                await new Promise(function(r) { setTimeout(r, 1500); });
-              }
+            if (payResult === "success" && paySession) {
+              localStorage.setItem("rw_pending_session", paySession);
             }
           }
 
           if (!token) {
+            if (payResult === "success") {
+              alert(
+                "Payment received! Sign in with the same account to activate your subscription.",
+              );
+            }
             showLayer("l-signin", true);
             return;
+          }
+
+          if (payResult === "success") {
+            await verifyPendingPayment();
           }
           try {
             const me = await GET("/auth/me");
