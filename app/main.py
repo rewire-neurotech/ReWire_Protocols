@@ -109,16 +109,6 @@ if Base is not None and engine is not None:
                 print("[migrate] added stripe_session_id column to subscriptions")
         except Exception:
             pass  # column already exists
-        # migrate: add played_at to jolts (free-jolt gate counts listened jolts)
-        try:
-            with engine.connect() as conn:
-                conn.execute(text(
-                    "ALTER TABLE jolts ADD COLUMN played_at TIMESTAMP"
-                ))
-                conn.commit()
-                print("[migrate] added played_at column to jolts")
-        except Exception:
-            pass  # column already exists
     except Exception as e:
         print(f"[startup] db error: {e}")
 
