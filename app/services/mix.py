@@ -21,27 +21,50 @@ from ..utils.audio import (
 )
 
 
+# ---------------------------------------------------------------------------
+# Scratch-file containment.
+#
+# Every intermediate WAV a mix produces is created inside a private temp
+# directory belonging to that one mix() call, and the directory is deleted
+# when the mix finishes or fails. This prevents /tmp from filling up
+# (500-800MB of abandoned WAVs per jolt previously). The audio processing
+# chain itself is completely unchanged: identical parameters, identical
+# order of operations, identical bytes flowing through every stage.
+# ---------------------------------------------------------------------------
+import threading
+
+_TLS = threading.local()
+
+
+def _mktemp(suffix: str = ".wav") -> str:
+    """Create a temp file path inside the current mix's private temp dir.
+    Falls back to the system temp dir when called outside mix()."""
+    f = tempfile.NamedTemporaryFile(
+        delete=False, suffix=suffix, dir=getattr(_TLS, "mix_tmp_dir", None)
+    )
+    f.close()
+    return f.name
+
+
 def _apply_reverb(seg: AudioSegment, room_size: float = 0.85, damping: float = 0.55,
                   wet_level: float = 0.15, dry_level: float = 0.85,
                   pre_gain_db: float = -6.0, hpf_hz: float = 500.0,
                   wet_boost_db: float = 0.0) -> AudioSegment:
     # Reverb send: HPF → full-wet reverb (parallel to dry, not in series)
-    tmp_in  = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-    tmp_in.close()
-    tmp_out = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-    tmp_out.close()
-    seg.apply_gain(pre_gain_db).export(tmp_in.name, format="wav")
+    tmp_in = _mktemp(".wav")
+    tmp_out = _mktemp(".wav")
+    seg.apply_gain(pre_gain_db).export(tmp_in, format="wav")
     board = Pedalboard([
         HighpassFilter(cutoff_frequency_hz=hpf_hz),
         Reverb(room_size=room_size, damping=damping, wet_level=1.0, dry_level=0.0),
     ])
-    with AudioFile(tmp_in.name) as f_in:
-        with AudioFile(tmp_out.name, "w", f_in.samplerate, f_in.num_channels) as f_out:
+    with AudioFile(tmp_in) as f_in:
+        with AudioFile(tmp_out, "w", f_in.samplerate, f_in.num_channels) as f_out:
             chunk_size = f_in.samplerate
             while f_in.tell() < f_in.frames:
                 chunk = f_in.read(chunk_size)
                 f_out.write(board(chunk, f_in.samplerate, reset=False))
-    wet = AudioSegment.from_file(tmp_out.name)
+    wet = AudioSegment.from_file(tmp_out)
     # Dry: original signal untouched; mix at their respective levels
     dry_db = 20.0 * math.log10(max(dry_level, 1e-6))
     wet_db = 20.0 * math.log10(max(wet_level, 1e-6)) + wet_boost_db
@@ -110,14 +133,13 @@ def _level_envelope(
     result = np.clip(data * gain_lin[:, np.newaxis], -1.0, 1.0)
     pcm = np.ascontiguousarray((result * 32767.0).astype(np.int16))
 
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-    tmp.close()
-    with _wave.open(tmp.name, "wb") as wf:
+    tmp = _mktemp(".wav")
+    with _wave.open(tmp, "wb") as wf:
         wf.setnchannels(ch)
         wf.setsampwidth(2)
         wf.setframerate(sr)
         wf.writeframes(pcm.tobytes())
-    return AudioSegment.from_file(tmp.name)
+    return AudioSegment.from_file(tmp)
 
 
 def _ffmpeg_bin(custom_bin: str | None) -> str:
@@ -156,10 +178,9 @@ def _retime_with_ffmpeg(src_wav: str, target_ms: int, ffmpeg_path: str) -> str:
     seg = AudioSegment.from_file(src_wav)
     cur_ms = len(seg)
     if cur_ms <= 0 or target_ms <= 0:
-        out_raw = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-        out_raw.close()
-        seg.export(out_raw.name, format="wav")
-        return out_raw.name
+        out_raw = _mktemp(".wav")
+        seg.export(out_raw, format="wav")
+        return out_raw
 
     max_delta_ratio = 0.30
     lo = int(target_ms * (1 - max_delta_ratio))
@@ -178,26 +199,24 @@ def _retime_with_ffmpeg(src_wav: str, target_ms: int, ffmpeg_path: str) -> str:
         )
         seg = seg[:target_ms]
 
-    mid_wav = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-    mid_wav.close()
-    seg.export(mid_wav.name, format="wav")
+    mid_wav = _mktemp(".wav")
+    seg.export(mid_wav, format="wav")
 
-    cur_ms2 = len(AudioSegment.from_file(mid_wav.name))
+    cur_ms2 = len(AudioSegment.from_file(mid_wav))
     factor = max(1e-6, cur_ms2 / float(target_ms))
 
-    out_wav = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-    out_wav.close()
+    out_wav = _mktemp(".wav")
     cmd = [
         ffmpeg_path,
         "-y",
         "-i",
-        mid_wav.name,
+        mid_wav,
         "-filter:a",
         _atempo_chain(factor),
-        out_wav.name,
+        out_wav,
     ]
     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    return out_wav.name
+    return out_wav
 
 
 def _peak_dbfs(seg: AudioSegment) -> float:
@@ -462,273 +481,269 @@ def mix(
 
     ffmpeg_path = _ffmpeg_bin(ffmpeg_bin)
 
-    music = make_stereo(load_audio(music_path).set_frame_rate(44100))
-    music = _normalize_lufs(music, -11.0)
-    music = _level_envelope(music, target_rms_db=-15.0, max_gain_db=15.0, smooth_sec=5.0)
-    if len(music) <= 0:
-        raise ValueError("Music stem is empty or unreadable.")
+    # Private scratch directory for this mix; removed in the finally block
+    # strictly AFTER the final mp3 has been written to the output path.
+    _mix_tmp = tempfile.mkdtemp(prefix="rewire_mix_")
+    _TLS.mix_tmp_dir = _mix_tmp
+    try:
 
-    if stems_dir is not None:
-        Path(stems_dir).mkdir(parents=True, exist_ok=True)
-        music.export(str(Path(stems_dir) / "stem_music_after_envelope.mp3"), format="mp3", bitrate="256k")
+        music = make_stereo(load_audio(music_path).set_frame_rate(44100))
+        music = _normalize_lufs(music, -11.0)
+        music = _level_envelope(music, target_rms_db=-15.0, max_gain_db=15.0, smooth_sec=5.0)
+        if len(music) <= 0:
+            raise ValueError("Music stem is empty or unreadable.")
 
-    if music_fadein_ms > 0:
-        music = music.fade_in(music_fadein_ms)
+        if stems_dir is not None:
+            Path(stems_dir).mkdir(parents=True, exist_ok=True)
+            music.export(str(Path(stems_dir) / "stem_music_after_envelope.mp3"), format="mp3", bitrate="256k")
 
-    if _ffmpeg_has(ffmpeg_path, "dynaudnorm") or _ffmpeg_has(ffmpeg_path, "acompressor"):
-        tmp_m2_in = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-        tmp_m2_in.close()
-        tmp_m2_out = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-        tmp_m2_out.close()
-        music.export(tmp_m2_in.name, format="wav")
-        try:
-            if _ffmpeg_has(ffmpeg_path, "dynaudnorm") and _ffmpeg_has(ffmpeg_path, "acompressor"):
-                af = (
-                    "dynaudnorm=f=3000:g=31:p=0.5:m=15,"
-                    "acompressor=threshold=-20dB:ratio=3:attack=300:release=3000:makeup=3,"
-                    "alimiter=level_in=1:level_out=0.89:limit=0.89:attack=5:release=50"
+        if music_fadein_ms > 0:
+            music = music.fade_in(music_fadein_ms)
+
+        if _ffmpeg_has(ffmpeg_path, "dynaudnorm") or _ffmpeg_has(ffmpeg_path, "acompressor"):
+            tmp_m2_in = _mktemp(".wav")
+            tmp_m2_out = _mktemp(".wav")
+            music.export(tmp_m2_in, format="wav")
+            try:
+                if _ffmpeg_has(ffmpeg_path, "dynaudnorm") and _ffmpeg_has(ffmpeg_path, "acompressor"):
+                    af = (
+                        "dynaudnorm=f=3000:g=31:p=0.5:m=15,"
+                        "acompressor=threshold=-20dB:ratio=3:attack=300:release=3000:makeup=3,"
+                        "alimiter=level_in=1:level_out=0.89:limit=0.89:attack=5:release=50"
+                    )
+                elif _ffmpeg_has(ffmpeg_path, "dynaudnorm"):
+                    af = "dynaudnorm=f=3000:g=31:p=0.5:m=15,alimiter=level_in=1:level_out=0.89:limit=0.89:attack=5:release=50"
+                else:
+                    af = "acompressor=threshold=-20dB:ratio=3:attack=300:release=3000:makeup=3,alimiter=level_in=1:level_out=0.89:limit=0.89:attack=5:release=50"
+                subprocess.run(
+                    [ffmpeg_path, "-y", "-i", tmp_m2_in, "-af", af, tmp_m2_out],
+                    check=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
                 )
-            elif _ffmpeg_has(ffmpeg_path, "dynaudnorm"):
-                af = "dynaudnorm=f=3000:g=31:p=0.5:m=15,alimiter=level_in=1:level_out=0.89:limit=0.89:attack=5:release=50"
-            else:
-                af = "acompressor=threshold=-20dB:ratio=3:attack=300:release=3000:makeup=3,alimiter=level_in=1:level_out=0.89:limit=0.89:attack=5:release=50"
-            subprocess.run(
-                [ffmpeg_path, "-y", "-i", tmp_m2_in.name, "-af", af, tmp_m2_out.name],
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            music = AudioSegment.from_file(tmp_m2_out.name)
-        except Exception:
-            pass
+                music = AudioSegment.from_file(tmp_m2_out)
+            except Exception:
+                pass
 
-    music = _apply_reverb(music, wet_boost_db=8.0)
-    music = _normalize_lufs(music, -16.0)
+        music = _apply_reverb(music, wet_boost_db=8.0)
+        music = _normalize_lufs(music, -16.0)
 
-    # Trim music to content duration (removes trailing silence/fade)
-    # This ensures the final output length matches the actual music content,
-    # not the full file length. The voice will be retimed to fit this duration.
-    if content_duration_sec is not None:
-        content_ms = int(content_duration_sec * 1000)
-        if len(music) > content_ms:
-            print(
-                f"[Mix] Trimming music from {len(music)}ms to content duration "
-                f"{content_ms}ms ({content_duration_sec}s)"
-            )
-            music = music[:content_ms]
+        # Trim music to content duration (removes trailing silence/fade)
+        # This ensures the final output length matches the actual music content,
+        # not the full file length. The voice will be retimed to fit this duration.
+        if content_duration_sec is not None:
+            content_ms = int(content_duration_sec * 1000)
+            if len(music) > content_ms:
+                print(
+                    f"[Mix] Trimming music from {len(music)}ms to content duration "
+                    f"{content_ms}ms ({content_duration_sec}s)"
+                )
+                music = music[:content_ms]
 
-    if stems_dir is not None:
-        Path(stems_dir).mkdir(parents=True, exist_ok=True)
-        music.export(str(Path(stems_dir) / "stem_music.mp3"), format="mp3", bitrate="256k")
+        if stems_dir is not None:
+            Path(stems_dir).mkdir(parents=True, exist_ok=True)
+            music.export(str(Path(stems_dir) / "stem_music.mp3"), format="mp3", bitrate="256k")
 
-    voice = make_stereo(load_audio(voice_path).set_frame_rate(44100))
+        voice = make_stereo(load_audio(voice_path).set_frame_rate(44100))
 
-    if _ffmpeg_has(ffmpeg_path, "dynaudnorm"):
-        tmp_vl_in = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-        tmp_vl_in.close()
-        tmp_vl_out = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-        tmp_vl_out.close()
-        voice.export(tmp_vl_in.name, format="wav")
-        try:
-            subprocess.run(
-                [ffmpeg_path, "-y", "-i", tmp_vl_in.name, "-af",
-                 "dynaudnorm=f=800:g=15:p=0.5:m=10",
-                 tmp_vl_out.name],
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            voice = AudioSegment.from_file(tmp_vl_out.name).set_frame_rate(44100).set_channels(2)
-        except Exception:
-            pass
+        if _ffmpeg_has(ffmpeg_path, "dynaudnorm"):
+            tmp_vl_in = _mktemp(".wav")
+            tmp_vl_out = _mktemp(".wav")
+            voice.export(tmp_vl_in, format="wav")
+            try:
+                subprocess.run(
+                    [ffmpeg_path, "-y", "-i", tmp_vl_in, "-af",
+                     "dynaudnorm=f=800:g=15:p=0.5:m=10",
+                     tmp_vl_out],
+                    check=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                voice = AudioSegment.from_file(tmp_vl_out).set_frame_rate(44100).set_channels(2)
+            except Exception:
+                pass
 
-    voice = _normalize_lufs(voice, -15.0)
-    if len(voice) <= 0:
-        raise ValueError("Voice stem is empty or unreadable.")
+        voice = _normalize_lufs(voice, -15.0)
+        if len(voice) <= 0:
+            raise ValueError("Voice stem is empty or unreadable.")
 
-    if _ffmpeg_has(ffmpeg_path, "acompressor") or _ffmpeg_has(ffmpeg_path, "dynaudnorm"):
-        tmp_v_in = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-        tmp_v_in.close()
-        tmp_v_out = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-        tmp_v_out.close()
-        voice.export(tmp_v_in.name, format="wav")
-        try:
-            if _ffmpeg_has(ffmpeg_path, "acompressor"):
-                vf = "acompressor=threshold=-15dB:ratio=4:attack=10:release=150:makeup=1"
-            else:
-                vf = "dynaudnorm=f=125:s=12"
-            subprocess.run(
-                [ffmpeg_path, "-y", "-i", tmp_v_in.name, "-af", vf, tmp_v_out.name],
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            voice = AudioSegment.from_file(tmp_v_out.name).set_frame_rate(44100).set_channels(2)
-        except Exception:
-            pass
+        if _ffmpeg_has(ffmpeg_path, "acompressor") or _ffmpeg_has(ffmpeg_path, "dynaudnorm"):
+            tmp_v_in = _mktemp(".wav")
+            tmp_v_out = _mktemp(".wav")
+            voice.export(tmp_v_in, format="wav")
+            try:
+                if _ffmpeg_has(ffmpeg_path, "acompressor"):
+                    vf = "acompressor=threshold=-15dB:ratio=4:attack=10:release=150:makeup=1"
+                else:
+                    vf = "dynaudnorm=f=125:s=12"
+                subprocess.run(
+                    [ffmpeg_path, "-y", "-i", tmp_v_in, "-af", vf, tmp_v_out],
+                    check=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                voice = AudioSegment.from_file(tmp_v_out).set_frame_rate(44100).set_channels(2)
+            except Exception:
+                pass
 
-    if _ffmpeg_has(ffmpeg_path, "equalizer") and _ffmpeg_has(ffmpeg_path, "highpass"):
-        tmp_veq_in = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-        tmp_veq_in.close()
-        tmp_veq_out = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-        tmp_veq_out.close()
-        voice.export(tmp_veq_in.name, format="wav")
-        try:
-            subprocess.run(
-                [ffmpeg_path, "-y", "-i", tmp_veq_in.name, "-af",
-                 "highpass=f=80:p=2,lowshelf=f=250:g=10,equalizer=f=770:t=q:w=0.5:g=-3",
-                 tmp_veq_out.name],
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            voice = AudioSegment.from_file(tmp_veq_out.name).set_frame_rate(44100).set_channels(2)
-        except Exception:
-            pass
+        if _ffmpeg_has(ffmpeg_path, "equalizer") and _ffmpeg_has(ffmpeg_path, "highpass"):
+            tmp_veq_in = _mktemp(".wav")
+            tmp_veq_out = _mktemp(".wav")
+            voice.export(tmp_veq_in, format="wav")
+            try:
+                subprocess.run(
+                    [ffmpeg_path, "-y", "-i", tmp_veq_in, "-af",
+                     "highpass=f=80:p=2,lowshelf=f=250:g=10,equalizer=f=770:t=q:w=0.5:g=-3",
+                     tmp_veq_out],
+                    check=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                voice = AudioSegment.from_file(tmp_veq_out).set_frame_rate(44100).set_channels(2)
+            except Exception:
+                pass
 
-    if stems_dir is not None:
-        voice.export(str(Path(stems_dir) / "stem_voice.mp3"), format="mp3", bitrate="256k")
+        if stems_dir is not None:
+            voice.export(str(Path(stems_dir) / "stem_voice.mp3"), format="mp3", bitrate="256k")
 
-    ch = music.channels
-    sw = music.sample_width
-    frame_bytes = ch * sw
+        ch = music.channels
+        sw = music.sample_width
+        frame_bytes = ch * sw
 
-    target_samples_per_ch = len(music.raw_data) // frame_bytes
-    target_ms = int(round(1000 * target_samples_per_ch / music.frame_rate))
+        target_samples_per_ch = len(music.raw_data) // frame_bytes
+        target_ms = int(round(1000 * target_samples_per_ch / music.frame_rate))
 
-    if sync_mode == "retime_voice_to_music":
-        tmp_v = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-        tmp_v.close()
-        voice.export(tmp_v.name, format="wav")
-        v_wav = _retime_with_ffmpeg(tmp_v.name, target_ms, ffmpeg_path)
-        voice_exact = AudioSegment.from_file(v_wav).set_frame_rate(44100).set_channels(ch)
-        music_exact = music
+        if sync_mode == "retime_voice_to_music":
+            tmp_v = _mktemp(".wav")
+            voice.export(tmp_v, format="wav")
+            v_wav = _retime_with_ffmpeg(tmp_v, target_ms, ffmpeg_path)
+            voice_exact = AudioSegment.from_file(v_wav).set_frame_rate(44100).set_channels(ch)
+            music_exact = music
 
-    elif sync_mode == "retime_music_to_voice":
-        voice_frames = len(voice.raw_data) // frame_bytes
-        target_samples_per_ch = voice_frames
-        target_ms = int(round(1000 * target_samples_per_ch / voice.frame_rate))
+        elif sync_mode == "retime_music_to_voice":
+            voice_frames = len(voice.raw_data) // frame_bytes
+            target_samples_per_ch = voice_frames
+            target_ms = int(round(1000 * target_samples_per_ch / voice.frame_rate))
 
-        tmp_m = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-        tmp_m.close()
-        music.export(tmp_m.name, format="wav")
-        m_wav = _retime_with_ffmpeg(tmp_m.name, target_ms, ffmpeg_path)
-        music_exact = AudioSegment.from_file(m_wav).set_frame_rate(44100).set_channels(ch)
-        voice_exact = voice
+            tmp_m = _mktemp(".wav")
+            music.export(tmp_m, format="wav")
+            m_wav = _retime_with_ffmpeg(tmp_m, target_ms, ffmpeg_path)
+            music_exact = AudioSegment.from_file(m_wav).set_frame_rate(44100).set_channels(ch)
+            voice_exact = voice
 
-    else:
-        voice_frames = len(voice.raw_data) // frame_bytes
-        target_samples_per_ch = voice_frames
-        target_ms = int(round(1000 * target_samples_per_ch / voice.frame_rate))
+        else:
+            voice_frames = len(voice.raw_data) // frame_bytes
+            target_samples_per_ch = voice_frames
+            target_ms = int(round(1000 * target_samples_per_ch / voice.frame_rate))
 
-        voice_exact = _hard_fit(voice, target_ms)
-        music_exact = _hard_fit(music, target_ms)
+            voice_exact = _hard_fit(voice, target_ms)
+            music_exact = _hard_fit(music, target_ms)
 
-    voice_exact = _hard_fit_samples(voice_exact, target_samples_per_ch)
-    music_exact = _hard_fit_samples(music_exact, target_samples_per_ch)
+        voice_exact = _hard_fit_samples(voice_exact, target_samples_per_ch)
+        music_exact = _hard_fit_samples(music_exact, target_samples_per_ch)
 
-    music_exact = music_exact.apply_gain(music_premix_gain_db)
+        music_exact = music_exact.apply_gain(music_premix_gain_db)
 
-    music_adapt = _duck_music_to_voice(
-        music_exact,
-        voice_exact,
-        floor_boost_db=0.0,
-        max_duck_db=-4.0,
-        attack_ms=30,
-        release_ms=1500,
-        win_ms=30,
-        lookahead_ms=150,
-        gap_hold_ms=1500,
-    )
+        music_adapt = _duck_music_to_voice(
+            music_exact,
+            voice_exact,
+            floor_boost_db=0.0,
+            max_duck_db=-4.0,
+            attack_ms=30,
+            release_ms=1500,
+            win_ms=30,
+            lookahead_ms=150,
+            gap_hold_ms=1500,
+        )
 
-    final_mix = music_adapt.overlay(voice_exact)
+        final_mix = music_adapt.overlay(voice_exact)
 
-    final_mix = _apply_peak_guard(final_mix, ceiling_dbfs=final_peak_dbfs)
-    final_mix = _hard_fit_samples(final_mix, target_samples_per_ch)
+        final_mix = _apply_peak_guard(final_mix, ceiling_dbfs=final_peak_dbfs)
+        final_mix = _hard_fit_samples(final_mix, target_samples_per_ch)
 
-    tail_ms = min(700, max(300, target_ms // 25))
-    final_mix = final_mix.fade_out(tail_ms)
+        tail_ms = min(700, max(300, target_ms // 25))
+        final_mix = final_mix.fade_out(tail_ms)
 
-    tmp_wav_in = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-    tmp_wav_in.close()
-    final_mix.export(tmp_wav_in.name, format="wav")
+        tmp_wav_in = _mktemp(".wav")
+        final_mix.export(tmp_wav_in, format="wav")
 
-    tmp_wav_polished = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-    tmp_wav_polished.close()
-    if _ffmpeg_has(ffmpeg_path, "loudnorm"):
-        af = "loudnorm=I=-16.0:TP=-1.0:LRA=11:linear=1"
-    else:
-        af = "dynaudnorm=f=125:s=12,volume=-0.6dB"
+        tmp_wav_polished = _mktemp(".wav")
+        if _ffmpeg_has(ffmpeg_path, "loudnorm"):
+            af = "loudnorm=I=-16.0:TP=-1.0:LRA=11:linear=1"
+        else:
+            af = "dynaudnorm=f=125:s=12,volume=-0.6dB"
 
-    subprocess.run(
-        [
-            ffmpeg_path,
-            "-y",
-            "-i",
-            tmp_wav_in.name,
-            "-af",
-            af,
-            "-ar",
-            "44100",
-            "-ac",
-            str(ch),
-            tmp_wav_polished.name,
-        ],
-        check=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+        subprocess.run(
+            [
+                ffmpeg_path,
+                "-y",
+                "-i",
+                tmp_wav_in,
+                "-af",
+                af,
+                "-ar",
+                "44100",
+                "-ac",
+                str(ch),
+                tmp_wav_polished,
+            ],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
-    polished = AudioSegment.from_file(tmp_wav_polished.name).set_channels(ch).set_frame_rate(44100)
-    polished = _hard_fit_samples(polished, target_samples_per_ch)
+        polished = AudioSegment.from_file(tmp_wav_polished).set_channels(ch).set_frame_rate(44100)
+        polished = _hard_fit_samples(polished, target_samples_per_ch)
 
-    tmp_wav_exact = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-    tmp_wav_exact.close()
-    polished.export(tmp_wav_exact.name, format="wav")
+        tmp_wav_exact = _mktemp(".wav")
+        polished.export(tmp_wav_exact, format="wav")
 
-    t_sec = f"{target_samples_per_ch / polished.frame_rate:.6f}"
-    subprocess.run(
-        [
-            ffmpeg_path,
-            "-y",
-            "-i",
-            tmp_wav_exact.name,
-            "-t",
-            t_sec,
-            "-shortest",
-            "-ar",
-            "44100",
-            "-ac",
-            str(ch),
-            "-codec:a",
-            "libmp3lame",
-            "-b:a",
-            "256k",
-            str(out_path),
-        ],
-        check=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+        t_sec = f"{target_samples_per_ch / polished.frame_rate:.6f}"
+        subprocess.run(
+            [
+                ffmpeg_path,
+                "-y",
+                "-i",
+                tmp_wav_exact,
+                "-t",
+                t_sec,
+                "-shortest",
+                "-ar",
+                "44100",
+                "-ac",
+                str(ch),
+                "-codec:a",
+                "libmp3lame",
+                "-b:a",
+                "256k",
+                str(out_path),
+            ],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
-    out_frames, out_sr, out_ch = _decode_samples(Path(out_path))
+        out_frames, out_sr, out_ch = _decode_samples(Path(out_path))
 
-    SAMPLE_TOL = 64
+        SAMPLE_TOL = 64
 
-    ok_by_samples = (
-        out_sr == 44100
-        and out_ch == ch
-        and abs(out_frames - target_samples_per_ch) <= SAMPLE_TOL
-    )
+        ok_by_samples = (
+            out_sr == 44100
+            and out_ch == ch
+            and abs(out_frames - target_samples_per_ch) <= SAMPLE_TOL
+        )
 
-    if not ok_by_samples:
-        target_ms_exact = int(round(1000 * target_samples_per_ch / 44100.0))
-        actual_ms_exact = int(round(1000 * out_frames / 44100.0))
-        MS_TOL = 3
-        if abs(actual_ms_exact - target_ms_exact) > MS_TOL:
-            raise RuntimeError(
-                f"Final length drift: {actual_ms_exact} ms vs {target_ms_exact} ms "
-                f"({out_frames} vs {target_samples_per_ch} samples)."
-            )
+        if not ok_by_samples:
+            target_ms_exact = int(round(1000 * target_samples_per_ch / 44100.0))
+            actual_ms_exact = int(round(1000 * out_frames / 44100.0))
+            MS_TOL = 3
+            if abs(actual_ms_exact - target_ms_exact) > MS_TOL:
+                raise RuntimeError(
+                    f"Final length drift: {actual_ms_exact} ms vs {target_ms_exact} ms "
+                    f"({out_frames} vs {target_samples_per_ch} samples)."
+                )
 
-    return int(round(1000 * target_samples_per_ch / polished.frame_rate))
+        return int(round(1000 * target_samples_per_ch / polished.frame_rate))
+    finally:
+        _TLS.mix_tmp_dir = None
+        shutil.rmtree(_mix_tmp, ignore_errors=True)
