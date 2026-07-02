@@ -35,6 +35,22 @@ def decode_token(token):
 _bearer = HTTPBearer(auto_error=False)
 
 
+def _as_aware_utc(dt):
+    """
+    Normalize a datetime to timezone-aware UTC.
+
+    Postgres TIMESTAMP columns return naive datetimes, but we compare
+    against datetime.now(timezone.utc) which is aware. Comparing naive
+    and aware datetimes raises TypeError in Python, so we treat naive
+    values as UTC (which is how they were written).
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
 def get_current_user_optional(
     creds: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
     db: Session = Depends(get_db),
@@ -70,7 +86,8 @@ def _has_active_sub(uid, db):
          .filter(Subscription.user_id == uid, Subscription.status == "active")
          .first())
     if not s: return False
-    if s.expires_at and s.expires_at < datetime.now(timezone.utc):
+    exp = _as_aware_utc(s.expires_at)
+    if exp and exp < datetime.now(timezone.utc):
         s.status = "expired"
         db.commit()
         return False
