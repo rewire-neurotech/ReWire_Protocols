@@ -65,12 +65,28 @@ def get_current_user_required(
     return u
 
 
+def _as_utc(dt):
+    """
+    Coerce a datetime to timezone-aware UTC.
+
+    Postgres columns defined as plain DateTime come back offset-naive,
+    but we compare against datetime.now(timezone.utc) which is aware.
+    Comparing the two raises TypeError, so normalize here.
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 def _has_active_sub(uid, db):
     s = (db.query(Subscription)
          .filter(Subscription.user_id == uid, Subscription.status == "active")
          .first())
     if not s: return False
-    if s.expires_at and s.expires_at < datetime.now(timezone.utc):
+    expires = _as_utc(s.expires_at)
+    if expires and expires < datetime.now(timezone.utc):
         s.status = "expired"
         db.commit()
         return False
