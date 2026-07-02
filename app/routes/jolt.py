@@ -75,12 +75,28 @@ def _update(jolt_id, **kw):
         db.close()
 
 
+def _as_utc(dt):
+    """
+    Coerce a datetime to timezone-aware UTC.
+
+    Postgres columns defined as plain DateTime come back offset-naive,
+    but we compare against datetime.now(timezone.utc) which is aware.
+    Comparing the two raises TypeError, so normalize here.
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 def _has_sub(uid, db):
     s = (db.query(Subscription)
          .filter(Subscription.user_id == uid, Subscription.status == "active")
          .first())
     if not s: return False
-    if s.expires_at and s.expires_at < datetime.now(timezone.utc):
+    expires = _as_utc(s.expires_at)
+    if expires and expires < datetime.now(timezone.utc):
         s.status = "expired"
         db.commit()
         return False
@@ -242,10 +258,14 @@ def start_jolt(gid: int, skip_hc: bool = False,
         raise HTTPException(404, "goal not found")
 
     # first jolt is free, subsequent need subscription
-    total_done = db.query(Jolt).filter(
-        Jolt.user_id == u.id, Jolt.stage == "done"
+    # Gate on jolts the user actually LISTENED to (played_at set when the
+    # final mix audio is first fetched), not on jolts that merely finished
+    # generating in the background. This guarantees a new user always gets
+    # to hear their first jolt before ever seeing the paywall.
+    total_played = db.query(Jolt).filter(
+        Jolt.user_id == u.id, Jolt.played_at.isnot(None)
     ).count()
-    if total_done >= 1 and not _has_sub(u.id, db):
+    if total_played >= 1 and not _has_sub(u.id, db):
         raise HTTPException(402, "subscription required for additional jolts")
 
     data = _gather(g, db)
@@ -296,6 +316,30 @@ def serve_audio(fname: str, request: Request):
     fp = cfg.out_dir_path / fname
     if not fp.exists():
         raise HTTPException(404, "audio not found")
+
+    # Mark the jolt as played the first time its final mix mp3 is fetched.
+    # Filename format is "{jolt_id}.mp3" for the mix ("{jolt_id}_voice.wav"
+    # is the raw voice stem and is NOT counted). Never let this bookkeeping
+    # break audio serving.
+    if fname.endswith(".mp3"):
+        try:
+            jolt_id = int(fname[:-4])
+        except (ValueError, TypeError):
+            jolt_id = None
+        if jolt_id is not None:
+            db = SessionLocal()
+            try:
+                j = db.query(Jolt).filter(Jolt.id == jolt_id).first()
+                if j and j.played_at is None:
+                    j.played_at = datetime.now(timezone.utc)
+                    db.commit()
+            except Exception as e:
+                print(f"[jolt] played_at update error for {fname}: {e}")
+                try: db.rollback()
+                except: pass
+            finally:
+                db.close()
+
     data = decrypt_file_to_bytes(str(fp))
     total = len(data)
     mt = "audio/mpeg" if fname.endswith(".mp3") else "audio/wav"
