@@ -181,49 +181,113 @@ def login(req: LoginReq, db: Session = Depends(get_db)):
 
 @r.post("/google", response_model=AuthResp)
 def google_login(req: GoogleReq, db: Session = Depends(get_db)):
+    """
+    Verify a Google Identity Services ID token (credential) and sign the
+    user in, creating the account on first login (sign-up included).
+
+    Flow:
+      1. Verify the credential with Google's tokeninfo endpoint.
+      2. Check the token audience matches our GOOGLE_CLIENT_ID.
+      3. Require a verified email.
+      4. Find user by google_id, else by email (links existing local
+         accounts to Google), else create a new user.
+    """
     import requests as http_req
 
+    if not req.credential or not req.credential.strip():
+        raise HTTPException(400, "missing Google credential")
+
+    if not cfg.GOOGLE_CLIENT_ID:
+        print("[google] GOOGLE_CLIENT_ID is not set on the server")
+        raise HTTPException(503, "Google login is not configured on the server")
+
     try:
-        resp = http_req.get("https://oauth2.googleapis.com/tokeninfo",
-                            params={"id_token": req.credential}, timeout=10)
-    except Exception:
+        resp = http_req.get(
+            "https://oauth2.googleapis.com/tokeninfo",
+            params={"id_token": req.credential.strip()},
+            timeout=10,
+        )
+    except http_req.exceptions.Timeout:
+        print("[google] tokeninfo request timed out")
+        raise HTTPException(502, "could not reach Google (timeout)")
+    except Exception as e:
+        print(f"[google] tokeninfo request failed: {e}")
         raise HTTPException(502, "could not reach Google")
 
     if resp.status_code != 200:
+        print(f"[google] tokeninfo rejected credential: HTTP {resp.status_code} {resp.text[:200]}")
         raise HTTPException(401, "invalid Google token")
 
-    info = resp.json()
-    if cfg.GOOGLE_CLIENT_ID and info.get("aud") != cfg.GOOGLE_CLIENT_ID:
+    try:
+        info = resp.json()
+    except Exception as e:
+        print(f"[google] tokeninfo returned non-JSON: {e}")
+        raise HTTPException(502, "unexpected response from Google")
+
+    # Audience must match our OAuth client ID
+    if info.get("aud") != cfg.GOOGLE_CLIENT_ID:
+        print(f"[google] audience mismatch: token aud={info.get('aud')} "
+              f"expected={cfg.GOOGLE_CLIENT_ID}")
         raise HTTPException(401, "Google token audience mismatch")
 
-    g_email = info.get("email", "").strip().lower()
-    g_id = info.get("sub", "")
-    g_name = info.get("name", "")
+    # Require a verified email (tokeninfo returns this as the string "true")
+    email_verified = str(info.get("email_verified", "")).lower() == "true"
+    if not email_verified:
+        print(f"[google] unverified email rejected: {info.get('email')}")
+        raise HTTPException(401, "Google account email is not verified")
+
+    g_email = (info.get("email") or "").strip().lower()
+    g_id = info.get("sub") or ""
+    g_name = info.get("name") or ""
+    g_given = (info.get("given_name") or "").strip()
+    g_family = (info.get("family_name") or "").strip()
 
     if not g_email or not g_id:
+        print("[google] token missing email or sub claim")
         raise HTTPException(401, "could not extract email from Google token")
 
+    # 1) Match by google_id, 2) link by email, 3) create new user
     u = db.query(User).filter(User.google_id == g_id).first()
     if not u:
         u = db.query(User).filter(User.email == g_email).first()
 
     if u:
+        changed = False
         if not u.google_id:
             u.google_id = g_id
             u.auth_provider = "google"
+            changed = True
+            print(f"[google] linked existing account {u.email} to Google")
+        # Fill in missing names from Google profile without overwriting
+        if not u.first_name and (g_given or g_name):
+            u.first_name = g_given or g_name.strip().rsplit(" ", 1)[0]
+            changed = True
+        if not u.last_name and g_family:
+            u.last_name = g_family
+            changed = True
+        if changed:
             db.commit()
     else:
-        parts = g_name.strip().rsplit(" ", 1) if g_name else [""]
+        # Prefer Google's structured name fields; fall back to splitting name
+        if g_given or g_family:
+            first_name = g_given or None
+            last_name = g_family or None
+        else:
+            parts = g_name.strip().rsplit(" ", 1) if g_name.strip() else [""]
+            first_name = parts[0] or None
+            last_name = parts[1] if len(parts) > 1 else None
+
         u = User(
             email=g_email,
-            first_name=parts[0] or None,
-            last_name=parts[1] if len(parts) > 1 else None,
+            first_name=first_name,
+            last_name=last_name,
             auth_provider="google",
             google_id=g_id,
         )
         db.add(u)
         db.commit()
         db.refresh(u)
+        print(f"[google] created new user via Google sign-up: {g_email}")
 
     return _auth_resp(u, make_token(u.id, u.email), db)
 
