@@ -1,9 +1,10 @@
 import json
+import os
 import re
 import time
 import shutil
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone, timedelta, date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -29,6 +30,12 @@ _pool = ThreadPoolExecutor(max_workers=8, thread_name_prefix="jolt")
 # Regex to strip ElevenLabs audio tags like [whispers], [pause], [dramatic tone], etc.
 _TAG_RE = re.compile(r"\[[^\]]*\]")
 
+# Jolt stages that will never change again on their own
+_TERMINAL_STAGES = ("done", "error", "blocked")
+
+# A jolt still non-terminal after this long was orphaned (generation takes 1-4 min)
+_STALE_AFTER_MIN = 15
+
 
 def _count_spoken_words(text: str) -> int:
     """Count only the words a voice will speak, excluding audio tags and section breaks."""
@@ -51,6 +58,50 @@ def _as_aware_utc(dt):
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
+
+
+def recover_orphaned_jolts():
+    """
+    Called once at startup (from app.main).
+
+    1. Remove any leftover per-mix scratch directories from /tmp. These can
+       survive a hard kill (OOM / SIGKILL) where mix()'s cleanup never ran.
+    2. Mark any jolt stuck in a non-terminal stage as an error. In-flight
+       generation runs in this process's thread pool, so anything
+       non-terminal at boot was orphaned by the previous shutdown; without
+       this, users poll a stuck row for the full timeout window.
+    """
+    try:
+        import glob
+        import tempfile as _tf
+        swept = 0
+        for d in glob.glob(os.path.join(_tf.gettempdir(), "rewire_mix_*")):
+            shutil.rmtree(d, ignore_errors=True)
+            swept += 1
+        if swept:
+            print(f"[jolt] startup: removed {swept} leftover scratch dir(s)")
+    except Exception as e:
+        print(f"[jolt] startup scratch sweep error: {e}")
+
+    if SessionLocal is None:
+        return
+    db = SessionLocal()
+    try:
+        stuck = db.query(Jolt).filter(~Jolt.stage.in_(_TERMINAL_STAGES)).all()
+        for j in stuck:
+            j.stage = "error"
+            j.gen_error = "interrupted by server restart"
+        if stuck:
+            db.commit()
+            print(f"[jolt] startup: recovered {len(stuck)} orphaned jolt(s)")
+    except Exception as e:
+        print(f"[jolt] startup orphan recovery error: {e}")
+        try:
+            db.rollback()
+        except Exception:
+            pass
+    finally:
+        db.close()
 
 
 class StartResp(BaseModel):
@@ -227,18 +278,28 @@ def _run_gen(jolt_id, user_id, title, why, challenges, tips, reflection, track_n
                     voice_settings=t["voice_settings"])
         _update(jolt_id, stage="mixing", progress=70)
 
-        vf = f"{jolt_id}_voice.wav"
-        shutil.copy2(wav, str(cfg.out_dir_path / vf))
-        encrypt_file(str(cfg.out_dir_path / vf))
+        try:
+            vf = f"{jolt_id}_voice.wav"
+            shutil.copy2(wav, str(cfg.out_dir_path / vf))
+            encrypt_file(str(cfg.out_dir_path / vf))
 
-        af = f"{jolt_id}.mp3"
-        mix_audio(
-            voice_path=wav, music_path=str(t["file"]), out_path=str(cfg.out_dir_path / af),
-            ffmpeg_bin=cfg.FFMPEG_BIN,
-            voice_target_dbfs=-12.5, music_target_dbfs=-24.0,
-            duck_db=5.0, content_duration_sec=t["content_duration_sec"],
-        )
-        encrypt_file(str(cfg.out_dir_path / af))
+            af = f"{jolt_id}.mp3"
+            mix_audio(
+                voice_path=wav, music_path=str(t["file"]), out_path=str(cfg.out_dir_path / af),
+                ffmpeg_bin=cfg.FFMPEG_BIN,
+                voice_target_dbfs=-12.5, music_target_dbfs=-24.0,
+                duck_db=5.0, content_duration_sec=t["content_duration_sec"],
+            )
+            encrypt_file(str(cfg.out_dir_path / af))
+        finally:
+            # The synthesized voice WAV in /tmp has served its purpose
+            # (copied to outputs and consumed by the mix). Remove it so
+            # /tmp does not accumulate 30-60MB per jolt.
+            try:
+                if wav and os.path.exists(wav):
+                    os.remove(wav)
+            except Exception as e:
+                print(f"[jolt] {jolt_id} voice temp cleanup failed: {e}")
 
         elapsed = round(time.time() - t0, 1)
         _update(jolt_id, audio_filename=af, voice_filename=vf,
@@ -424,6 +485,17 @@ def get_status(jid: int, u: User = Depends(get_current_user_required),
     j = db.query(Jolt).filter(Jolt.id == jid, Jolt.user_id == u.id).first()
     if not j:
         raise HTTPException(404, "jolt not found")
+
+    # Safety net: a jolt still non-terminal after _STALE_AFTER_MIN minutes
+    # was orphaned (e.g. by a restart the startup sweep didn't cover).
+    # Flip it to error so the client fails fast instead of polling forever.
+    if j.stage not in _TERMINAL_STAGES:
+        created = _as_aware_utc(j.created_at)
+        if created and (datetime.now(timezone.utc) - created) > timedelta(minutes=_STALE_AFTER_MIN):
+            j.stage = "error"
+            j.gen_error = "generation interrupted, please try again"
+            db.commit()
+            print(f"[jolt] {j.id} marked stale after {_STALE_AFTER_MIN}min in stage limbo")
 
     url = None
     if j.stage == "done" and j.audio_filename:
