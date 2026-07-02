@@ -270,12 +270,11 @@ async def stripe_webhook(request: Request):
 
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
-        # stripe>=8: StripeObjects don't support .get() - use attribute access
+        # stripe>=8: use attribute access only, no .get() or dict()
         session_id = session.id or ""
-        meta_raw = getattr(session, "metadata", None)
-        meta = dict(meta_raw) if meta_raw else {}
-        user_id_str = meta.get("rewire_user_id")
-        plan = meta.get("plan", "monthly")
+        meta = getattr(session, "metadata", None)
+        user_id_str = getattr(meta, "rewire_user_id", None) if meta else None
+        plan = getattr(meta, "plan", "monthly") if meta else "monthly"
 
         if not user_id_str:
             print("[stripe] webhook: no rewire_user_id in metadata")
