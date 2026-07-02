@@ -27,6 +27,21 @@ from app.routes.auth import get_current_user_required
 r = APIRouter(prefix="/api/subscription", tags=["subscription"])
 
 
+def _as_utc(dt):
+    """
+    Coerce a datetime to timezone-aware UTC.
+
+    Postgres columns defined as plain DateTime come back offset-naive,
+    but we compare against datetime.now(timezone.utc) which is aware.
+    Comparing the two raises TypeError, so normalize here.
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 # --- Request / Response schemas ---
 
 class RedeemRequest(BaseModel):
@@ -76,8 +91,9 @@ def get_status(
     if not sub:
         return SubscriptionStatusResponse(has_subscription=False)
 
-    # Check if expired
-    if sub.expires_at and sub.expires_at < datetime.now(timezone.utc):
+    # Check if expired (coerce to aware UTC to avoid naive/aware TypeError)
+    expires = _as_utc(sub.expires_at)
+    if expires and expires < datetime.now(timezone.utc):
         sub.status = "expired"
         db.commit()
         return SubscriptionStatusResponse(has_subscription=False)
@@ -176,7 +192,8 @@ def purchase(
         .first()
     )
     if existing:
-        if existing.expires_at and existing.expires_at < datetime.now(timezone.utc):
+        existing_expires = _as_utc(existing.expires_at)
+        if existing_expires and existing_expires < datetime.now(timezone.utc):
             existing.status = "expired"
             db.commit()
         else:
