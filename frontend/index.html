@@ -5592,7 +5592,6 @@
               document.querySelectorAll(".layer").forEach((l) => l.classList.remove("is-active"));
               await goLibrary();
             })();
-            maybeOfferNotifications();
           } else if (currentGoal) {
             openCardReflect(currentGoal);
           } else {
@@ -6187,33 +6186,6 @@
           } catch (err) {
             console.error("Notification removal failed:", err);
             return false;
-          }
-        }
-        let notifOffered = false;
-        async function maybeOfferNotifications() {
-          if (notifOffered) return;
-          notifOffered = true;
-          if (!("serviceWorker" in navigator) || !("PushManager" in window))
-            return;
-          if (
-            !("Notification" in window) ||
-            Notification.permission !== "default"
-          )
-            return;
-          try {
-            const reg =
-              await navigator.serviceWorker.getRegistration("/sw.js");
-            if (reg) {
-              const sub = await reg.pushManager.getSubscription();
-              if (sub) return;
-            }
-          } catch (e) {}
-          const wants = confirm(
-            "Want a notification when your Jolt is ready? You can change this anytime in settings.",
-          );
-          if (wants) {
-            await enablePushNotifications();
-            checkNotifState();
           }
         }
         $("#rowNotify").addEventListener("click", async (e) => {
