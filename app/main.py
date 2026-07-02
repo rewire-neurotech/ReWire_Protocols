@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
@@ -134,7 +134,7 @@ app.include_router(sub_r)
 
 
 _SW_JS = """
-var CACHE_NAME = 'jolt-v4-v1';
+var CACHE_NAME = 'jolt-v4-v2';
 var APP_SHELL = ['/', '/assets/logo.png'];
 
 self.addEventListener('install', function(e) {
@@ -199,16 +199,31 @@ self.addEventListener('notificationclick', function(e) {
 });
 
 self.addEventListener('pushsubscriptionchange', function(e) {
+  /* The browser rotated or expired the push subscription. Re-subscribe
+     and tell the server to swap the old endpoint for the new one.
+     This uses /api/push/renew (keyed by the old endpoint) because the
+     service worker has no access to the user's JWT. */
+  var oldSub = e.oldSubscription;
+  var oldEndpoint = oldSub ? oldSub.endpoint : '';
+  var opts = {userVisibleOnly: true};
+  if (oldSub && oldSub.options && oldSub.options.applicationServerKey) {
+    opts.applicationServerKey = oldSub.options.applicationServerKey;
+  }
   e.waitUntil(
-    self.registration.pushManager.subscribe(
-      e.oldSubscription ? e.oldSubscription.options : {userVisibleOnly: true}
-    ).then(function(sub) {
+    self.registration.pushManager.subscribe(opts).then(function(sub) {
       var j = sub.toJSON();
-      return fetch('/api/push/subscribe', {
+      return fetch('/api/push/renew', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth})
+        body: JSON.stringify({
+          old_endpoint: oldEndpoint,
+          endpoint: j.endpoint,
+          p256dh: j.keys.p256dh,
+          auth: j.keys.auth
+        })
       });
+    }).catch(function(err) {
+      console.log('[SW] pushsubscriptionchange renewal failed:', err);
     })
   );
 });
@@ -259,6 +274,12 @@ class PushSubReq(BaseModel):
     p256dh: str
     auth: str
 
+class PushRenewReq(BaseModel):
+    old_endpoint: str
+    endpoint: str
+    p256dh: str
+    auth: str
+
 @app.get("/api/push/vapid-key")
 def get_vapid_key():
     return {"vapid_public_key": cfg.VAPID_PUBLIC_KEY or ""}
@@ -278,6 +299,33 @@ def push_subscribe(req: PushSubReq, db: Session = Depends(get_db), user=Depends(
             p256dh=req.p256dh, auth=req.auth,
         ))
     db.commit()
+    return {"status": "ok"}
+
+@app.post("/api/push/renew")
+def push_renew(req: PushRenewReq, db: Session = Depends(get_db)):
+    """
+    Called by the service worker on pushsubscriptionchange, which runs in
+    the background without access to the user's JWT. The old endpoint is
+    a long, unguessable URL known only to the browser and our DB, so
+    possession of it authorizes updating that one row in place.
+    """
+    old = (req.old_endpoint or "").strip()
+    if not old:
+        raise HTTPException(400, "old_endpoint required")
+
+    sub = db.query(PushSubscription).filter(
+        PushSubscription.endpoint == old,
+    ).first()
+    if not sub:
+        # Old endpoint unknown (already cleaned up or never registered).
+        # Nothing to renew without a user context.
+        raise HTTPException(404, "subscription not found")
+
+    sub.endpoint = req.endpoint
+    sub.p256dh = req.p256dh
+    sub.auth = req.auth
+    db.commit()
+    print(f"[push] renewed subscription {sub.id} for user {sub.user_id}")
     return {"status": "ok"}
 
 @app.post("/api/push/unsubscribe")
