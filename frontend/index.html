@@ -7338,6 +7338,16 @@
         }
 
         async function boot() {
+          /* If already signed in, hide the default sign-in layer immediately
+             (before any network awaits) so it never flashes on screen while
+             payment verification and /auth/me run. If the token turns out to
+             be invalid, forceSignIn() brings the sign-in layer back. */
+          if (token) {
+            document
+              .querySelectorAll(".layer")
+              .forEach((l) => l.classList.remove("is-active"));
+          }
+
           /* Register service worker for PWA */
           if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js').catch(function(e) {
