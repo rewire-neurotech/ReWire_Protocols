@@ -5904,9 +5904,6 @@
         composeSave.addEventListener("click", async () => {
           const txt = composeArea.value.trim();
           if (!composeCanSave()) return;
-          if (composeSave.dataset.busy) return;
-          composeSave.dataset.busy = "1";
-          composeSave.setAttribute("disabled", "");
           const m = composeCtx.mode;
           try {
             if (m === "goal") {
@@ -6012,9 +6009,6 @@
             }
           } catch (e) {
             console.error("composeSave", e);
-          } finally {
-            delete composeSave.dataset.busy;
-            composeSave.toggleAttribute("disabled", !composeCanSave());
           }
           closeCompose();
         });
@@ -7134,16 +7128,10 @@
           }
         });
 
-        let obFinishing = false;
         async function obFinish() {
-          if (obFinishing) return;
           const goalText = (obAnswers[0] || "").trim();
           const desc = (obAnswers[1] || "").trim();
           if (!goalText) return;
-          obFinishing = true;
-          const qCtaLabel = qCta.textContent;
-          qCta.setAttribute("disabled", "");
-          qCta.textContent = "Creating\u2026";
           try {
             const title =
               goalText.length > 60
@@ -7183,10 +7171,6 @@
               );
             }
             console.error("obFinish", e);
-          } finally {
-            obFinishing = false;
-            qCta.textContent = qCtaLabel;
-            qCta.toggleAttribute("disabled", !ctaShouldEnable());
           }
         }
 
@@ -7220,7 +7204,8 @@
             showLayer("l-signin", true);
             return;
           }
-          async function routeAfterMe(me) {
+          try {
+            const me = await GET("/auth/me");
             if (me.onboarding_complete) {
               document
                 .querySelectorAll(".layer")
@@ -7232,23 +7217,8 @@
             } else {
               showLayer("l-disclaimer", true);
             }
-          }
-          try {
-            const me = await GET("/auth/me");
-            await routeAfterMe(me);
           } catch (e) {
-            if (e && e.message === "auth") {
-              forceSignIn();
-              return;
-            }
-            /* transient/server error: retry once before signing the user out */
-            try {
-              await new Promise(function (r) { setTimeout(r, 1500); });
-              const me = await GET("/auth/me");
-              await routeAfterMe(me);
-            } catch (e2) {
-              forceSignIn();
-            }
+            forceSignIn();
           }
         }
         boot();
