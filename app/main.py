@@ -132,6 +132,16 @@ app.include_router(jolt_r)
 from app.routes.subscription import r as sub_r
 app.include_router(sub_r)
 
+# Recover any jolts orphaned by the previous shutdown (restart, deploy,
+# OOM, /tmp-limit kill): mark stuck rows as error so clients fail fast
+# instead of polling a dead jolt, and sweep leftover scratch directories.
+# Idempotent, so it is safe under multiple uvicorn workers.
+try:
+    from app.routes.jolt import recover_orphaned_jolts
+    recover_orphaned_jolts()
+except Exception as e:
+    print(f"[startup] orphan recovery error: {e}")
+
 
 _SW_JS = """
 var CACHE_NAME = 'jolt-v4-v2';
