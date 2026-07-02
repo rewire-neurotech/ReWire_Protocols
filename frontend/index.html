@@ -5284,9 +5284,17 @@
           primerActive = true;
           const lines = [$("#pl1"), $("#pl2"), $("#pl3")];
           const startBtn = $("#primerStart");
-          lines.forEach((l) => l.classList.remove("in"));
-          startBtn.classList.remove("in");
+          /* Reset instantly (transitions disabled) so leftover visible
+             state from a previous jolt never flashes on screen before
+             the one-by-one entrance replays */
+          [...lines, startBtn].forEach((el) => {
+            el.style.transition = "none";
+            el.classList.remove("in");
+          });
           void document.body.offsetWidth;
+          [...lines, startBtn].forEach((el) => {
+            el.style.transition = "";
+          });
           lines.forEach((l, i) =>
             setTimeout(() => l.classList.add("in"), 450 + i * 1150),
           );
