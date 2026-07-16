@@ -10,3 +10,4 @@ data/audio/*.wav
 dist/
 build/
 .python-version
+.venv/

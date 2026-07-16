@@ -13,6 +13,7 @@ from app.db import get_db
 from app.models import (
     User, Subscription, Goal, Challenge, Tip, Jolt, Reflection,
     PushSubscription, AuditLog,
+    Protocol, ProtocolDay, ProtocolJolt, JournalEntry, Entitlement,
 )
 
 r = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -82,13 +83,18 @@ def get_current_user_required(
 
 
 def _has_active_sub(uid, db):
-    s = (db.query(Subscription)
-         .filter(Subscription.user_id == uid, Subscription.status == "active")
+    # v5: "has_subscription" means an active monthly membership (entitlements).
+    # Per-protocol unlocks are tracked per protocol, not here.
+    e = (db.query(Entitlement)
+         .filter(Entitlement.user_id == uid,
+                 Entitlement.kind == "monthly",
+                 Entitlement.status == "active")
          .first())
-    if not s: return False
-    exp = _as_aware_utc(s.expires_at)
+    if not e:
+        return False
+    exp = _as_aware_utc(e.expires_at)
     if exp and exp < datetime.now(timezone.utc):
-        s.status = "expired"
+        e.status = "expired"
         db.commit()
         return False
     return True
@@ -364,10 +370,8 @@ def delete_account(u: User = Depends(get_current_user_required),
     """Permanently delete the user's account and all associated data."""
     uid = u.id
 
-    # Gather all goal IDs for this user
+    # --- v4 data: goals and their children ---
     goal_ids = [g.id for g in db.query(Goal.id).filter(Goal.user_id == uid).all()]
-
-    # Delete in dependency order
     if goal_ids:
         db.query(Reflection).filter(Reflection.goal_id.in_(goal_ids)).delete(synchronize_session=False)
         db.query(Jolt).filter(Jolt.goal_id.in_(goal_ids)).delete(synchronize_session=False)
@@ -379,7 +383,16 @@ def delete_account(u: User = Depends(get_current_user_required),
     db.query(Reflection).filter(Reflection.user_id == uid).delete(synchronize_session=False)
     db.query(Jolt).filter(Jolt.user_id == uid).delete(synchronize_session=False)
 
-    # Delete subscription, push, and audit data
+    # --- v5 data: protocols and their children, journal, entitlements ---
+    protocol_ids = [p.id for p in db.query(Protocol.id).filter(Protocol.user_id == uid).all()]
+    db.query(ProtocolJolt).filter(ProtocolJolt.user_id == uid).delete(synchronize_session=False)
+    if protocol_ids:
+        db.query(ProtocolDay).filter(ProtocolDay.protocol_id.in_(protocol_ids)).delete(synchronize_session=False)
+    db.query(JournalEntry).filter(JournalEntry.user_id == uid).delete(synchronize_session=False)
+    db.query(Entitlement).filter(Entitlement.user_id == uid).delete(synchronize_session=False)
+    db.query(Protocol).filter(Protocol.user_id == uid).delete(synchronize_session=False)
+
+    # --- shared data: subscription (legacy), push, audit ---
     db.query(Subscription).filter(Subscription.user_id == uid).delete(synchronize_session=False)
     db.query(PushSubscription).filter(PushSubscription.user_id == uid).delete(synchronize_session=False)
     db.query(AuditLog).filter(AuditLog.user_id == uid).delete(synchronize_session=False)

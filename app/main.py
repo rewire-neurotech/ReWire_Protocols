@@ -42,7 +42,7 @@ def _seed_promos():
 
 app = FastAPI(
     title="ReWire",
-    version="4.0.0",
+    version="5.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
@@ -109,6 +109,16 @@ if Base is not None and engine is not None:
                 print("[migrate] added stripe_session_id column to subscriptions")
         except Exception:
             pass  # column already exists
+        # migrate: add canceling to entitlements
+        try:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE entitlements ADD COLUMN canceling BOOLEAN DEFAULT 0"
+                ))
+                conn.commit()
+                print("[migrate] added canceling column to entitlements")
+        except Exception:
+            pass  # column already exists
     except Exception as e:
         print(f"[startup] db error: {e}")
 
@@ -123,6 +133,7 @@ app.include_router(auth_r)
 
 from app.routes.auth import get_current_user_required as _require_user
 
+# --- v4 routers (kept mounted; retired at final cleanup once v5 is fully cut over) ---
 from app.routes.goals import r as goals_r
 app.include_router(goals_r)
 
@@ -131,6 +142,13 @@ app.include_router(jolt_r)
 
 from app.routes.subscription import r as sub_r
 app.include_router(sub_r)
+
+# --- v5 routers ---
+from app.routes.protocols import r as protocols_r
+app.include_router(protocols_r)
+
+from app.routes.protocol_jolt import r as protocol_jolt_r
+app.include_router(protocol_jolt_r)
 
 # Recover any jolts orphaned by the previous shutdown (restart, deploy,
 # OOM, /tmp-limit kill): mark stuck rows as error so clients fail fast
@@ -142,9 +160,16 @@ try:
 except Exception as e:
     print(f"[startup] orphan recovery error: {e}")
 
+# Same recovery for v5 protocol jolts.
+try:
+    from app.tasks import recover_orphaned_protocol_jolts
+    recover_orphaned_protocol_jolts()
+except Exception as e:
+    print(f"[startup] protocol orphan recovery error: {e}")
+
 
 _SW_JS = """
-var CACHE_NAME = 'jolt-v4-v2';
+var CACHE_NAME = 'rewire-v5-v1';
 var APP_SHELL = ['/', '/assets/logo.png'];
 
 self.addEventListener('install', function(e) {
@@ -185,7 +210,7 @@ self.addEventListener('fetch', function(e) {
 });
 
 self.addEventListener('push', function(e) {
-  var data = {title: 'Jolt', body: 'Your Jolt is ready'};
+  var data = {title: 'ReWire', body: 'Your jolt is ready'};
   try { data = e.data.json(); } catch(err) {}
   e.waitUntil(self.registration.showNotification(data.title, {
     body: data.body,
@@ -248,8 +273,8 @@ def serve_sw():
 @app.get("/manifest.json")
 def serve_manifest():
     manifest = {
-        "name": "Jolt by ReWire",
-        "short_name": "Jolt",
+        "name": "ReWire",
+        "short_name": "ReWire",
         "description": "Behavioral activation powered by music and AI",
         "start_url": "/",
         "scope": "/",

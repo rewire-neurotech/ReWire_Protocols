@@ -153,3 +153,159 @@ class AuditLog(Base):
     target = Column(String(300), nullable=True)
     ip_address = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+# =========================================================================== #
+# v5 PROTOCOL MODELS
+# --------------------------------------------------------------------------- #
+# All NEW tables. Under Option A (Base.metadata.create_all on startup) these
+# are created automatically on the next boot, on SQLite locally and on the live
+# Postgres, WITHOUT touching any existing v4 table above. No v4 table's columns
+# are modified here, because create_all only creates missing tables; it does
+# not alter existing ones. v5 state therefore lives entirely in these new
+# tables, and the v4 Goal / Challenge / Tip / Jolt / Reflection / Subscription
+# tables remain untouched and are retired only at the end of the migration.
+# =========================================================================== #
+
+
+class Protocol(Base):
+    __tablename__ = "protocols"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    # activate | integrate | expand
+    type = Column(String(20), nullable=False, default="activate")
+    target = Column(Text, nullable=False)        # the goal they typed
+    charge = Column(Text, nullable=True)         # why it matters (private fuel; never surfaced raw)
+    title = Column(String(200), nullable=True)   # optional display title
+
+    # input safety screen result (run on target + charge, before the plan)
+    input_verdict = Column(String(20), nullable=True)    # safe | clarify | block | crisis
+    input_category = Column(String(30), nullable=True)
+
+    # Unlock state for days 2-5. True once this single protocol is purchased
+    # (one-time). A user with an active monthly Entitlement unlocks ALL
+    # protocols regardless of this flag; the route computes effective access.
+    unlocked = Column(Boolean, default=False, nullable=False, server_default="false")
+
+    status = Column(String(20), nullable=False, default="active")   # active | complete
+    # Which protocol is currently shown on the home path. The route keeps one
+    # active per user; others are set false when a new one is created/selected.
+    is_active = Column(Boolean, default=True, nullable=False, server_default="true")
+
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+
+class ProtocolDay(Base):
+    __tablename__ = "protocol_days"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    protocol_id = Column(Integer, ForeignKey("protocols.id", ondelete="CASCADE"), nullable=False, index=True)
+    day = Column(Integer, nullable=False)        # 1..5
+
+    # From the PLAN step (the protocol architect prompt):
+    stage = Column(String(30), nullable=True)    # initiation | proof | middle | momentum | consolidation
+    action = Column(Text, nullable=True)         # the day's concrete action (revealed once the jolt runs)
+    brief = Column(Text, nullable=True)          # one-line emotional brief for the speechwriter
+
+    # User state (the daily loop): today's jolt unlocks only when yesterday's
+    # action is marked done.
+    done = Column(Boolean, default=False, nullable=False, server_default="false")
+    done_at = Column(DateTime, nullable=True)
+
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class ProtocolJolt(Base):
+    __tablename__ = "protocol_jolts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    protocol_id = Column(Integer, ForeignKey("protocols.id", ondelete="CASCADE"), nullable=False, index=True)
+    day = Column(Integer, nullable=False)        # 1..5 (which day this jolt belongs to)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+
+    track_name = Column(String(50), nullable=True)
+    voice_id = Column(String(60), nullable=True)
+    speech_text = Column(Text, nullable=True)
+    speech_format = Column(String(40), nullable=True)
+    audio_filename = Column(String(200), nullable=True)
+    voice_filename = Column(String(200), nullable=True)
+
+    stage = Column(String(40), nullable=False, default="queued")   # queued|generating|synthesizing|mixing|done|error|blocked
+    progress = Column(Integer, nullable=False, default=0)
+    gen_error = Column(Text, nullable=True)
+    gen_time_sec = Column(Float, nullable=True)
+
+    # output safety screen result (run on the generated speech)
+    screen_verdict = Column(String(20), nullable=True)    # pass | fail
+    screen_category = Column(String(30), nullable=True)
+
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class JournalEntry(Base):
+    __tablename__ = "journal_entries"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    protocol_id = Column(Integer, ForeignKey("protocols.id", ondelete="SET NULL"), nullable=True, index=True)
+    day = Column(Integer, nullable=True)         # which day's reflection, if any
+    question = Column(Text, nullable=True)       # the reflection prompt (null for a free-form note)
+    answer = Column(Text, nullable=True)         # the entry text
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class JournalJolt(Base):
+    """A standalone jolt generated from a journal entry's text (not part of a
+    protocol's 5-day arc). Mirrors the ProtocolJolt generation fields so the
+    same speech -> TTS -> mix pipeline can produce it."""
+    __tablename__ = "journal_jolts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    journal_entry_id = Column(
+        Integer, ForeignKey("journal_entries.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+
+    track_name = Column(String(50), nullable=True)
+    voice_id = Column(String(60), nullable=True)
+    speech_text = Column(Text, nullable=True)
+    speech_format = Column(String(40), nullable=True)
+    audio_filename = Column(String(200), nullable=True)
+    voice_filename = Column(String(200), nullable=True)
+
+    stage = Column(String(40), nullable=False, default="queued")   # queued|generating|synthesizing|mixing|done|error|blocked
+    progress = Column(Integer, nullable=False, default=0)
+    gen_error = Column(Text, nullable=True)
+    gen_time_sec = Column(Float, nullable=True)
+
+    # output safety screen result (run on the generated speech)
+    screen_verdict = Column(String(20), nullable=True)    # pass | fail
+    screen_category = Column(String(30), nullable=True)
+
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class Entitlement(Base):
+    __tablename__ = "entitlements"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    # "protocol" -> one-time unlock of a single protocol (protocol_id set)
+    # "monthly"  -> membership unlocking all protocols (protocol_id null)
+    kind = Column(String(20), nullable=False)
+    protocol_id = Column(Integer, ForeignKey("protocols.id", ondelete="CASCADE"), nullable=True, index=True)
+
+    status = Column(String(20), nullable=False, default="active")   # active | canceled | expired
+    stripe_session_id = Column(String(200), nullable=True)
+    stripe_subscription_id = Column(String(200), nullable=True)     # for monthly memberships
+    canceling = Column(Boolean, default=False)                      # monthly set to not renew (stays active until expires_at)
+
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    expires_at = Column(DateTime, nullable=True)                    # for monthly memberships

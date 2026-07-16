@@ -1,20 +1,21 @@
 """
-Subscription routes for Jolt.
+Subscription / purchase routes (v5).
 
-Supports:
-  - Promo code redemption (server-side validation)
-  - Subscription status check
-  - Stripe Checkout for real payments
-  - Stripe webhook for payment confirmation
-  - Post-redirect session verification (fallback if webhook is slow)
-  - Cancel subscription
+Two ways to unlock protocol days 2-5:
+  - Per-protocol: a one-time payment ($9) that unlocks a single protocol
+    forever. Grants an Entitlement(kind="protocol", protocol_id) and flips
+    that protocol's `unlocked` flag.
+  - Monthly: a recurring Stripe subscription ($12/mo) that unlocks every
+    protocol while active. Grants an Entitlement(kind="monthly").
 
-When STRIPE_SECRET_KEY is not set, the purchase endpoint returns 503.
-Promo code redemption always works regardless of Stripe config.
+State lives in the `entitlements` table (the v4 `subscriptions` / promo-code
+path is retired). When STRIPE_SECRET_KEY is unset, /checkout returns 503,
+except in DEV_MODE where purchases are granted immediately for local testing.
 """
 
+import time
 from datetime import datetime, timezone, timedelta
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -22,21 +23,18 @@ from sqlalchemy.orm import Session
 
 from app.core.config import cfg
 from app.db import get_db, SessionLocal
-from app.models import User, Subscription, PromoCode
+from app.models import User, Entitlement, Protocol
 from app.routes.auth import get_current_user_required
 
 r = APIRouter(prefix="/api/subscription", tags=["subscription"])
 
 
-def _as_aware_utc(dt):
-    """
-    Normalize a datetime to timezone-aware UTC.
+# --------------------------------------------------------------------------- #
+# Helpers
+# --------------------------------------------------------------------------- #
 
-    Postgres TIMESTAMP columns return naive datetimes, but we compare
-    against datetime.now(timezone.utc) which is aware. Comparing naive
-    and aware datetimes raises TypeError in Python, so we treat naive
-    values as UTC (which is how they were written).
-    """
+def _as_aware_utc(dt):
+    """Normalize a (possibly naive Postgres) datetime to aware UTC."""
     if dt is None:
         return None
     if dt.tzinfo is None:
@@ -45,21 +43,15 @@ def _as_aware_utc(dt):
 
 
 def _frontend_base_url(request: Request) -> str:
-    """
-    Base URL to send the user back to after Stripe Checkout.
-
-    Prefer the Origin header (the exact origin the user is on), then the
-    Referer's origin, then PUBLIC_BASE_URL. This guarantees the user
-    returns to the same origin that holds their login token in
-    localStorage, instead of a mismatched domain.
-    """
+    """Base URL to return the user to after Checkout: prefer Origin, then the
+    Referer's origin, then PUBLIC_BASE_URL, so they land back on the same origin
+    that holds their login token."""
     origin = (request.headers.get("origin") or "").strip().rstrip("/")
     if origin.startswith("http://") or origin.startswith("https://"):
         return origin
 
     referer = (request.headers.get("referer") or "").strip()
     if referer.startswith("http://") or referer.startswith("https://"):
-        # Reduce referer to scheme://host[:port]
         try:
             from urllib.parse import urlsplit
             parts = urlsplit(referer)
@@ -71,233 +63,190 @@ def _frontend_base_url(request: Request) -> str:
     return cfg.PUBLIC_BASE_URL.rstrip("/") if cfg.PUBLIC_BASE_URL else ""
 
 
-def _plan_expiry(plan: str) -> datetime:
-    if plan == "yearly":
-        return datetime.now(timezone.utc) + timedelta(days=365)
-    return datetime.now(timezone.utc) + timedelta(days=30)
+def _monthly_entitlement(user_id, db) -> Optional[Entitlement]:
+    """The user's active, non-expired monthly membership, or None."""
+    e = (db.query(Entitlement)
+         .filter(Entitlement.user_id == user_id,
+                 Entitlement.kind == "monthly",
+                 Entitlement.status == "active")
+         .order_by(Entitlement.created_at.desc())
+         .first())
+    if not e:
+        return None
+    exp = _as_aware_utc(e.expires_at)
+    if exp and exp < datetime.now(timezone.utc):
+        e.status = "expired"
+        db.commit()
+        return None
+    return e
 
 
-def _activate_subscription(db: Session, user_id: int, plan: str, session_id: str) -> str:
-    """
-    Create an active subscription for a paid Stripe Checkout session.
-    Idempotent on stripe_session_id: safe to call from both the webhook
-    and the /verify endpoint without creating duplicates.
+def _unlocked_protocol_ids(user_id, db) -> List[int]:
+    rows = (db.query(Entitlement)
+            .filter(Entitlement.user_id == user_id,
+                    Entitlement.kind == "protocol",
+                    Entitlement.status == "active")
+            .all())
+    return [e.protocol_id for e in rows if e.protocol_id]
 
-    Returns: "created" | "exists"
-    """
-    existing = (
-        db.query(Subscription)
-        .filter(Subscription.stripe_session_id == session_id)
-        .first()
-    )
+
+def _grant_protocol(db, user_id, protocol_id, session_id) -> str:
+    """Idempotent on session_id. Unlocks one protocol forever."""
+    existing = db.query(Entitlement).filter(Entitlement.stripe_session_id == session_id).first()
     if existing:
         return "exists"
-
-    # Deactivate any existing active subscriptions
-    old_subs = (
-        db.query(Subscription)
-        .filter(Subscription.user_id == user_id, Subscription.status == "active")
-        .all()
-    )
-    for s in old_subs:
-        s.status = "replaced"
-
-    sub = Subscription(
-        user_id=user_id,
-        plan=plan,
-        status="active",
-        stripe_session_id=session_id,
-        expires_at=_plan_expiry(plan),
-    )
-    db.add(sub)
+    db.add(Entitlement(
+        user_id=user_id, kind="protocol", protocol_id=protocol_id,
+        status="active", stripe_session_id=session_id,
+    ))
+    p = db.query(Protocol).filter(Protocol.id == protocol_id, Protocol.user_id == user_id).first()
+    if p:
+        p.unlocked = True
     db.commit()
-    print(f"[stripe] subscription created for user {user_id}, plan={plan}, session={session_id}")
+    print(f"[stripe] protocol {protocol_id} unlocked for user {user_id} (session {session_id})")
     return "created"
 
 
-# --- Request / Response schemas ---
+def _grant_monthly(db, user_id, session_id, subscription_id, expires_at) -> str:
+    """Idempotent on session_id. Replaces any prior active monthly entitlement."""
+    existing = db.query(Entitlement).filter(Entitlement.stripe_session_id == session_id).first()
+    if existing:
+        return "exists"
+    olds = (db.query(Entitlement)
+            .filter(Entitlement.user_id == user_id,
+                    Entitlement.kind == "monthly",
+                    Entitlement.status == "active")
+            .all())
+    for o in olds:
+        o.status = "replaced"
+    db.add(Entitlement(
+        user_id=user_id, kind="monthly", status="active",
+        stripe_session_id=session_id, stripe_subscription_id=subscription_id,
+        expires_at=expires_at,
+    ))
+    db.commit()
+    print(f"[stripe] monthly membership active for user {user_id} (session {session_id})")
+    return "created"
 
-class RedeemRequest(BaseModel):
-    code: str
+
+def _sub_period_end(subscription_id: str) -> datetime:
+    """Read a Stripe subscription's current period end; fall back to +31 days."""
+    try:
+        import stripe
+        stripe.api_key = cfg.STRIPE_SECRET_KEY
+        sub = stripe.Subscription.retrieve(subscription_id)
+        cpe = getattr(sub, "current_period_end", None)
+        if cpe:
+            return datetime.fromtimestamp(int(cpe), tz=timezone.utc)
+    except Exception as e:
+        print(f"[stripe] could not read period end for {subscription_id}: {e}")
+    return datetime.now(timezone.utc) + timedelta(days=31)
 
 
-class PurchaseRequest(BaseModel):
-    plan: str  # "monthly" or "yearly"
+# --------------------------------------------------------------------------- #
+# Schemas
+# --------------------------------------------------------------------------- #
+
+class CheckoutReq(BaseModel):
+    kind: str                         # "protocol" | "monthly"
+    protocol_id: Optional[int] = None
 
 
-class VerifyRequest(BaseModel):
+class VerifyReq(BaseModel):
     session_id: str
 
 
-class SubscriptionStatusResponse(BaseModel):
-    has_subscription: bool
-    plan: Optional[str] = None
-    status: Optional[str] = None
-    expires_at: Optional[str] = None
-
-
-class RedeemResponse(BaseModel):
-    status: str
-    message: str
-
-
-class PurchaseResponse(BaseModel):
-    status: str
+class CheckoutResp(BaseModel):
+    status: str                       # checkout | already_unlocked | already_active | dev_granted
     message: str = ""
     checkout_url: Optional[str] = None
 
 
-class VerifyResponse(BaseModel):
+class VerifyResp(BaseModel):
+    status: str                       # ok | pending
+    unlocked: bool = False
+
+
+class StatusResp(BaseModel):
+    monthly_active: bool
+    monthly_expires: Optional[str] = None
+    monthly_canceling: bool = False
+    unlocked_protocol_ids: List[int] = []
+
+
+class Ok(BaseModel):
     status: str
-    has_subscription: bool = False
+    message: str = ""
 
 
-class StatusResponse(BaseModel):
-    status: str
+# --------------------------------------------------------------------------- #
+# Endpoints
+# --------------------------------------------------------------------------- #
+
+@r.get("/config")
+def get_config():
+    """Publishable key + display prices for the paywall."""
+    return {
+        "publishable_key": cfg.STRIPE_PUBLISHABLE_KEY or "",
+        "protocol_price_usd": cfg.PROTOCOL_PRICE_USD,
+        "monthly_price_usd": cfg.MONTHLY_PRICE_USD,
+    }
 
 
-# --- Endpoints ---
-
-@r.get("/status", response_model=SubscriptionStatusResponse)
-def get_status(
-    user: User = Depends(get_current_user_required),
-    db: Session = Depends(get_db),
-):
-    """Check if the current user has an active subscription."""
-    sub = (
-        db.query(Subscription)
-        .filter(Subscription.user_id == user.id, Subscription.status == "active")
-        .order_by(Subscription.created_at.desc())
-        .first()
-    )
-    if not sub:
-        return SubscriptionStatusResponse(has_subscription=False)
-
-    # Check if expired
-    exp = _as_aware_utc(sub.expires_at)
-    if exp and exp < datetime.now(timezone.utc):
-        sub.status = "expired"
-        db.commit()
-        return SubscriptionStatusResponse(has_subscription=False)
-
-    return SubscriptionStatusResponse(
-        has_subscription=True,
-        plan=sub.plan,
-        status=sub.status,
-        expires_at=sub.expires_at.isoformat() if sub.expires_at else None,
+@r.get("/status", response_model=StatusResp)
+def get_status(user: User = Depends(get_current_user_required), db: Session = Depends(get_db)):
+    m = _monthly_entitlement(user.id, db)
+    return StatusResp(
+        monthly_active=bool(m),
+        monthly_expires=(_as_aware_utc(m.expires_at).isoformat() if m and m.expires_at else None),
+        monthly_canceling=bool(m and m.canceling),
+        unlocked_protocol_ids=_unlocked_protocol_ids(user.id, db),
     )
 
 
-@r.post("/redeem", response_model=RedeemResponse)
-def redeem_code(
-    req: RedeemRequest,
-    user: User = Depends(get_current_user_required),
-    db: Session = Depends(get_db),
-):
-    """
-    Validate and redeem a promo code.
-    Creates an active subscription if the code is valid.
-    """
-    code_str = (req.code or "").strip().upper()
-    if not code_str:
-        raise HTTPException(status_code=400, detail="Code is required")
+@r.post("/checkout", response_model=CheckoutResp)
+def checkout(req: CheckoutReq, request: Request,
+             user: User = Depends(get_current_user_required), db: Session = Depends(get_db)):
+    kind = (req.kind or "").strip().lower()
+    if kind not in ("protocol", "monthly"):
+        raise HTTPException(400, "kind must be 'protocol' or 'monthly'")
 
-    # Look up the code
-    promo = (
-        db.query(PromoCode)
-        .filter(PromoCode.code == code_str, PromoCode.is_active == True)
-        .first()
-    )
-    if not promo:
-        raise HTTPException(status_code=404, detail="That code didn\u2019t work. Try another?")
+    # Pre-checks + ownership.
+    if kind == "protocol":
+        if not req.protocol_id:
+            raise HTTPException(400, "protocol_id required")
+        p = db.query(Protocol).filter(Protocol.id == req.protocol_id, Protocol.user_id == user.id).first()
+        if not p:
+            raise HTTPException(404, "protocol not found")
+        if p.unlocked or _monthly_entitlement(user.id, db):
+            return CheckoutResp(status="already_unlocked", message="This protocol is already unlocked")
+    else:
+        if _monthly_entitlement(user.id, db):
+            return CheckoutResp(status="already_active", message="You already have an active membership")
 
-    # Check usage limits (0 = unlimited)
-    if promo.max_uses > 0 and promo.uses_count >= promo.max_uses:
-        raise HTTPException(status_code=410, detail="This code has been fully redeemed")
-
-    # Check if user already has an active subscription
-    existing = (
-        db.query(Subscription)
-        .filter(Subscription.user_id == user.id, Subscription.status == "active")
-        .first()
-    )
-    if existing:
-        return RedeemResponse(status="ok", message="You already have an active subscription")
-
-    # Check if user already used this specific code
-    already_used = (
-        db.query(Subscription)
-        .filter(
-            Subscription.user_id == user.id,
-            Subscription.code_used == code_str,
-        )
-        .first()
-    )
-    if already_used:
-        raise HTTPException(status_code=409, detail="You have already used this code")
-
-    # Create subscription
-    sub = Subscription(
-        user_id=user.id,
-        plan="code",
-        status="active",
-        code_used=code_str,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=365),
-    )
-    db.add(sub)
-
-    # Increment usage count
-    promo.uses_count += 1
-    db.commit()
-
-    return RedeemResponse(status="ok", message="Code accepted!")
-
-
-@r.post("/purchase", response_model=PurchaseResponse)
-def purchase(
-    req: PurchaseRequest,
-    request: Request,
-    user: User = Depends(get_current_user_required),
-    db: Session = Depends(get_db),
-):
-    """
-    Create a Stripe Checkout session for the chosen plan.
-    Returns a checkout_url that the frontend redirects to.
-    If Stripe is not configured, returns 503.
-    """
-    if req.plan not in ("monthly", "yearly"):
-        raise HTTPException(status_code=400, detail="Plan must be 'monthly' or 'yearly'")
-
-    # Check if user already has an active subscription
-    existing = (
-        db.query(Subscription)
-        .filter(Subscription.user_id == user.id, Subscription.status == "active")
-        .first()
-    )
-    if existing:
-        exp = _as_aware_utc(existing.expires_at)
-        if exp and exp < datetime.now(timezone.utc):
-            existing.status = "expired"
-            db.commit()
+    # DEV_MODE: grant immediately so the unlocked flow can be tested without Stripe.
+    if cfg.DEV_MODE:
+        sid = f"dev_{kind}_{user.id}_{int(time.time())}"
+        if kind == "protocol":
+            _grant_protocol(db, user.id, req.protocol_id, sid)
         else:
-            return PurchaseResponse(status="ok", message="You already have an active subscription")
+            _grant_monthly(db, user.id, sid, f"dev_sub_{user.id}",
+                           datetime.now(timezone.utc) + timedelta(days=30))
+        base = _frontend_base_url(request)
+        return CheckoutResp(status="dev_granted",
+                            checkout_url=f"{base}/?payment=success&session_id={sid}")
 
-    # Stripe must be configured
     if not cfg.STRIPE_SECRET_KEY:
-        raise HTTPException(status_code=503, detail="Payments are not configured yet")
+        raise HTTPException(503, "Payments are not configured yet")
+
+    price_id = cfg.STRIPE_PRICE_ID_PROTOCOL if kind == "protocol" else cfg.STRIPE_PRICE_ID_MONTHLY
+    if not price_id:
+        raise HTTPException(503, "Payment price not configured")
 
     import stripe
     stripe.api_key = cfg.STRIPE_SECRET_KEY
 
-    # Pick price ID
-    price_id = (
-        cfg.STRIPE_PRICE_ID_MONTHLY if req.plan == "monthly"
-        else cfg.STRIPE_PRICE_ID_YEARLY
-    )
-    if not price_id:
-        raise HTTPException(status_code=503, detail="Payment plan not configured")
-
-    # Create or reuse Stripe customer
+    # Create or reuse the Stripe customer.
     try:
         if user.stripe_customer_id:
             customer_id = user.stripe_customer_id
@@ -312,57 +261,48 @@ def purchase(
             db.commit()
     except Exception as e:
         print(f"[stripe] customer creation error: {e}")
-        raise HTTPException(status_code=502, detail="Could not connect to payment provider")
+        raise HTTPException(502, "Could not connect to payment provider")
 
-    # Build redirect URLs from the origin the user is actually on,
-    # so they return to the same origin that holds their login token.
     base_url = _frontend_base_url(request)
-    if not base_url:
-        print("[stripe] WARNING: no origin/referer and PUBLIC_BASE_URL is empty")
     success_url = f"{base_url}/?payment=success&session_id={{CHECKOUT_SESSION_ID}}"
     cancel_url = f"{base_url}/?payment=cancel"
 
-    # Create Checkout Session
+    meta = {"rewire_user_id": str(user.id), "kind": kind}
+    if kind == "protocol":
+        meta["protocol_id"] = str(req.protocol_id)
+
     try:
         session = stripe.checkout.Session.create(
             customer=customer_id,
             payment_method_types=["card"],
             line_items=[{"price": price_id, "quantity": 1}],
-            mode="payment",
+            mode=("payment" if kind == "protocol" else "subscription"),
             success_url=success_url,
             cancel_url=cancel_url,
-            metadata={
-                "rewire_user_id": str(user.id),
-                "plan": req.plan,
-            },
+            metadata=meta,
         )
     except Exception as e:
         print(f"[stripe] checkout session error: {e}")
-        raise HTTPException(status_code=502, detail="Could not create checkout session")
+        raise HTTPException(502, "Could not create checkout session")
 
-    return PurchaseResponse(
-        status="checkout",
-        checkout_url=session.url,
-    )
+    return CheckoutResp(status="checkout", checkout_url=session.url)
 
 
-@r.post("/verify", response_model=VerifyResponse)
-def verify_session(
-    req: VerifyRequest,
-    user: User = Depends(get_current_user_required),
-    db: Session = Depends(get_db),
-):
-    """
-    Verify a Stripe Checkout session after the success redirect and
-    activate the subscription immediately, without waiting for the
-    webhook. Idempotent with the webhook via stripe_session_id.
-    """
-    if not cfg.STRIPE_SECRET_KEY:
-        raise HTTPException(status_code=503, detail="Payments are not configured yet")
-
+@r.post("/verify", response_model=VerifyResp)
+def verify_session(req: VerifyReq, user: User = Depends(get_current_user_required),
+                   db: Session = Depends(get_db)):
+    """Verify a Checkout session after the success redirect and grant the
+    entitlement immediately, without waiting for the webhook. Idempotent."""
     session_id = (req.session_id or "").strip()
     if not session_id:
-        raise HTTPException(status_code=400, detail="session_id is required")
+        raise HTTPException(400, "session_id is required")
+
+    # DEV_MODE grants happen at /checkout; the dev session is already applied.
+    if cfg.DEV_MODE or session_id.startswith("dev_"):
+        return VerifyResp(status="ok", unlocked=True)
+
+    if not cfg.STRIPE_SECRET_KEY:
+        raise HTTPException(503, "Payments are not configured yet")
 
     import stripe
     stripe.api_key = cfg.STRIPE_SECRET_KEY
@@ -371,34 +311,36 @@ def verify_session(
         session = stripe.checkout.Session.retrieve(session_id)
     except Exception as e:
         print(f"[stripe] verify: could not retrieve session {session_id}: {e}")
-        raise HTTPException(status_code=404, detail="Checkout session not found")
+        raise HTTPException(404, "Checkout session not found")
 
-    # The session must belong to this user
     meta = getattr(session, "metadata", None)
     meta_uid = getattr(meta, "rewire_user_id", None) if meta else None
     if not meta_uid or int(meta_uid) != user.id:
-        print(f"[stripe] verify: session {session_id} does not belong to user {user.id}")
-        raise HTTPException(status_code=403, detail="This payment does not belong to your account")
+        raise HTTPException(403, "This payment does not belong to your account")
 
-    # The session must actually be paid
-    payment_status = getattr(session, "payment_status", "") or ""
-    if payment_status != "paid":
-        print(f"[stripe] verify: session {session_id} not paid (status={payment_status})")
-        return VerifyResponse(status="pending", has_subscription=False)
+    kind = getattr(meta, "kind", "monthly") if meta else "monthly"
 
-    plan = getattr(meta, "plan", "monthly") if meta else "monthly"
-    _activate_subscription(db, user.id, plan, session_id)
-    return VerifyResponse(status="ok", has_subscription=True)
+    if kind == "protocol":
+        if (getattr(session, "payment_status", "") or "") != "paid":
+            return VerifyResp(status="pending", unlocked=False)
+        pid = getattr(meta, "protocol_id", None)
+        _grant_protocol(db, user.id, int(pid) if pid else None, session_id)
+        return VerifyResp(status="ok", unlocked=True)
+
+    # monthly
+    sub_id = getattr(session, "subscription", None)
+    if not sub_id:
+        return VerifyResp(status="pending", unlocked=False)
+    _grant_monthly(db, user.id, session_id, str(sub_id), _sub_period_end(str(sub_id)))
+    return VerifyResp(status="ok", unlocked=True)
 
 
 @r.post("/webhook")
 async def stripe_webhook(request: Request):
-    """
-    Stripe webhook endpoint. Called by Stripe after successful payment.
-    Verifies the webhook signature, then creates a Subscription record.
-    """
+    """Stripe webhook: grant on checkout completion, keep monthly expiry in sync
+    on renewal, and expire it on cancellation."""
     if not cfg.STRIPE_SECRET_KEY or not cfg.STRIPE_WEBHOOK_SECRET:
-        raise HTTPException(status_code=503, detail="Stripe not configured")
+        raise HTTPException(503, "Stripe not configured")
 
     import stripe
     stripe.api_key = cfg.STRIPE_SECRET_KEY
@@ -407,37 +349,75 @@ async def stripe_webhook(request: Request):
     sig = request.headers.get("stripe-signature", "")
 
     try:
-        event = stripe.Webhook.construct_event(
-            payload, sig, cfg.STRIPE_WEBHOOK_SECRET
-        )
+        event = stripe.Webhook.construct_event(payload, sig, cfg.STRIPE_WEBHOOK_SECRET)
     except stripe.error.SignatureVerificationError:
-        raise HTTPException(status_code=400, detail="Invalid signature")
+        raise HTTPException(400, "Invalid signature")
     except Exception as e:
         print(f"[stripe] webhook parse error: {e}")
-        raise HTTPException(status_code=400, detail="Webhook error")
+        raise HTTPException(400, "Webhook error")
 
-    if event["type"] == "checkout.session.completed":
+    etype = event["type"]
+
+    if etype == "checkout.session.completed":
         session = event["data"]["object"]
-        # stripe>=8: use attribute access only, no .get() or dict()
         session_id = session.id or ""
         meta = getattr(session, "metadata", None)
-        user_id_str = getattr(meta, "rewire_user_id", None) if meta else None
-        plan = getattr(meta, "plan", "monthly") if meta else "monthly"
-
-        if not user_id_str:
+        uid = getattr(meta, "rewire_user_id", None) if meta else None
+        kind = getattr(meta, "kind", "monthly") if meta else "monthly"
+        if not uid:
             print("[stripe] webhook: no rewire_user_id in metadata")
             return {"status": "ignored"}
+        user_id = int(uid)
 
-        user_id = int(user_id_str)
-
-        # Use a fresh DB session for the webhook
         db = SessionLocal()
         try:
-            result = _activate_subscription(db, user_id, plan, session_id)
-            if result == "exists":
-                print(f"[stripe] webhook: subscription already exists for session {session_id}")
+            if kind == "protocol":
+                pid = getattr(meta, "protocol_id", None)
+                _grant_protocol(db, user_id, int(pid) if pid else None, session_id)
+            else:
+                sub_id = getattr(session, "subscription", None)
+                if sub_id:
+                    _grant_monthly(db, user_id, session_id, str(sub_id), _sub_period_end(str(sub_id)))
         except Exception as e:
-            print(f"[stripe] webhook db error: {e}")
+            print(f"[stripe] webhook grant error: {e}")
+            db.rollback()
+        finally:
+            db.close()
+
+    elif etype == "customer.subscription.updated":
+        sub = event["data"]["object"]
+        sub_id = sub.id or ""
+        cpe = getattr(sub, "current_period_end", None)
+        db = SessionLocal()
+        try:
+            e = (db.query(Entitlement)
+                 .filter(Entitlement.stripe_subscription_id == sub_id,
+                         Entitlement.kind == "monthly")
+                 .order_by(Entitlement.created_at.desc()).first())
+            if e and cpe:
+                e.expires_at = datetime.fromtimestamp(int(cpe), tz=timezone.utc)
+                if e.status != "active":
+                    e.status = "active"
+                db.commit()
+        except Exception as ex:
+            print(f"[stripe] webhook sub-update error: {ex}")
+            db.rollback()
+        finally:
+            db.close()
+
+    elif etype == "customer.subscription.deleted":
+        sub = event["data"]["object"]
+        sub_id = sub.id or ""
+        db = SessionLocal()
+        try:
+            es = (db.query(Entitlement)
+                  .filter(Entitlement.stripe_subscription_id == sub_id,
+                          Entitlement.kind == "monthly").all())
+            for e in es:
+                e.status = "expired"
+            db.commit()
+        except Exception as ex:
+            print(f"[stripe] webhook sub-delete error: {ex}")
             db.rollback()
         finally:
             db.close()
@@ -445,26 +425,57 @@ async def stripe_webhook(request: Request):
     return {"status": "ok"}
 
 
-@r.get("/config")
-def get_stripe_config():
-    """Return the Stripe publishable key for the frontend."""
-    return {"publishable_key": cfg.STRIPE_PUBLISHABLE_KEY or ""}
+@r.post("/cancel", response_model=Ok)
+def cancel(user: User = Depends(get_current_user_required), db: Session = Depends(get_db)):
+    """Cancel the monthly membership. Access continues until the current period
+    ends (Stripe cancel_at_period_end); the deleted webhook expires it then."""
+    m = _monthly_entitlement(user.id, db)
+    if not m:
+        raise HTTPException(404, "No active membership found")
 
+    # DEV or no real Stripe subscription -> expire now so the state can be re-tested.
+    if cfg.DEV_MODE or not m.stripe_subscription_id or not cfg.STRIPE_SECRET_KEY:
+        m.status = "expired"
+        m.expires_at = datetime.now(timezone.utc)
+        db.commit()
+        return Ok(status="ok", message="Membership canceled")
 
-@r.post("/cancel", response_model=StatusResponse)
-def cancel(
-    user: User = Depends(get_current_user_required),
-    db: Session = Depends(get_db),
-):
-    """Cancel the user's active subscription."""
-    sub = (
-        db.query(Subscription)
-        .filter(Subscription.user_id == user.id, Subscription.status == "active")
-        .first()
-    )
-    if not sub:
-        raise HTTPException(status_code=404, detail="No active subscription found")
+    try:
+        import stripe
+        stripe.api_key = cfg.STRIPE_SECRET_KEY
+        stripe.Subscription.modify(m.stripe_subscription_id, cancel_at_period_end=True)
+    except Exception as e:
+        print(f"[stripe] cancel error: {e}")
+        raise HTTPException(502, "Could not cancel with payment provider")
 
-    sub.status = "cancelled"
+    m.canceling = True
     db.commit()
-    return StatusResponse(status="ok")
+    return Ok(status="ok", message="Your membership will not renew and stays active until the period ends")
+
+
+@r.post("/resume", response_model=Ok)
+def resume(user: User = Depends(get_current_user_required), db: Session = Depends(get_db)):
+    """Undo a scheduled cancellation so the membership keeps renewing."""
+    m = _monthly_entitlement(user.id, db)
+    if not m:
+        raise HTTPException(404, "No active membership found")
+    if not m.canceling:
+        return Ok(status="ok", message="Your membership is already active")
+
+    # DEV or no real Stripe subscription -> just clear the flag.
+    if cfg.DEV_MODE or not m.stripe_subscription_id or not cfg.STRIPE_SECRET_KEY:
+        m.canceling = False
+        db.commit()
+        return Ok(status="ok", message="Membership resumed")
+
+    try:
+        import stripe
+        stripe.api_key = cfg.STRIPE_SECRET_KEY
+        stripe.Subscription.modify(m.stripe_subscription_id, cancel_at_period_end=False)
+    except Exception as e:
+        print(f"[stripe] resume error: {e}")
+        raise HTTPException(502, "Could not resume with payment provider")
+
+    m.canceling = False
+    db.commit()
+    return Ok(status="ok", message="Your membership will keep renewing")

@@ -11,6 +11,8 @@ services:
     envVars:
       - key: PYTHONUNBUFFERED
         value: "1"
+      - key: DEV_MODE
+        value: "false"
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: ELEVENLABS_API_KEY
@@ -42,6 +44,8 @@ services:
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_PRICE_ID_PROTOCOL
         sync: false
       - key: STRIPE_PRICE_ID_MONTHLY
         sync: false

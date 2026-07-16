@@ -135,7 +135,7 @@ def call_claude(system_prompt: str, user_message: str = "Generate.", max_tokens:
 
 
 # ---------------------------------------------------------------------------
-# Goal title cleanup (Felix's exact prompt)
+# Goal title cleanup (v4)
 # ---------------------------------------------------------------------------
 
 _TITLE_SYSTEM_PROMPT = """You convert a user's freeform entry into a short goal title for a mental health app.
@@ -187,7 +187,7 @@ def clean_goal_title(raw_title: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# AI suggestions for tips and challenges (Felix's exact prompts)
+# AI suggestions for tips and challenges (v4)
 # ---------------------------------------------------------------------------
 
 _CHALLENGE_SYSTEM = """You help someone name the real obstacle standing between them and a personal goal. You write a single "challenge": the honest, specific reason this goal is hard for THIS person, in their own first-person voice.
@@ -235,8 +235,8 @@ def _build_suggestion_user_msg(
     kind: str,
     goal_title: str,
     goal_desc: str,
-    challenges: list[str],
-    tips: list[str],
+    challenges: list,
+    tips: list,
 ) -> str:
     ch = "\n".join(f"- {c}" for c in challenges) if challenges else "none yet"
     tp = "\n".join(f"- {t}" for t in tips) if tips else "none yet"
@@ -254,8 +254,8 @@ def generate_suggestion(
     kind: str,
     goal_title: str,
     goal_desc: str = "",
-    challenges: list[str] | None = None,
-    tips: list[str] | None = None,
+    challenges=None,
+    tips=None,
 ) -> str:
     """
     Generate an AI suggestion (tip or challenge) for a goal.
@@ -310,3 +310,294 @@ def generate_suggestion(
         fresh = [t for t in pool if t not in existing]
         arr = fresh if fresh else pool
         return random.choice(arr)
+
+
+# ===========================================================================
+# v5 PROTOCOL GENERATION
+# ---------------------------------------------------------------------------
+# Wires the three prompts (jolt_prompts) and the two safety screens
+# (safety_screen upstream, output_screen downstream) into the generation flow.
+# All v4 functions above are untouched and still used by the v4 routes.
+# ===========================================================================
+
+from app.services import jolt_prompts, safety_screen, output_screen
+
+
+class ProtocolUnsafe(Exception):
+    """Raised when v5 generation cannot safely produce a jolt.
+
+    stage    : where it stopped -> "plan" | "speech" | "output_screen"
+    verdict  : short machine reason -> "unsafe_goal" | "unsafe" | "fail"
+    category : safety category for logging, when available
+    The upstream input screen does NOT raise this; screen_input() returns a
+    verdict dict so the route can branch on clarify / block / crisis.
+    """
+    def __init__(self, stage: str, verdict: str = "", category: str = "", detail: str = ""):
+        self.stage = stage
+        self.verdict = verdict
+        self.category = category
+        self.detail = detail
+        super().__init__(f"protocol unsafe at {stage}: {verdict} {category} {detail}".strip())
+
+
+def _claude_text(model: str, system: str, user: str, max_tokens: int,
+                 temperature: float = 1.0, max_retries: int = 4,
+                 backoff_base: float = 2.0) -> str:
+    """Low-level Claude call returning concatenated text, with retry/backoff.
+
+    Shares the retry policy of generate_speech() but is parameterized by model,
+    temperature, and token budget so it serves speeches (Sonnet, hot) and the
+    cheap classifier/plan calls (Haiku/Sonnet, cold) alike.
+    """
+    client = anthropic.Anthropic(api_key=cfg.ANTHROPIC_API_KEY)
+    last_exc = None
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            msg = client.messages.create(
+                model=model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                system=system,
+                messages=[{"role": "user", "content": user}],
+            )
+            text = ""
+            for block in msg.content:
+                if block.type == "text":
+                    text += block.text
+            return text.strip()
+
+        except Exception as e:
+            last_exc = e
+            status = getattr(e, "status_code", None)
+
+            if status in _RETRYABLE and attempt < max_retries:
+                sleep_s = backoff_base ** (attempt + 1 if status == 429 else attempt)
+                print(f"[LLM] {status}, retry {attempt}/{max_retries} in {sleep_s:.1f}s")
+                time.sleep(sleep_s)
+                continue
+
+            if status is None and ("connect" in str(e).lower() or "timeout" in str(e).lower()) and attempt < max_retries:
+                sleep_s = backoff_base ** attempt
+                print(f"[LLM] connection error, retry {attempt}/{max_retries} in {sleep_s:.1f}s")
+                time.sleep(sleep_s)
+                continue
+
+            raise
+
+    if last_exc:
+        raise last_exc
+    raise RuntimeError("unknown LLM error")
+
+
+# --- Upstream input safety screen ------------------------------------------
+
+def screen_input(target: str, charge: str) -> dict:
+    """Run the input safety screen on the onboarding answers.
+
+    Returns {"verdict","category","rationale"} with verdict in
+    safe | clarify | block | crisis. Fails closed to "clarify" on any error,
+    so generation is never reached without a screen result.
+    """
+    if cfg.DEV_MODE:
+        return {"verdict": "safe", "category": "none", "rationale": "dev mode"}
+    try:
+        raw = _claude_text(
+            cfg.HAIKU_MODEL,
+            safety_screen.SCREEN_SYSTEM,
+            safety_screen.build_screen_prompt(target, charge),
+            max_tokens=200,
+            temperature=0.0,
+        )
+        return safety_screen.parse_screen(raw)
+    except Exception as e:
+        print(f"[LLM] input screen error: {e}")
+        return {"verdict": "clarify", "category": "other", "rationale": "screen error"}
+
+
+# --- Plan (break the goal into 5 daily components) --------------------------
+
+_DEV_PLAN = {
+    "days": [
+        {"day": 1, "stage": "initiation",    "action": "Do the smallest version once",  "brief": "Make simply starting feel safe and winnable."},
+        {"day": 2, "stage": "proof",         "action": "Do a slightly bigger version",  "brief": "Prove that 'I don't do this' is now false."},
+        {"day": 3, "stage": "middle",        "action": "Do the small version again",    "brief": "Protect the streak through the quiet middle."},
+        {"day": 4, "stage": "momentum",      "action": "Take one real step up",         "brief": "Show them how far they have already come."},
+        {"day": 5, "stage": "consolidation", "action": "Do the full version once",      "brief": "Consolidate the identity; look back at the week."},
+    ]
+}
+
+
+def generate_plan(target: str, charge: str, max_attempts: int = 2) -> dict:
+    """Run the PLAN prompt and return the 5-day plan dict {"days": [...]}.
+
+    Retries once on malformed JSON (wraps parse_plan's assertions so a bad plan
+    never crashes the request). Raises ProtocolUnsafe if the model judges the
+    goal unsafe (returns {"error": "unsafe_goal"}).
+    """
+    if cfg.DEV_MODE:
+        return _DEV_PLAN
+
+    last_err = None
+    for attempt in range(1, max_attempts + 1):
+        raw = _claude_text(
+            cfg.CLAUDE_MODEL,
+            jolt_prompts.PLAN_SYSTEM,
+            jolt_prompts.build_plan_prompt(target, charge),
+            max_tokens=1000,
+            temperature=0.7,
+        )
+        try:
+            plan = jolt_prompts.parse_plan(raw)
+        except (AssertionError, json.JSONDecodeError, KeyError, ValueError) as e:
+            last_err = e
+            print(f"[LLM] plan parse failed (attempt {attempt}/{max_attempts}): {e}")
+            continue
+
+        if isinstance(plan, dict) and "error" in plan:
+            raise ProtocolUnsafe("plan", verdict="unsafe_goal", detail=str(plan.get("error", "")))
+        return plan
+
+    # Last resort: after retries the model still returned unparseable JSON.
+    # Never 500 protocol creation over a model wobble -- fall back to the
+    # generic arc so the user still gets a working (if un-personalized) protocol.
+    print(f"[LLM] plan unparseable after {max_attempts} attempts ({last_err!r}); using fallback plan")
+    return _DEV_PLAN
+
+
+# --- Speech (day 1 and days 2-5) with downstream output screening -----------
+
+_DEV_PROTOCOL_SPEECH = (
+    "You have carried this quietly for a long time... longer than you would admit.\n"
+    "And still, here you are.\n\n"
+    "---\n\n"
+    "[softly] Most people never even write it down. You did. That already sets you apart. "
+    "You are NOT behind. You are NOT broken. You are simply at the threshold, where every "
+    "real change begins. [pause] So today, there is only one thing that matters. One small, "
+    "honest act. [whispers] Here it is."
+)
+
+
+def _screen_output(speech: str) -> dict:
+    """Run the downstream output screen on a generated speech.
+
+    Returns the verdict dict. Fails closed to "fail" on any error so unverified
+    content is never delivered.
+    """
+    if cfg.DEV_MODE:
+        return {"verdict": "pass", "category": "none", "rationale": "dev mode"}
+    try:
+        raw = _claude_text(
+            cfg.HAIKU_MODEL,
+            output_screen.OUTPUT_SCREEN_SYSTEM,
+            output_screen.build_output_screen_prompt(speech),
+            max_tokens=200,
+            temperature=0.0,
+        )
+        return output_screen.parse_output_screen(raw)
+    except Exception as e:
+        print(f"[LLM] output screen error: {e}")
+        return {"verdict": "fail", "category": "other", "rationale": "screen error"}
+
+
+def generate_protocol_speech(
+    protocol_type: str,
+    day: int,
+    target: str,
+    charge: str,
+    plan: dict,
+    day_action: str = None,
+    completed_actions=None,
+    yesterday_reflection: str = "",
+    correction: str = "",
+    max_screen_retries: int = 2,
+) -> str:
+    """Generate a jolt speech for one protocol day, screened before return.
+
+    Day 1 uses the first-jolt prompt; days 2-5 use the state-aware prompt.
+    target_words is read from the track registry in config for this type + day,
+    so the speech is written to fill that day's real music track.
+
+    Raises ProtocolUnsafe if the model returns REWIRE_UNSAFE, or if the output
+    screen fails after max_screen_retries regenerations.
+    """
+    track = cfg.get_protocol_track(protocol_type, day)
+    target_words = track["target_words"]
+    today = next(d for d in plan["days"] if d["day"] == day)
+    action = day_action or today["action"]
+
+    if cfg.DEV_MODE:
+        return f"{_DEV_PROTOCOL_SPEECH} {action}."
+
+    completed_actions = completed_actions or []
+    last_fail = None
+
+    for attempt in range(1, max_screen_retries + 1):
+        if day == 1:
+            system = jolt_prompts.SPEECH1_SYSTEM
+            user = jolt_prompts.build_speech1_prompt(target, charge, action, target_words)
+        else:
+            system, user = jolt_prompts.build_speechn_prompts(
+                day, plan, target, charge, completed_actions, target_words, yesterday_reflection
+            )
+
+        if correction:
+            user = f"{user}\n\n{correction}"
+
+        speech = _claude_text(cfg.CLAUDE_MODEL, system, user, max_tokens=4096, temperature=1.0)
+
+        if speech.strip().startswith("REWIRE_UNSAFE"):
+            raise ProtocolUnsafe("speech", verdict="unsafe", detail="REWIRE_UNSAFE token")
+
+        verdict = _screen_output(speech)
+        if verdict.get("verdict") == "pass":
+            return speech
+
+        last_fail = verdict
+        print(f"[LLM] output screen FAIL {attempt}/{max_screen_retries}: {verdict.get('category')}")
+
+    raise ProtocolUnsafe(
+        "output_screen",
+        verdict="fail",
+        category=(last_fail or {}).get("category", "other"),
+        detail="output screen failed after retries",
+    )
+
+
+def generate_journal_speech(entry_text: str, target_words: int,
+                            max_screen_retries: int = 2) -> str:
+    """Generate a jolt speech from a journal entry, screened before return.
+
+    Mirrors generate_protocol_speech but seeded by the entry text alone (no
+    protocol, day, or plan). The caller passes target_words from whichever
+    track the journal jolt uses. Raises ProtocolUnsafe if the model returns
+    REWIRE_UNSAFE, or if the output screen fails after max_screen_retries
+    regenerations. The entry text should already have passed the input safety
+    screen before this is called.
+    """
+    if cfg.DEV_MODE:
+        return f"{_DEV_PROTOCOL_SPEECH} Just the next honest line."
+
+    last_fail = None
+    for attempt in range(1, max_screen_retries + 1):
+        system = jolt_prompts.JOURNAL_SYSTEM
+        user = jolt_prompts.build_journal_prompt(entry_text, target_words)
+
+        speech = _claude_text(cfg.CLAUDE_MODEL, system, user, max_tokens=4096, temperature=1.0)
+
+        if speech.strip().startswith("REWIRE_UNSAFE"):
+            raise ProtocolUnsafe("speech", verdict="unsafe", detail="REWIRE_UNSAFE token (journal)")
+
+        verdict = _screen_output(speech)
+        if verdict.get("verdict") == "pass":
+            return speech
+
+        last_fail = verdict
+        print(f"[LLM] journal output screen FAIL {attempt}/{max_screen_retries}: {verdict.get('category')}")
+
+    raise ProtocolUnsafe(
+        "output_screen",
+        verdict="fail",
+        category=(last_fail or {}).get("category", "other"),
+        detail="journal output screen failed after retries",
+    )
