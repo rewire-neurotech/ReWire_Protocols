@@ -226,7 +226,7 @@
         }
       }
       .home-head {
-        margin-top: 30px;
+        margin-top: 26px;
         flex-shrink: 0;
       }
       .home-eyebrow {
@@ -251,10 +251,9 @@
         background: var(--faint);
       }
       .home-title {
-        margin-top: 13px;
         font-family: var(--display);
         font-size: 31px;
-        line-height: 1.16;
+        line-height: 1.14;
         font-weight: 500;
         letter-spacing: -0.012em;
         color: var(--ink);
@@ -296,11 +295,9 @@
         flex: 1;
         min-height: 0;
         overflow-y: auto;
-        margin: 10px -26px 0;
-        padding: 6px 26px 88px;
+        margin-top: 8px;
+        padding: 26px 0 110px;
         scrollbar-width: none;
-        display: flex;
-        flex-direction: column;
       }
       .path-scroll::-webkit-scrollbar {
         display: none;
@@ -308,43 +305,30 @@
       .path {
         position: relative;
         padding-left: 4px;
-        flex: 1 0 auto;
-        display: flex;
-        flex-direction: column;
-      }
-      /* top spacer grows like a station so title-to-first-task matches task-to-task rhythm */
-      .path::before {
-        content: "";
-        display: block;
-        flex: 0.72 0 22px;
-        max-height: 78px;
       }
       .station {
         position: relative;
         display: flex;
-        align-items: flex-start;
-        gap: 16px;
-        min-height: 96px;
-        flex: 1 0 auto;
-      }
-      .station:last-child {
-        flex-grow: 0;
-        min-height: 68px;
+        align-items: center;
+        gap: 20px;
+        min-height: 84px;
       }
       .st-node {
         position: relative;
         z-index: 2;
         flex-shrink: 0;
-        width: 46px;
+        width: 64px;
         align-self: stretch;
+        padding-top: 15px;
         display: flex;
         flex-direction: column;
         align-items: center;
+        gap: 6px;
       }
       .st-line {
         flex: 1;
         width: 1.5px;
-        margin-top: 6px;
+        margin-top: 5px;
         background: linear-gradient(180deg, var(--faint), var(--hairline));
         opacity: 0.8;
         border-radius: 1px;
@@ -362,7 +346,6 @@
       }
 
       .st-day {
-        margin-top: 6px;
         font-size: 10.5px;
         font-weight: 600;
         letter-spacing: 0.14em;
@@ -373,35 +356,19 @@
         color: var(--faint);
       }
 
-      /* rail states: done / to-do / jolt */
-      .node-done {
-        position: relative;
-        margin-top: 7px;
-        width: 32px;
-        height: 32px;
+      /* rail states: done / open / today / future */
+      .st-disc {
+        width: 30px;
+        height: 30px;
         border-radius: 50%;
         background: var(--ink);
         color: var(--screen);
         display: grid;
         place-items: center;
-        box-shadow: 0 3px 10px rgba(28, 26, 22, 0.16);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
       }
-      .node-done.just-done {
+      .st-disc.just-done {
         animation: discPop 560ms cubic-bezier(0.34, 1.56, 0.5, 1);
-      }
-      .node-done.just-done::after {
-        content: "";
-        position: absolute;
-        inset: -2px;
-        border-radius: 50%;
-        border: 1.5px solid var(--ink);
-        opacity: 0;
-        animation: tickRipple 720ms ease-out 140ms;
-      }
-      .node-done.just-done svg polyline {
-        stroke-dasharray: 24;
-        stroke-dashoffset: 24;
-        animation: checkDraw 460ms ease 200ms forwards;
       }
       @keyframes discPop {
         0% {
@@ -411,160 +378,23 @@
           transform: scale(1);
         }
       }
-      @keyframes tickRipple {
-        0% {
-          opacity: 0.5;
-          transform: scale(1);
-        }
-        100% {
-          opacity: 0;
-          transform: scale(1.9);
-        }
-      }
-      @keyframes checkDraw {
-        to {
-          stroke-dashoffset: 0;
-        }
-      }
-
-      .node-todo {
-        position: relative;
-        margin-top: 4px;
-        width: 38px;
-        height: 38px;
+      .st-open {
+        width: 30px;
+        height: 30px;
         border-radius: 50%;
-        display: grid;
-        place-items: center;
-        border: 1.5px solid #a8a295;
-        color: #8f897b;
+        border: 1.6px solid var(--faint);
         background: var(--screen);
-        transition:
-          border-color 200ms ease,
-          color 200ms ease,
-          background 200ms ease,
-          transform 160ms ease;
-      }
-      /* a quiet ring asking to be tapped: transform + opacity only */
-      .node-todo::after {
-        content: "";
-        position: absolute;
-        inset: -2px;
-        border-radius: 50%;
-        border: 1.5px solid rgba(28, 26, 22, 0.26);
-        opacity: 0;
-        pointer-events: none;
-        will-change: transform, opacity;
-        animation: todoAsk 3.2s ease-out 1.2s infinite;
-      }
-      @keyframes todoAsk {
-        0% {
-          transform: scale(1);
-          opacity: 0.55;
-        }
-        62%,
-        100% {
-          transform: scale(1.32);
-          opacity: 0;
-        }
-      }
-      .node-todo:hover {
-        border-color: var(--ink-soft);
-        color: var(--ink-soft);
-      }
-      .node-todo:active {
-        transform: scale(0.88);
-        background: rgba(28, 26, 22, 0.05);
-      }
-
-      .node-jolt {
-        position: relative;
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
         display: grid;
         place-items: center;
-        background: linear-gradient(170deg, #ffffff 0%, #f6f3ec 100%);
-        color: var(--ink);
-        border: 1px solid rgba(28, 26, 22, 0.12);
-        box-shadow:
-          inset 0 1px 0 rgba(255, 255, 255, 0.95),
-          0 1px 2px rgba(28, 26, 22, 0.06),
-          0 5px 10px rgba(70, 64, 52, 0.1),
-          0 12px 22px -8px rgba(70, 64, 52, 0.22);
-        animation: joltFloat 4.6s ease-in-out infinite;
-        will-change: transform;
-        transition: box-shadow 240ms ease;
       }
-      .node-jolt svg {
-        margin-left: 2px;
-      }
-      /* a gentle levitation: transform only, compositor-friendly */
-      @keyframes joltFloat {
-        0%,
-        100% {
-          transform: translateY(0);
-        }
-        50% {
-          transform: translateY(-2px);
-        }
-      }
-      /* one soft ink ring: transform + opacity only */
-      .node-jolt::after {
+      .st-open::after {
         content: "";
-        position: absolute;
-        inset: -1px;
+        width: 8px;
+        height: 8px;
         border-radius: 50%;
-        border: 1.5px solid rgba(28, 26, 22, 0.3);
-        opacity: 0;
-        pointer-events: none;
-        will-change: transform, opacity;
-        animation: joltRise 3.6s ease-out 0.8s infinite;
+        background: var(--faint);
       }
-      @keyframes joltRise {
-        0% {
-          transform: scale(1);
-          opacity: 0.5;
-        }
-        70%,
-        100% {
-          transform: scale(1.65);
-          opacity: 0;
-        }
-      }
-      .node-jolt:hover {
-        box-shadow:
-          inset 0 1px 0 rgba(255, 255, 255, 0.95),
-          0 2px 4px rgba(28, 26, 22, 0.06),
-          0 9px 16px rgba(70, 64, 52, 0.11),
-          0 18px 30px -8px rgba(70, 64, 52, 0.26);
-      }
-      .node-jolt:active {
-        animation-play-state: paused;
-        transform: translateY(1px) scale(0.96);
-        box-shadow:
-          inset 0 1px 2px rgba(28, 26, 22, 0.08),
-          0 1px 2px rgba(28, 26, 22, 0.06),
-          0 3px 6px rgba(70, 64, 52, 0.1);
-      }
-
-      .node-wait {
-        margin-top: 16px;
-        width: 38px;
-        height: 38px;
-        border-radius: 50%;
-        display: grid;
-        place-items: center;
-        border: 1.5px dashed rgba(28, 26, 22, 0.2);
-        color: #b3ad9f;
-        background: var(--screen);
-      }
-      .node-wait svg {
-        width: 16px;
-        height: 16px;
-      }
-
       .st-dot {
-        margin-top: 17px;
         width: 12px;
         height: 12px;
         border-radius: 50%;
@@ -573,44 +403,90 @@
         flex-shrink: 0;
       }
 
+      .st-now {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--ink);
+        box-shadow: 0 0 0 5px rgba(28, 26, 22, 0.06);
+      }
+      .station.today .st-node {
+        padding-top: 34px;
+      }
+      .station.today .st-node:has(.st-now-wait) {
+        padding-top: 22px;
+      }
+      .st-now-wait {
+        background: var(--screen);
+        border: 1.6px solid var(--faint);
+        box-shadow: none;
+      }
+
       .today-wait {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        width: 100%;
-        padding: 15px 17px;
-        border-radius: 16px;
-        border: 1.5px dashed rgba(28, 26, 22, 0.16);
-        background: rgba(236, 233, 225, 0.32);
-        font-size: 13.5px;
+        font-size: 14.5px;
         line-height: 1.5;
         font-weight: 450;
         color: var(--muted);
         letter-spacing: -0.008em;
-        animation: waitIn 700ms ease both;
-      }
-      @keyframes waitIn {
-        from {
-          opacity: 0;
-        }
-        to {
-          opacity: 1;
-        }
+        max-width: 26ch;
       }
 
-      /* today's row appearing after yesterday is ticked */
-      .station.reveal {
-        animation: revealIn 620ms cubic-bezier(0.22, 1, 0.36, 1);
+      .today-card {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        width: 100%;
+        text-align: left;
+        padding: 20px 21px;
+        border-radius: 18px;
+        cursor: pointer;
+        background: linear-gradient(170deg, #ffffff 0%, #faf8f3 100%);
+        border: 1px solid var(--hairline);
+        box-shadow:
+          0 18px 40px rgba(70, 64, 52, 0.1),
+          0 2px 6px rgba(70, 64, 52, 0.05);
+        transition:
+          transform 200ms ease,
+          box-shadow 300ms ease;
       }
-      @keyframes revealIn {
+      .today-card:active {
+        transform: scale(0.98);
+      }
+      .today-card.card-in {
+        animation: cardIn 620ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      @keyframes cardIn {
         from {
           opacity: 0;
-          transform: translateY(12px);
+          transform: translateY(14px);
         }
         to {
           opacity: 1;
           transform: none;
         }
+      }
+      .today-text {
+        flex: 1;
+      }
+      .today-label {
+        display: block;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .today-title {
+        display: block;
+        font-family: var(--display);
+        font-size: 21px;
+        font-weight: 400;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+      }
+      .today-arrow {
+        flex-shrink: 0;
+        color: var(--ink);
       }
 
       .st-body {
@@ -623,13 +499,13 @@
         align-items: center;
         gap: 12px;
         width: 100%;
-        padding: 11px 0 8px;
+        padding: 6px 0;
         text-align: left;
       }
       .st-act-text {
         flex: 1;
         font-size: 17px;
-        line-height: 1.4;
+        line-height: 1.35;
         font-weight: 500;
         color: var(--ink);
         letter-spacing: -0.012em;
@@ -641,61 +517,88 @@
       .st-act.checked .st-act-text {
         color: var(--muted);
       }
-      .jolt-act {
-        cursor: pointer;
-      }
-      .jolt-text {
-        font-weight: 600;
+      .act-btn {
+        flex-shrink: 0;
+        padding: 9px 15px;
+        border-radius: 999px;
+        background: var(--chip);
         color: var(--ink);
-        transition: opacity 180ms ease;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        transition:
+          transform 160ms ease,
+          background 180ms ease;
       }
-      .jolt-act:active .jolt-text {
-        opacity: 0.6;
+      .act-btn:active {
+        transform: scale(0.93);
+        background: #e3dfd4;
+      }
+      .act-done {
+        flex-shrink: 0;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .act-done.flash {
+        animation: doneFlash 1700ms ease forwards;
+      }
+      @keyframes doneFlash {
+        0% {
+          opacity: 0;
+          transform: translateY(4px) scale(0.85);
+        }
+        12%,
+        70% {
+          opacity: 1;
+          transform: none;
+        }
+        100% {
+          opacity: 0;
+          transform: none;
+        }
       }
 
       /* future actions: veiled until their jolt reveals them */
       .st-veil {
         display: flex;
-        align-items: center;
-        padding: 10px 0 8px;
-      }
-      .veil-bars {
-        flex: 1;
-        display: flex;
         flex-direction: column;
         gap: 8px;
+        padding: 8px 0;
       }
-      .veil-bars i {
+      .st-veil i {
         display: block;
         height: 9px;
         border-radius: 999px;
-        background: linear-gradient(
-          90deg,
-          var(--chip) 30%,
-          #f4f1e9 50%,
-          var(--chip) 70%
-        );
-        background-size: 250% 100%;
-        animation: veilShimmer 3800ms ease-in-out infinite;
+        background: linear-gradient(90deg, var(--chip), #f3f0e8, var(--chip));
+        background-size: 200% 100%;
+        animation: veilShimmer 2800ms ease-in-out infinite;
       }
-      .veil-bars i:last-child {
-        width: 54%;
+      .st-veil i:last-child {
+        width: 58%;
       }
       @keyframes veilShimmer {
         0%,
         100% {
-          background-position: 100% 0;
-        }
-        50% {
           background-position: 0% 0;
         }
+        50% {
+          background-position: 100% 0;
+        }
+      }
+      .st-lock {
+        flex-shrink: 0;
+        color: var(--faint);
+      }
+      .station.locked-tap {
+        cursor: pointer;
       }
 
+
       @media (prefers-reduced-motion: reduce) {
-        .node-jolt,
-        .node-jolt::after,
-        .node-todo::after,
-        .veil-bars i,
+        .st-veil i,
         .plus-btn::after,
         .brand-logo {
           animation: none !important;
@@ -703,8 +606,9 @@
         .home-head.enter,
         .path.enter .station,
         .path.enter .st-line,
-        .node-done.just-done,
-        .station.reveal {
+        .st-disc.just-done,
+        .today-card.card-in,
+        .act-done.flash {
           animation-duration: 1ms !important;
           animation-delay: 0ms !important;
         }
@@ -742,7 +646,7 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 14px 30px calc(var(--safe-bottom) + 16px);
+        padding: 14px 26px calc(var(--safe-bottom) + 16px);
         background: linear-gradient(
           180deg,
           rgba(251, 249, 244, 0),
@@ -751,8 +655,8 @@
       }
       .round-btn {
         position: relative;
-        width: 58px;
-        height: 58px;
+        width: 56px;
+        height: 56px;
         border-radius: 50%;
         display: grid;
         place-items: center;
@@ -766,7 +670,7 @@
       }
       .plus-btn {
         border: 1.4px solid var(--hairline);
-        font-size: 32px;
+        font-size: 30px;
         font-weight: 400;
         color: var(--ink);
         background: var(--screen);
@@ -1693,10 +1597,25 @@
       }
       .cp-cats {
         display: none;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         gap: 9px;
+        flex: 1;
+        min-width: 0;
+        overflow-x: auto;
+        scroll-snap-type: x proximity;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+      }
+      .cp-cats::-webkit-scrollbar {
+        display: none;
       }
       .cp-cats.show {
+        display: flex;
+      }
+      #cpCatsSlider {
+        display: none;
+      }
+      #cpCatsSlider.show {
         display: flex;
       }
       .cp-subs {
@@ -1736,10 +1655,21 @@
       }
       .cp-sub-list {
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         gap: 9px;
+        flex: 1;
+        min-width: 0;
+        overflow-x: auto;
+        scroll-snap-type: x proximity;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+      }
+      .cp-sub-list::-webkit-scrollbar {
+        display: none;
       }
       .cp-chip {
+        flex-shrink: 0;
+        scroll-snap-align: start;
         padding: 11px 16px;
         border-radius: 999px;
         background: var(--chip);
@@ -1747,6 +1677,7 @@
         font-size: 15px;
         font-weight: 500;
         letter-spacing: -0.01em;
+        white-space: nowrap;
         border: 1px solid transparent;
         transition:
           transform 180ms ease,
@@ -2317,68 +2248,55 @@
           color: var(--screen);
         }
       }
-      .ill-jolt {
+      .ill-start {
         display: flex;
         align-items: center;
-        gap: 16px;
-      }
-      .ill-jolt-btn {
-        position: relative;
-        flex-shrink: 0;
-        width: 52px;
-        height: 52px;
-        border-radius: 50%;
-        display: grid;
-        place-items: center;
-        color: var(--ink);
-        background: linear-gradient(170deg, #ffffff 0%, #f6f3ec 100%);
-        border: 1px solid rgba(28, 26, 22, 0.12);
+        gap: 14px;
+        width: 254px;
+        padding: 21px 22px;
+        border-radius: 18px;
+        background: linear-gradient(170deg, #ffffff 0%, #faf8f3 100%);
+        border: 1px solid var(--hairline);
         box-shadow:
-          inset 0 1px 0 rgba(255, 255, 255, 0.95),
-          0 1px 2px rgba(28, 26, 22, 0.06),
-          0 6px 12px rgba(70, 64, 52, 0.1),
-          0 14px 24px -8px rgba(70, 64, 52, 0.22);
-        animation: illFloat 4.6s ease-in-out infinite;
-        will-change: transform;
+          0 18px 40px rgba(70, 64, 52, 0.1),
+          0 2px 6px rgba(70, 64, 52, 0.05);
+        animation: cardBreath 3600ms ease-in-out infinite;
       }
-      .ill-jolt-btn svg {
-        margin-left: 2px;
-      }
-      .ill-jolt-btn::after {
-        content: "";
-        position: absolute;
-        inset: -1px;
-        border-radius: 50%;
-        border: 1.5px solid rgba(28, 26, 22, 0.28);
-        opacity: 0;
-        will-change: transform, opacity;
-        animation: illRing 3.6s ease-out 1s infinite;
-      }
-      @keyframes illFloat {
+      @keyframes cardBreath {
         0%,
         100% {
-          transform: translateY(0);
+          transform: scale(1);
+          box-shadow:
+            0 18px 40px rgba(70, 64, 52, 0.1),
+            0 2px 6px rgba(70, 64, 52, 0.05);
         }
         50% {
-          transform: translateY(-3px);
+          transform: scale(1.025);
+          box-shadow:
+            0 24px 52px rgba(70, 64, 52, 0.14),
+            0 3px 8px rgba(70, 64, 52, 0.06);
         }
       }
-      @keyframes illRing {
-        0% {
-          transform: scale(1);
-          opacity: 0.5;
-        }
-        70%,
-        100% {
-          transform: scale(1.7);
-          opacity: 0;
-        }
-      }
-      .ill-jolt-text {
-        font-size: 18px;
-        font-weight: 600;
+      .ill-start-text {
+        flex: 1;
+        text-align: left;
+        font-family: var(--display);
+        font-size: 21px;
+        font-weight: 400;
+        letter-spacing: -0.02em;
         color: var(--ink);
-        letter-spacing: -0.012em;
+      }
+      .ill-arrow {
+        animation: nudge 2200ms ease-in-out infinite;
+      }
+      @keyframes nudge {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        50% {
+          transform: translateX(4px);
+        }
       }
       .ill-steps {
         width: 268px;
@@ -2400,32 +2318,87 @@
         color: var(--ink);
         letter-spacing: -0.01em;
       }
-      .ill-check {
-        flex-shrink: 0;
-        width: 26px;
-        height: 26px;
-        border-radius: 50%;
+      .ill-act-text.is-done {
+        color: var(--muted);
+        font-weight: 450;
+      }
+      .ill-swap {
+        position: relative;
         display: grid;
         place-items: center;
-        border: 1.5px solid #a8a295;
-        background: var(--screen);
-        color: transparent;
+        min-width: 78px;
+        height: 34px;
       }
-      .ill-check svg {
-        width: 12px;
-        height: 12px;
+      .ill-pill,
+      .ill-done {
+        grid-area: 1 / 1;
       }
-      #l-intro.is-active .intro-step.is-active .ill-check {
-        animation: dayCheck 560ms cubic-bezier(0.34, 1.4, 0.4, 1) forwards;
-        animation-delay: calc(var(--k, 0) * 520ms + 950ms);
+      .ill-pill {
+        padding: 9px 15px;
+        border-radius: 999px;
+        background: var(--chip);
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        animation: pillCycle 4200ms ease-in-out infinite;
       }
-      #l-intro.is-active .intro-step.is-active .ill-act-text {
-        animation: stepFade 420ms ease forwards;
-        animation-delay: calc(var(--k, 0) * 520ms + 1150ms);
+      .ill-done {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        flex-shrink: 0;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
       }
-      @keyframes stepFade {
-        to {
-          color: var(--muted);
+      .ill-swap .ill-done {
+        opacity: 0;
+        animation: doneCycle 5200ms ease-in-out infinite;
+        animation-delay: calc(var(--k, 0) * 420ms);
+      }
+      .ill-swap .ill-pill {
+        animation-duration: 5200ms;
+        animation-delay: calc(var(--k, 0) * 420ms);
+      }
+      @keyframes pillCycle {
+        0%,
+        22% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        27% {
+          opacity: 1;
+          transform: scale(0.88);
+        }
+        33%,
+        86% {
+          opacity: 0;
+          transform: scale(0.88);
+        }
+        93%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      @keyframes doneCycle {
+        0%,
+        29% {
+          opacity: 0;
+          transform: translateY(4px);
+        }
+        37%,
+        82% {
+          opacity: 1;
+          transform: none;
+        }
+        90%,
+        100% {
+          opacity: 0;
+          transform: translateY(4px);
         }
       }
       .intro-step {
@@ -2614,9 +2587,6 @@
         letter-spacing: -0.02em;
         color: var(--ink);
       }
-      .q-inner.list-mode .q-head {
-        text-align: center;
-      }
       .q-area {
         flex: 1;
         min-height: 0;
@@ -2628,9 +2598,6 @@
       }
       .q-area::placeholder {
         color: var(--faint);
-      }
-      .q-area.hidden {
-        display: none;
       }
       .q-foot {
         display: flex;
@@ -2648,62 +2615,49 @@
         opacity: 1;
         transform: none;
       }
-      .q-body {
+      .q-picker {
         margin-top: 22px;
-        flex-shrink: 0;
-        min-height: 0;
-        overflow-y: auto;
-        scrollbar-width: none;
-      }
-      .q-body::-webkit-scrollbar {
         display: none;
       }
-      .q-inner.list-mode .q-body {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
+      .q-picker.is-open {
+        display: block;
       }
-      .qp-list {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 10px;
-        padding: 4px 0;
-      }
-      .qp-opt {
-        width: 100%;
-        max-width: 320px;
-        padding: 14px 18px;
-        border-radius: 14px;
-        background: #fff;
-        border: 1px solid var(--hairline);
-        box-shadow: 0 1px 2px rgba(28, 26, 22, 0.05);
-        font-size: 15.5px;
+      .qp-label {
+        font-size: 13px;
         font-weight: 500;
-        color: var(--ink);
-        letter-spacing: -0.01em;
-        text-align: center;
-        line-height: 1.35;
-        transition:
-          transform 150ms ease,
-          background 150ms ease;
+        color: var(--faint);
+        margin-bottom: 12px;
+        text-align: right;
       }
-      .qp-opt:active {
-        transform: scale(0.97);
-        background: #faf8f2;
+      .qp-cats {
+        display: none;
+        flex-wrap: nowrap;
+        gap: 9px;
+        flex: 1;
+        min-width: 0;
+        overflow-x: auto;
+        scroll-snap-type: x proximity;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
       }
-      .qp-opt.other {
-        background: transparent;
-        border: 1.5px dashed var(--faint);
-        box-shadow: none;
-        color: var(--ink-soft);
+      .qp-cats::-webkit-scrollbar {
+        display: none;
       }
-      .qp-backrow {
+      .qp-cats.show {
         display: flex;
-        justify-content: center;
-        margin-bottom: 14px;
-        flex-shrink: 0;
+      }
+      .qp-subs {
+        display: none;
+      }
+      .qp-subs.show {
+        display: block;
+      }
+      .qp-head {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-bottom: 13px;
       }
       .qp-back {
         display: inline-flex;
@@ -2719,38 +2673,74 @@
       .qp-back:active {
         transform: scale(0.94);
       }
-      .qp-hint {
-        text-align: center;
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--muted);
-        margin-bottom: 14px;
+      .qp-cat-name {
+        color: var(--ink);
+        font-size: 14.5px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
       }
-      .qp-chips {
+      .qp-slider {
         display: flex;
-        flex-wrap: wrap;
-        gap: 9px;
-        justify-content: center;
+        align-items: center;
+        gap: 8px;
       }
-      .qp-chipx {
-        padding: 10px 15px;
+      #qpCatsSlider {
+        display: none;
+      }
+      #qpCatsSlider.show {
+        display: flex;
+      }
+      .qp-nav {
+        flex-shrink: 0;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        color: var(--ink-soft);
+        background: #fff;
+        border: 1px solid var(--hairline);
+        box-shadow: 0 1px 2px rgba(28, 26, 22, 0.06);
+        transition: transform 150ms ease;
+      }
+      .qp-nav:active {
+        transform: scale(0.9);
+      }
+      .qp-sub-list {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 9px;
+        flex: 1;
+        min-width: 0;
+        overflow-x: auto;
+        scroll-snap-type: x proximity;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+      }
+      .qp-sub-list::-webkit-scrollbar {
+        display: none;
+      }
+      .qp-chip {
+        flex-shrink: 0;
+        scroll-snap-align: start;
+        padding: 11px 16px;
         border-radius: 999px;
         background: var(--chip);
         color: var(--ink);
-        font-size: 14px;
+        font-size: 15px;
         font-weight: 500;
         letter-spacing: -0.01em;
+        white-space: nowrap;
         transition:
-          transform 150ms ease,
-          background 180ms ease,
-          color 180ms ease;
+          transform 180ms ease,
+          background 180ms ease;
       }
-      .qp-chipx:active {
+      .qp-chip:active {
         transform: scale(0.93);
+        background: #e3dfd4;
       }
-      .qp-chipx.on {
-        background: var(--ink);
-        color: var(--screen);
+      .qp-cat {
+        color: var(--ink-soft);
       }
       .building-stage {
         position: absolute;
@@ -2893,7 +2883,7 @@
       }
       .unlock-pill {
         flex: 1;
-        max-width: 210px;
+        max-width: 150px;
         min-height: 50px;
         border-radius: 999px;
         background: var(--ink);
@@ -3076,6 +3066,11 @@
         max-width: var(--frame);
         margin: 0 auto;
         padding: 0 30px calc(28px + var(--safe-bottom));
+        transition: padding-top 280ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .auth-inner.is-focused {
+        justify-content: flex-start;
+        padding-top: calc(var(--safe-top) + 26px);
       }
       .auth-brand {
         display: flex;
@@ -3123,6 +3118,47 @@
       select.auth-input {
         background-image: none;
       }
+      .date-field {
+        position: relative;
+        background: #fff;
+        border: 1px solid var(--hairline);
+        border-radius: 14px;
+      }
+      .date-field.is-focused {
+        border-color: var(--accent);
+      }
+      .date-field .date-input {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+        font-family: var(--display);
+        font-size: 16px;
+        color: var(--ink);
+        background: transparent;
+        border: 0;
+        border-radius: 14px;
+        padding: 15px 16px;
+        outline: none;
+        -webkit-appearance: none;
+        appearance: none;
+        position: relative;
+        z-index: 1;
+      }
+      .date-placeholder {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-family: var(--display);
+        font-size: 16px;
+        color: var(--muted);
+        pointer-events: none;
+        z-index: 0;
+      }
+      .date-field.has-value .date-placeholder,
+      .date-field.native-placeholder .date-placeholder {
+        display: none;
+      }
       .auth-row2 {
         display: flex;
         gap: 11px;
@@ -3145,6 +3181,75 @@
         justify-content: center;
         margin-top: 14px;
         min-height: 4px;
+      }
+      .auth-brand,
+      .auth-title {
+        transition:
+          opacity 260ms ease,
+          margin 260ms ease,
+          max-height 260ms ease,
+          transform 260ms ease;
+        overflow: hidden;
+      }
+      .auth-brand.is-collapsed {
+        opacity: 0;
+        max-height: 0;
+        margin-bottom: 0;
+        transform: translateY(-8px) scale(0.9);
+      }
+      .auth-title.is-collapsed {
+        opacity: 0;
+        max-height: 0;
+        margin: 0;
+        transform: translateY(-8px);
+      }
+      /* ---- signup: one field at a time ---- */
+      .signup-steps {
+        position: relative;
+      }
+      .signup-step {
+        display: none;
+        animation: signupStepIn 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+      }
+      .signup-step.is-active {
+        display: block;
+      }
+      @keyframes signupStepIn {
+        from {
+          opacity: 0;
+          transform: translateX(14px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      .signup-nav {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 16px;
+      }
+      .signup-nav .cta {
+        flex: 1 1 auto;
+        width: auto;
+        margin-top: 0;
+      }
+      .auth-back {
+        flex: 0 0 auto;
+        min-height: 56px;
+        padding: 0 18px;
+        border-radius: 999px;
+        background: var(--chip);
+        color: var(--ink);
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .auth-back.is-hidden {
+        display: none;
+      }
+      .auth-back:active {
+        transform: scale(0.96);
       }
       .auth-alt {
         text-align: center;
@@ -3355,19 +3460,22 @@
 
         <div class="intro-step onb" data-step="1">
           <div class="onb-visual rise" style="--i: 0">
-            <div class="ill-jolt">
-              <span class="ill-jolt-btn"
-                ><svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <path
-                    d="M8 5.5v13a.6.6 0 0 0 .92.5l10-6.5a.6.6 0 0 0 0-1l-10-6.5A.6.6 0 0 0 8 5.5Z"
-                  /></svg
-              ></span>
-              <span class="ill-jolt-text">Start today&rsquo;s jolt</span>
+            <div class="ill-start">
+              <span class="ill-start-text">Start</span>
+              <svg
+                class="ill-arrow"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+              </svg>
             </div>
           </div>
           <p class="onb-sentence rise" style="--i: 1">
@@ -3381,45 +3489,63 @@
             <div class="ill-steps">
               <div class="ill-act" style="--k: 0">
                 <span class="ill-act-text">Lay out your shoes tonight</span
-                ><span class="ill-check"
-                  ><svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="3"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <polyline points="20 6 9 17 4 12" /></svg
-                ></span>
+                ><span class="ill-swap"
+                  ><span class="ill-pill">I did it</span
+                  ><span class="ill-done"
+                    ><svg
+                      width="11"
+                      height="11"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="3"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12" /></svg
+                    >Done</span
+                  ></span
+                >
               </div>
               <div class="ill-act" style="--k: 1">
                 <span class="ill-act-text">Run for ten minutes</span
-                ><span class="ill-check"
-                  ><svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="3"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <polyline points="20 6 9 17 4 12" /></svg
-                ></span>
+                ><span class="ill-swap"
+                  ><span class="ill-pill">I did it</span
+                  ><span class="ill-done"
+                    ><svg
+                      width="11"
+                      height="11"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="3"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12" /></svg
+                    >Done</span
+                  ></span
+                >
               </div>
               <div class="ill-act" style="--k: 2">
                 <span class="ill-act-text">Run your full route</span
-                ><span class="ill-check"
-                  ><svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="3"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <polyline points="20 6 9 17 4 12" /></svg
-                ></span>
+                ><span class="ill-swap"
+                  ><span class="ill-pill">I did it</span
+                  ><span class="ill-done"
+                    ><svg
+                      width="11"
+                      height="11"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="3"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12" /></svg
+                    >Done</span
+                  ></span
+                >
               </div>
             </div>
           </div>
@@ -3461,7 +3587,112 @@
             <span style="width: 38px"></span>
           </div>
           <h1 class="q-head q-enter" id="qHead"></h1>
-          <div class="q-body q-enter" id="qBody"></div>
+          <div class="q-picker" id="qPicker">
+            <div class="qp-label" id="qpLabel">
+              Pick an area to start, or just type.
+            </div>
+            <div class="qp-slider" id="qpCatsSlider">
+              <button
+                class="qp-nav qp-nav-prev"
+                type="button"
+                data-slide-prev="qpCats"
+                aria-label="Scroll left"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
+              <div class="qp-cats" id="qpCats"></div>
+              <button
+                class="qp-nav qp-nav-next"
+                type="button"
+                data-slide-next="qpCats"
+                aria-label="Scroll right"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+            </div>
+            <div class="qp-subs" id="qpSubs">
+              <div class="qp-head">
+                <button class="qp-back" id="qpBack">
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="15 18 9 12 15 6" /></svg
+                  >Back
+                </button>
+                <span class="qp-cat-name" id="qpCatName"></span>
+              </div>
+              <div class="qp-slider">
+                <button
+                  class="qp-nav qp-nav-prev"
+                  type="button"
+                  data-slide-prev="qpSubList"
+                  aria-label="Scroll left"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+                <div class="qp-sub-list" id="qpSubList"></div>
+                <button
+                  class="qp-nav qp-nav-next"
+                  type="button"
+                  data-slide-next="qpSubList"
+                  aria-label="Scroll right"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
           <textarea
             class="q-area q-enter"
             id="qArea"
@@ -3516,50 +3747,61 @@
 
       <!-- ============ SIGN UP (built in Felix's style) ============ -->
       <div class="layer" id="l-signup">
-        <div class="auth-inner">
-          <div class="auth-brand">
+        <div class="auth-inner" id="signupInner">
+          <div class="auth-brand" id="signupBrand">
             <img class="brand-logo" src="/assets/logo.png" alt="ReWire" />
           </div>
-          <h1 class="auth-title">Create your account.</h1>
-          <div class="auth-fields">
-            <div class="auth-row2">
+          <h1 class="auth-title" id="signupTitle">Create your account.</h1>
+
+          <div class="auth-fields signup-steps" id="signupSteps">
+            <div class="signup-step" data-step="0">
               <input
                 class="auth-input"
                 id="signupFirst"
                 type="text"
                 autocomplete="given-name"
+                enterkeyhint="next"
                 placeholder="First name"
               />
+            </div>
+            <div class="signup-step" data-step="1">
               <input
                 class="auth-input"
                 id="signupLast"
                 type="text"
                 autocomplete="family-name"
+                enterkeyhint="next"
                 placeholder="Last name"
               />
             </div>
-            <input
-              class="auth-input"
-              id="signupEmail"
-              type="email"
-              inputmode="email"
-              autocomplete="email"
-              placeholder="Email"
-            />
-            <input
-              class="auth-input"
-              id="signupPass"
-              type="password"
-              autocomplete="new-password"
-              placeholder="Password (6+ characters)"
-            />
-            <div class="auth-row2">
+            <div class="signup-step" data-step="2">
               <input
                 class="auth-input"
-                id="signupDob"
-                type="date"
-                placeholder="Date of birth"
+                id="signupEmail"
+                type="email"
+                inputmode="email"
+                autocomplete="email"
+                enterkeyhint="next"
+                placeholder="Email"
               />
+            </div>
+            <div class="signup-step" data-step="3">
+              <input
+                class="auth-input"
+                id="signupPass"
+                type="password"
+                autocomplete="new-password"
+                enterkeyhint="next"
+                placeholder="Password (6+ characters)"
+              />
+            </div>
+            <div class="signup-step" data-step="4">
+              <div class="date-field" id="signupDobField">
+                <span class="date-placeholder">Date of birth</span>
+                <input class="date-input" id="signupDob" type="date" />
+              </div>
+            </div>
+            <div class="signup-step" data-step="5">
               <select class="auth-input" id="signupGender">
                 <option value="">Gender (optional)</option>
                 <option value="female">Female</option>
@@ -3570,8 +3812,14 @@
               </select>
             </div>
           </div>
+
           <div class="auth-err" id="signupErr" style="display: none"></div>
-          <button class="cta" id="signupBtn">Create account</button>
+
+          <div class="signup-nav">
+            <button class="auth-back is-hidden" id="signupBack">Back</button>
+            <button class="cta" id="signupBtn">Continue</button>
+          </div>
+
           <div class="g-signin"></div>
           <p class="auth-alt">
             Already have an account?
@@ -3631,6 +3879,13 @@
                 d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
               />
             </svg>
+          </button>
+          <button
+            class="unlock-pill"
+            id="homeUnlock"
+            style="display: none"
+          >
+            Unlock
           </button>
           <button
             class="round-btn plus-btn"
@@ -4395,7 +4650,47 @@
             <div class="cp-label" id="cpLabel">
               Pick a starting point, or just type.
             </div>
-            <div class="cp-cats" id="cpCats"></div>
+            <div class="qp-slider" id="cpCatsSlider">
+              <button
+                class="qp-nav qp-nav-prev"
+                type="button"
+                data-slide-prev="cpCats"
+                aria-label="Scroll left"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
+              <div class="cp-cats" id="cpCats"></div>
+              <button
+                class="qp-nav qp-nav-next"
+                type="button"
+                data-slide-next="cpCats"
+                aria-label="Scroll right"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+            </div>
             <div class="cp-subs" id="cpSubs">
               <div class="cp-head">
                 <button class="cp-back" id="cpBack">
@@ -4414,7 +4709,47 @@
                 </button>
                 <span class="cp-cat-name" id="cpCatName"></span>
               </div>
-              <div class="cp-sub-list" id="cpSubList"></div>
+              <div class="qp-slider">
+                <button
+                  class="qp-nav qp-nav-prev"
+                  type="button"
+                  data-slide-prev="cpSubList"
+                  aria-label="Scroll left"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+                <div class="cp-sub-list" id="cpSubList"></div>
+                <button
+                  class="qp-nav qp-nav-next"
+                  type="button"
+                  data-slide-next="cpSubList"
+                  aria-label="Scroll right"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
           <textarea
@@ -5031,6 +5366,18 @@
         );
 
         function show(id) {
+          // Best practice: navigating to a new screen should always dismiss
+          // any open mobile keyboard, even if the field that had focus is
+          // about to be hidden/removed from view.
+          const focused = document.activeElement;
+          if (
+            focused &&
+            (focused.tagName === "INPUT" ||
+              focused.tagName === "TEXTAREA" ||
+              focused.tagName === "SELECT")
+          ) {
+            focused.blur();
+          }
           $$(".screen, .layer").forEach((s) => {
             const on = s.id === id;
             s.classList.toggle("is-active", on);
@@ -5879,10 +6226,7 @@
           obProtocol = "activate";
           obAnswers[0] = "";
           obAnswers[1] = "";
-          obPhase = "q1";
-          qView = "list";
-          obSub = "";
-          obGoal = "";
+          obQi = 0;
           showLayer("l-questions");
           renderQ();
         });
@@ -5908,204 +6252,143 @@
           qArea = $("#qArea"),
           qCta = $("#qCta"),
           qStep = $("#qStep"),
-          qBody = $("#qBody"),
-          qInner = $(".q-inner");
-        let obPhase = "q1",
-          qView = "list",
-          qCat = "",
-          obSub = "",
-          obGoal = "";
-        function qSetTextarea(visible) {
-          qArea.classList.toggle("hidden", !visible);
-          qCta.style.display = visible ? "" : "none";
-          qInner.classList.toggle("list-mode", !visible);
-        }
-        function qAnswerIdx() {
-          return obPhase === "q2" ? 1 : 0;
-        }
+          qPicker = $("#qPicker"),
+          qpLabel = $("#qpLabel"),
+          qpCats = $("#qpCats"),
+          qpCatsSlider = $("#qpCatsSlider"),
+          qpSubs = $("#qpSubs"),
+          qpSubList = $("#qpSubList"),
+          qpCatName = $("#qpCatName");
+        let obQi = 0;
         function renderQ() {
-          const P = PROTOCOLS[obProtocol];
-          qStep.textContent = { q1: "1 of 3", refine: "2 of 3", q2: "3 of 3" }[
-            obPhase
-          ];
-          if (obPhase === "q1") {
-            qHead.textContent = P.questions[0].text;
-            if (qView === "list") {
-              qBody.innerHTML =
-                `<div class="qp-list">` +
-                Object.keys(P.picker)
-                  .map(
-                    (c) =>
-                      `<button class="qp-opt" data-cat="${esc(c)}">${esc(c)}</button>`,
-                  )
-                  .join("") +
-                `<button class="qp-opt other" data-other>Other</button></div>`;
-              qSetTextarea(false);
-            } else if (qView === "subs") {
-              qBody.innerHTML =
-                `<div class="qp-backrow"><button class="qp-back" data-backlist><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>${esc(qCat)}</button></div><div class="qp-list">` +
-                P.picker[qCat]
-                  .map(
-                    (x) =>
-                      `<button class="qp-opt" data-sub="${esc(x)}">${esc(x)}</button>`,
-                  )
-                  .join("") +
-                `<button class="qp-opt other" data-other>Other</button></div>`;
-              qSetTextarea(false);
-            } else {
-              qBody.innerHTML = `<div class="qp-backrow"><button class="qp-back" data-backlist><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Back to options</button></div>`;
-              qSetTextarea(true);
-              qArea.value = obGoal || "";
-              qArea.placeholder = "In your own words\u2026";
-              qCta.textContent = "Continue";
-              qCta.toggleAttribute("disabled", !qArea.value.trim());
-              setTimeout(() => qArea.focus(), 380);
-            }
+          const q = PROTOCOLS[obProtocol].questions[obQi];
+          qStep.textContent = obQi + 1 + " of 2";
+          qHead.textContent = q.text;
+          qArea.value = obAnswers[obQi];
+          qCta.textContent = obQi === 1 ? "Create my protocol" : "Continue";
+          qCta.toggleAttribute("disabled", !qArea.value.trim());
+          if (q.picker) {
+            qPicker.classList.add("is-open");
+            qpShowCats();
+          } else {
+            qPicker.classList.remove("is-open");
+            qpCats.classList.remove("show");
+            qpCatsSlider.classList.remove("show");
+            qpSubs.classList.remove("show");
           }
-          if (obPhase === "refine") {
-            const r = REFINE[obSub] || REFINE._generic;
-            qHead.textContent = r.q;
-            qBody.innerHTML =
-              `<div class="qp-hint">Tap to add, then finish it in your words.</div><div class="qp-chips">` +
-              r.chips
-                .map(
-                  (c) =>
-                    `<button class="qp-chipx" data-chip="${esc(c)}">${esc(c)}</button>`,
-                )
-                .join("") +
-              `</div>`;
-            qSetTextarea(true);
-            if (!obAnswers[0]) {
-              const base = (r.sentence || obGoal).trim();
-              obAnswers[0] = base ? base + "." : "";
-            }
-            qArea.value = obAnswers[0];
-            qArea.placeholder = "The more we know, the better the jolt\u2026";
-            qCta.textContent = "Continue";
-            qCta.toggleAttribute("disabled", !qArea.value.trim());
-          }
-          if (obPhase === "q2") {
-            qHead.textContent = P.questions[1].text;
-            qBody.innerHTML = "";
-            qSetTextarea(true);
-            qArea.value = obAnswers[1] || "";
-            qArea.placeholder = "A sentence or two, in your own words\u2026";
-            qCta.textContent = "Create my protocol";
-            qCta.toggleAttribute("disabled", !qArea.value.trim());
-            setTimeout(() => qArea.focus(), 380);
-          }
-          [qHead, qBody, qArea].forEach((el) => {
+          [qHead, qArea].forEach((el) => {
             el.classList.remove("in");
             void el.offsetWidth;
           });
           setTimeout(() => {
             qHead.classList.add("in");
-            setTimeout(() => {
-              qBody.classList.add("in");
-              qArea.classList.add("in");
-            }, 130);
+            setTimeout(() => qArea.classList.add("in"), 130);
           }, 30);
+          setTimeout(() => qArea.focus(), 380);
         }
-        qBody.addEventListener("click", (e) => {
-          const back = e.target.closest("[data-backlist]");
-          if (back) {
-            qView = "list";
-            renderQ();
+        function qpShowCats() {
+          qpSubs.classList.remove("show");
+          qpLabel.style.display = "";
+          qpCats.innerHTML =
+            Object.keys(PROTOCOLS[obProtocol].picker)
+              .map(
+                (c) =>
+                  `<button class="qp-chip qp-cat" data-cat="${esc(c)}">${esc(c)}</button>`,
+              )
+              .join("") +
+            `<button class="qp-chip qp-cat" data-qpother>Other</button>`;
+          qpCats.classList.add("show");
+          qpCatsSlider.classList.add("show");
+        }
+        function qpShowSubs(cat) {
+          qpLabel.style.display = "none";
+          qpCatName.textContent = cat;
+          qpSubList.innerHTML =
+            PROTOCOLS[obProtocol]
+              .picker[cat].map(
+                (x) =>
+                  `<button class="qp-chip" data-prefill="${esc(x)}">${esc(x)}</button>`,
+              )
+              .join("") + `<button class="qp-chip" data-qpother>Other</button>`;
+          qpCats.classList.remove("show");
+          qpCatsSlider.classList.remove("show");
+          qpSubs.classList.add("show");
+        }
+        function qpPick(v) {
+          qArea.value = v;
+          obAnswers[obQi] = v;
+          qCta.toggleAttribute("disabled", !qArea.value.trim());
+          qArea.focus();
+          try {
+            qArea.setSelectionRange(v.length, v.length);
+          } catch (e) {}
+        }
+        qPicker.addEventListener("click", (e) => {
+          const prevBtn = e.target.closest("[data-slide-prev]");
+          if (prevBtn) {
+            const track = $("#" + prevBtn.dataset.slidePrev);
+            track &&
+              track.scrollBy({
+                left: -Math.max(track.clientWidth * 0.75, 120),
+                behavior: "smooth",
+              });
+            return;
+          }
+          const nextBtn = e.target.closest("[data-slide-next]");
+          if (nextBtn) {
+            const track = $("#" + nextBtn.dataset.slideNext);
+            track &&
+              track.scrollBy({
+                left: Math.max(track.clientWidth * 0.75, 120),
+                behavior: "smooth",
+              });
+            return;
+          }
+          if (e.target.closest("[data-qpother]")) {
+            qpPick("");
             return;
           }
           const cat = e.target.closest("[data-cat]");
           if (cat) {
-            qCat = cat.dataset.cat;
-            qView = "subs";
-            renderQ();
+            qpShowSubs(cat.dataset.cat);
             return;
           }
-          const sub = e.target.closest("[data-sub]");
+          const sub = e.target.closest("[data-prefill]");
           if (sub) {
-            obSub = sub.dataset.sub;
-            obGoal = (REFINE[obSub] && REFINE[obSub].sentence) || obSub;
-            obAnswers[0] = "";
-            obPhase = "refine";
-            qView = "list";
-            renderQ();
-            return;
-          }
-          const other = e.target.closest("[data-other]");
-          if (other) {
-            obAnswers[qAnswerIdx()] = "";
-            qView = "text";
-            renderQ();
-            return;
-          }
-          const chip = e.target.closest("[data-chip]");
-          if (chip && !chip.classList.contains("on")) {
-            const raw = chip.dataset.chip;
-            const isStem = raw.endsWith("\u2026");
-            const frag = isStem ? raw.slice(0, -1) + " " : raw;
-            let t = qArea.value.replace(/\s+$/, "");
-            if (t && !/[.!?\u2026]$/.test(t)) t += ".";
-            qArea.value = (t ? t + " " : "") + frag + (isStem ? "" : ".");
-            obAnswers[0] = qArea.value;
-            chip.classList.add("on");
-            qCta.toggleAttribute("disabled", !qArea.value.trim());
-            qArea.focus();
-            try {
-              qArea.setSelectionRange(qArea.value.length, qArea.value.length);
-            } catch (err) {}
+            qpPick(sub.dataset.prefill);
             return;
           }
         });
+        $("#qpBack").addEventListener("click", qpShowCats);
         qArea.addEventListener("input", () => {
-          obAnswers[qAnswerIdx()] = qArea.value;
+          obAnswers[obQi] = qArea.value;
           qCta.toggleAttribute("disabled", !qArea.value.trim());
         });
         qCta.addEventListener("click", () => {
-          obAnswers[qAnswerIdx()] = qArea.value;
-          if (obPhase === "q1") {
-            obSub = "";
-            obGoal = qArea.value.trim();
-            obAnswers[0] = "";
-            obPhase = "refine";
-            qView = "list";
-            renderQ();
-            return;
-          }
-          if (obPhase === "refine") {
-            obPhase = "q2";
-            qView = "list";
+          obAnswers[obQi] = qArea.value;
+          if (obQi === 0) {
+            obQi = 1;
             renderQ();
             return;
           }
           createProtocolFromOnboarding();
         });
         $("#qBack").addEventListener("click", () => {
-          if (obPhase === "q1") {
-            if (qView !== "list") {
-              qView = "list";
-              renderQ();
-            } else showLayer("l-intro");
-            return;
-          }
-          if (obPhase === "refine") {
-            obAnswers[0] = "";
-            obPhase = "q1";
-            qView = "list";
+          if (obQi === 0) {
+            showLayer("l-intro");
+          } else {
+            obQi = 0;
             renderQ();
-            return;
           }
-          obPhase = "refine";
-          qView = "list";
-          renderQ();
         });
+        preventBlurShift(qCta);
+        preventBlurShift($("#qBack"));
 
         /* build the target + charge from the onboarding answers, then create */
         async function createProtocolFromOnboarding() {
           const type = obProtocol;
-          const target = (obGoal || obAnswers[0] || "").trim();
-          let charge = (obAnswers[1] || "").trim();
-          const ctx = (obAnswers[0] || "").trim();
-          if (ctx && ctx !== (obGoal || "").trim())
-            charge = (charge ? charge + "\n\n" : "") + ctx;
+          const target = (obAnswers[0] || "").trim();
+          const charge = (obAnswers[1] || "").trim();
           showScreen("s-building");
           try {
             const r = await POST("/protocols", { type, target, charge });
@@ -6160,6 +6443,8 @@
           <div class="home-empty-title">No protocol yet.</div>
           <div class="home-empty-sub">Tap + to build your first week of jolts.</div>
         </div>`;
+            const homeUnlockEmpty = $("#homeUnlock");
+            if (homeUnlockEmpty) homeUnlockEmpty.style.display = "none";
             return;
           }
           const meta = PROTO_META[p.type];
@@ -6167,62 +6452,99 @@
           const done = isDone(p);
           const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
           const startIdx = p.startDow != null ? p.startDow : 1;
+          const subscribed = !!(p.unlocked || state.monthlyActive);
+          const homeUnlock = $("#homeUnlock");
+          if (homeUnlock) {
+            homeUnlock.style.display = subscribed ? "none" : "";
+            const price = (state.prices && state.prices.protocol_price_usd) || 9;
+            homeUnlock.textContent = "Unlock \u00b7 $" + price;
+          }
 
           const stations = p.days
             .map((d, i) => {
               const wd = WD[(startIdx + i) % 7];
               const isToday = !done && i + 1 === day;
-              if (d.jolted) {
-                const node = d.done
-                  ? `<span class="node-done ${i === justTicked ? "just-done" : ""}">${CHECK_SVG}</span>`
-                  : `<button class="node-todo" data-tick="${i}" aria-label="Mark as done"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>`;
+              // Day one is always free. With no active subscription, mirror
+              // the onboarding reference: a persistent free replay row
+              // instead of the normal done/I-did-it controls.
+              if (i === 0 && d.jolted && !subscribed) {
                 return `
           <div class="station past" style="--i:${i}">
-            <div class="st-node">${node}<span class="st-day">${wd}</span><span class="st-line"></span></div>
+            <div class="st-node"><span class="st-disc">${CHECK_SVG}</span><span class="st-day">${wd}</span><span class="st-line"></span></div>
+            <div class="st-body">
+              <div class="st-act">
+                <span class="st-act-text">Do the smallest version of it</span>
+              </div>
+              <button class="st-replay" data-jolt-replay>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a.6.6 0 0 0 .92.5l10-6.5a.6.6 0 0 0 0-1l-10-6.5A.6.6 0 0 0 8 5.5Z"/></svg>
+                Replay &middot; free
+              </button>
+            </div>
+          </div>`;
+              }
+              if (d.jolted) {
+                const mark = d.done
+                  ? `<span class="st-disc ${i === justTicked ? "just-done" : ""}">${CHECK_SVG}</span>`
+                  : `<span class="st-open"></span>`;
+                const side = d.done
+                  ? i === justTicked
+                    ? `<span class="act-done flash">Done</span>`
+                    : ""
+                  : `<button class="act-btn" data-tick="${i}">I did it</button>`;
+                return `
+          <div class="station past" style="--i:${i}">
+            <div class="st-node">${mark}<span class="st-day">${wd}</span><span class="st-line"></span></div>
             <div class="st-body">
               <div class="st-act ${d.done ? "checked" : ""}">
                 <span class="st-act-text">${escapeHtml(d.act)}</span>
+                ${side}
               </div>
             </div>
           </div>`;
               }
+              // No active subscription: every day after the free first one is
+              // locked, whether it's today's or further out. Tapping opens
+              // the paywall directly instead of ever showing a start button.
+              if (!subscribed && i > 0) {
+                return `
+        <div class="station future locked-tap" data-paylock style="--i:${i}">
+          <div class="st-node"><span class="st-dot"></span><span class="st-day">${wd}</span><span class="st-line"></span></div>
+          <div class="st-body"><div class="st-veil"><i></i><i></i></div></div>
+          <span class="st-lock">${LOCK_SVG}</span>
+        </div>`;
+              }
               if (isToday) {
                 const prevDone = i === 0 || p.days[i - 1].done;
                 const timeReady = i === 0 || dayTimeReady(p.days[i - 1]);
-                const isPaid = i === 0 || p.unlocked || state.monthlyActive;
                 const startStation = `
-          <div class="station today ${i > 0 && justTicked === i - 1 ? "reveal" : ""}" style="--i:${i}">
-            <div class="st-node"><button class="node-jolt" data-jolt aria-label="Start today&rsquo;s jolt">${ICON_PLAY_MED}</button><span class="st-day">${wd}</span><span class="st-line"></span></div>
+          <div class="station today" style="--i:${i}">
+            <div class="st-node"><span class="st-now"></span><span class="st-day">${wd}</span><span class="st-line"></span></div>
             <div class="st-body">
-              <button class="st-act jolt-act" data-jolt><span class="st-act-text jolt-text">Start today&rsquo;s jolt</span></button>
+              <button class="today-card ${i > 0 && justTicked === i - 1 ? "card-in" : ""}" data-jolt aria-label="Start today&rsquo;s jolt">
+                <span class="today-text"><span class="today-title">Start</span></span>
+                <svg class="today-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </button>
             </div>
           </div>`;
-                // Unpaid day 2-5: always route to the paywall. The Start button
-                // calls startJolt, which returns 402 (pay screen) before the
-                // prior-day / cadence gates, so the paywall is always reachable.
-                // Once unlocked, the gates below apply.
-                if (!isPaid) return startStation;
                 if (prevDone && timeReady) return startStation;
                 if (prevDone) {
                   return `
           <div class="station today waiting" style="--i:${i}">
-            <div class="st-node"><span class="node-wait">${LOCK_SVG}</span><span class="st-day">${wd}</span><span class="st-line"></span></div>
-            <div class="st-body"><div class="today-wait"><span>Come back tomorrow for the next jolt.</span></div></div>
+            <div class="st-node"><span class="st-now st-now-wait"></span><span class="st-day">${wd}</span><span class="st-line"></span></div>
+            <div class="st-body"><div class="today-wait">Come back tomorrow for the next jolt.</div></div>
           </div>`;
                 }
                 return `
           <div class="station today waiting" style="--i:${i}">
-            <div class="st-node"><span class="node-wait">${LOCK_SVG}</span><span class="st-day">${wd}</span><span class="st-line"></span></div>
-            <div class="st-body"><div class="today-wait"><span>Mark yesterday&rsquo;s step done to unlock today&rsquo;s jolt.</span></div></div>
+            <div class="st-node"><span class="st-now st-now-wait"></span><span class="st-day">${wd}</span><span class="st-line"></span></div>
+            <div class="st-body"><div class="today-wait">Mark yesterday&rsquo;s step done to unlock today&rsquo;s jolt.</div></div>
           </div>`;
               }
               return `
         <div class="station future" style="--i:${i}">
           <div class="st-node"><span class="st-dot"></span><span class="st-day">${wd}</span><span class="st-line"></span></div>
           <div class="st-body">
-            <div class="st-veil">
-              <div class="veil-bars"><i></i><i></i></div>
-            </div>
+            <div class="st-veil"><i></i><i></i></div>
           </div>
         </div>`;
             })
@@ -6230,10 +6552,6 @@
 
           body.innerHTML = `
       <div class="home-head ${animate ? "enter" : ""}">
-        <div class="home-eyebrow">
-          <span class="type-sym">${SYM[p.type]}</span>
-          <span>${done ? "Complete" : "Day " + day + " of 5"}</span>
-        </div>
         <h1 class="home-title">${escapeHtml(p.title)}</h1>
       </div>
       <div class="path-scroll ${meta.cls}">
@@ -6315,6 +6633,7 @@
               .join("") +
             `<button class="cp-chip cat" data-cpother>Other</button>`;
           cpCats.classList.add("show");
+          cpCatsSlider.classList.add("show");
         }
         function cpShowSubs(cat) {
           cpLabel.style.display = "none";
@@ -6327,6 +6646,7 @@
               )
               .join("") + `<button class="cp-chip" data-cpother>Other</button>`;
           cpCats.classList.remove("show");
+          cpCatsSlider.classList.remove("show");
           cpSubs.classList.add("show");
         }
         function cpPick(stem) {
@@ -6404,6 +6724,14 @@
         $("#homeBody").addEventListener("click", (e) => {
           const p = active();
           if (!p) return;
+          if (e.target.closest("[data-paylock]")) {
+            showScreen("s-pay");
+            return;
+          }
+          if (e.target.closest("[data-jolt-replay]")) {
+            startJolt(p, "s-home", true);
+            return;
+          }
           if (e.target.closest("[data-jolt]")) {
             startJolt(p, "s-home");
             return;
@@ -6441,6 +6769,10 @@
             ? closeGearMenu()
             : openGearMenu();
         });
+        $("#homeUnlock") &&
+          $("#homeUnlock").addEventListener("click", () => {
+            showScreen("s-pay");
+          });
         scrim.addEventListener("click", closeGearMenu);
         gearPanel.addEventListener("click", async (e) => {
           const row = e.target.closest("[data-menu]");
@@ -6546,6 +6878,7 @@
         const cpEl = $("#composePicker"),
           cpLabel = $("#cpLabel"),
           cpCats = $("#cpCats"),
+          cpCatsSlider = $("#cpCatsSlider"),
           cpSubs = $("#cpSubs"),
           cpSubList = $("#cpSubList"),
           cpCatName = $("#cpCatName"),
@@ -6557,6 +6890,26 @@
         }
 
         cpEl.addEventListener("click", (e) => {
+          const prevBtn = e.target.closest("[data-slide-prev]");
+          if (prevBtn) {
+            const track = $("#" + prevBtn.dataset.slidePrev);
+            track &&
+              track.scrollBy({
+                left: -Math.max(track.clientWidth * 0.75, 120),
+                behavior: "smooth",
+              });
+            return;
+          }
+          const nextBtn = e.target.closest("[data-slide-next]");
+          if (nextBtn) {
+            const track = $("#" + nextBtn.dataset.slideNext);
+            track &&
+              track.scrollBy({
+                left: Math.max(track.clientWidth * 0.75, 120),
+                behavior: "smooth",
+              });
+            return;
+          }
           if (e.target.closest("[data-cpother]")) {
             cpPick("");
             return;
@@ -7335,8 +7688,7 @@
           $("#safetyCta").addEventListener("click", () => {
             const onboarding = state.me && !state.me.onboarding_complete;
             if (onboarding) {
-              obPhase = "q1";
-              qView = "list";
+              obQi = 0;
               showLayer("l-questions");
               renderQ();
             } else {
@@ -7492,43 +7844,213 @@
               authError("#signinErr", e.message || "Could not sign in.");
             }
           });
-        $("#toSignup") &&
-          $("#toSignup").addEventListener("click", () => show("l-signup"));
         $("#toSignin") &&
           $("#toSignin").addEventListener("click", () => show("l-signin"));
+
+        /* ---- signup: one field at a time, keyboard opens per step ---- */
+        const signupStepEls = $$("#signupSteps .signup-step");
+        let signupStep = 0;
+        const isTouchDevice =
+          window.matchMedia &&
+          window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+
+        function setSignupHeaderCollapsed(collapsed) {
+          if (!isTouchDevice) return;
+          const inner = $("#signupInner");
+          const brand = $("#signupBrand");
+          const title = $("#signupTitle");
+          if (inner) inner.classList.toggle("is-focused", collapsed);
+          if (brand) brand.classList.toggle("is-collapsed", collapsed);
+          if (title) title.classList.toggle("is-collapsed", collapsed);
+        }
+
+        function fieldNeedsKeyboard(el) {
+          if (!el) return false;
+          if (el.tagName === "SELECT") return false;
+          if (el.tagName === "INPUT" && el.type === "date") return false;
+          return el.tagName === "INPUT" || el.tagName === "TEXTAREA";
+        }
+
+        const signupDobInput = $("#signupDob"),
+          signupDobField = $("#signupDobField");
+        if (signupDobInput && signupDobField) {
+          // Desktop browsers already render their own dd/mm/yyyy placeholder
+          // for empty date inputs, so our custom overlay is only needed on
+          // touch devices where that native placeholder doesn't show.
+          if (!isTouchDevice) signupDobField.classList.add("native-placeholder");
+          const syncDobField = () =>
+            signupDobField.classList.toggle(
+              "has-value",
+              !!signupDobInput.value,
+            );
+          syncDobField();
+          signupDobInput.addEventListener("input", syncDobField);
+          signupDobInput.addEventListener("change", syncDobField);
+          signupDobInput.addEventListener("focus", () =>
+            signupDobField.classList.add("is-focused"),
+          );
+          signupDobInput.addEventListener("blur", () =>
+            signupDobField.classList.remove("is-focused"),
+          );
+        }
+
+        $("#signupSteps") &&
+          $("#signupSteps").addEventListener(
+            "focusin",
+            (e) => {
+              setSignupHeaderCollapsed(fieldNeedsKeyboard(e.target));
+            },
+            true,
+          );
+        $("#signupSteps") &&
+          $("#signupSteps").addEventListener(
+            "focusout",
+            () => {
+              // Let a same-step focus move (e.g. tab) settle before deciding
+              // nothing in the form is focused anymore.
+              setTimeout(() => {
+                if (!$("#signupSteps").contains(document.activeElement)) {
+                  setSignupHeaderCollapsed(false);
+                }
+              }, 0);
+            },
+            true,
+          );
+
+        function focusSignupInput(stepEl) {
+          if (!stepEl) return;
+          const input = stepEl.querySelector("input, select");
+          if (!input) return;
+          // Called synchronously inside a click handler so mobile browsers
+          // treat it as part of the user gesture and open the keyboard.
+          input.focus();
+          if (input.tagName === "INPUT" && input.type === "text") {
+            try {
+              const v = input.value;
+              input.setSelectionRange(v.length, v.length);
+            } catch (e) {}
+          }
+        }
+
+        function renderSignupStep(focus) {
+          signupStepEls.forEach((el, i) =>
+            el.classList.toggle("is-active", i === signupStep),
+          );
+          const back = $("#signupBack");
+          if (back) back.classList.toggle("is-hidden", signupStep === 0);
+          const btn = $("#signupBtn");
+          if (btn)
+            btn.textContent =
+              signupStep === signupStepEls.length - 1
+                ? "Create account"
+                : "Continue";
+          if (focus !== false) focusSignupInput(signupStepEls[signupStep]);
+        }
+
+        function resetSignupSteps(focus) {
+          signupStep = 0;
+          authError("#signupErr", "");
+          setSignupHeaderCollapsed(false);
+          renderSignupStep(focus);
+        }
+
+        function validateSignupStep() {
+          authError("#signupErr", "");
+          if (signupStep === 2 && !$("#signupEmail").value.trim()) {
+            authError("#signupErr", "Enter your email.");
+            return false;
+          }
+          if (signupStep === 3 && $("#signupPass").value.length < 6) {
+            authError("#signupErr", "Enter a password (6+ characters).");
+            return false;
+          }
+          return true;
+        }
+
+        async function submitSignup() {
+          authError("#signupErr", "");
+          const email = $("#signupEmail").value.trim(),
+            password = $("#signupPass").value;
+          const first_name = $("#signupFirst").value.trim(),
+            last_name = $("#signupLast").value.trim();
+          const dob = $("#signupDob").value,
+            gender = $("#signupGender").value || "";
+          if (!email || !password) {
+            authError(
+              "#signupErr",
+              "Enter an email and a password (6+ characters).",
+            );
+            signupStep = !email ? 2 : 3;
+            renderSignupStep();
+            return;
+          }
+          try {
+            const r = await POST("/auth/register", {
+              email,
+              password,
+              first_name,
+              last_name,
+              dob,
+              gender,
+            });
+            await afterAuth(r);
+          } catch (e) {
+            authError(
+              "#signupErr",
+              e.message || "Could not create your account.",
+            );
+          }
+        }
+
+        // Prevent the tap on Continue/Back from blurring the focused input
+        // first. That blur re-expanded the header and shifted the layout
+        // between touchstart and touchend, so the button moved out from
+        // under the finger and the first tap only closed the keyboard.
+        // (mousedown alone is enough to stop the blur — preventing
+        // touchstart's default action too would suppress the browser's
+        // synthesized click entirely on touch devices.)
+        function preventBlurShift(el) {
+          if (!el) return;
+          el.addEventListener("mousedown", (e) => e.preventDefault());
+        }
+        preventBlurShift($("#signupBtn"));
+        preventBlurShift($("#signupBack"));
+
+        $("#toSignup") &&
+          $("#toSignup").addEventListener("click", () => {
+            resetSignupSteps(true);
+            show("l-signup");
+          });
+
         $("#signupBtn") &&
           $("#signupBtn").addEventListener("click", async () => {
-            authError("#signupErr", "");
-            const email = $("#signupEmail").value.trim(),
-              password = $("#signupPass").value;
-            const first_name = $("#signupFirst").value.trim(),
-              last_name = $("#signupLast").value.trim();
-            const dob = $("#signupDob").value,
-              gender = $("#signupGender").value || "";
-            if (!email || !password) {
-              authError(
-                "#signupErr",
-                "Enter an email and a password (6+ characters).",
-              );
-              return;
-            }
-            try {
-              const r = await POST("/auth/register", {
-                email,
-                password,
-                first_name,
-                last_name,
-                dob,
-                gender,
-              });
-              await afterAuth(r);
-            } catch (e) {
-              authError(
-                "#signupErr",
-                e.message || "Could not create your account.",
-              );
+            if (!validateSignupStep()) return;
+            if (signupStep < signupStepEls.length - 1) {
+              signupStep++;
+              renderSignupStep();
+            } else {
+              setSignupHeaderCollapsed(false);
+              await submitSignup();
             }
           });
+
+        $("#signupBack") &&
+          $("#signupBack").addEventListener("click", () => {
+            if (signupStep === 0) return;
+            authError("#signupErr", "");
+            signupStep--;
+            renderSignupStep();
+          });
+
+        $("#signupSteps") &&
+          $("#signupSteps").addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              $("#signupBtn") && $("#signupBtn").click();
+            }
+          });
+
+        renderSignupStep(false);
 
         let gsiClientId = "";
         async function setupGoogle() {
