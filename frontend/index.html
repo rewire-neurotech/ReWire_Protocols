@@ -588,6 +588,7 @@
         color: var(--muted);
         letter-spacing: -0.008em;
         animation: waitIn 700ms ease both;
+        margin-top: 15px
       }
       @keyframes waitIn {
         from {
@@ -659,6 +660,7 @@
         align-items: center;
         gap: 13px;
         padding: 10px 0 8px;
+        margin-top: 8px;
       }
       .veil-bars {
         flex: 1;
@@ -6517,8 +6519,12 @@
           if (ctx && ctx !== (obGoal || "").trim())
             charge = (charge ? charge + "\n\n" : "") + ctx;
           showScreen("s-building");
+          const _buildStart = Date.now();
           try {
             const r = await POST("/protocols", { type, target, charge });
+            const _buildEl = Date.now() - _buildStart;
+            if (_buildEl < 3000)
+              await new Promise((res) => setTimeout(res, 3000 - _buildEl));
             if (r._paywall) {
               showScreen("s-pay");
               return;
@@ -6532,6 +6538,9 @@
               showSafety(r.status || "clarify", r.category);
             }
           } catch (e) {
+            const _buildEl = Date.now() - _buildStart;
+            if (_buildEl < 3000)
+              await new Promise((res) => setTimeout(res, 3000 - _buildEl));
             showSafety("error", null);
           }
         }
@@ -7070,8 +7079,14 @@
               charge = draft.charge;
             closeCompose();
             showScreen("s-building");
+            const _buildStart2 = Date.now();
             try {
               const r = await POST("/protocols", { type, target, charge });
+              const _buildEl2 = Date.now() - _buildStart2;
+              if (_buildEl2 < 3000)
+                await new Promise((res) =>
+                  setTimeout(res, 3000 - _buildEl2),
+                );
               if (r._paywall) {
                 showScreen("s-pay");
                 return;
@@ -7086,6 +7101,11 @@
                 showSafety(r.status || "clarify", r.category);
               }
             } catch (e) {
+              const _buildEl2 = Date.now() - _buildStart2;
+              if (_buildEl2 < 3000)
+                await new Promise((res) =>
+                  setTimeout(res, 3000 - _buildEl2),
+                );
               showSafety("error", null);
             }
             return;
