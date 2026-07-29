@@ -588,6 +588,7 @@
         color: var(--muted);
         letter-spacing: -0.008em;
         animation: waitIn 700ms ease both;
+        margin-top: 15px
       }
       @keyframes waitIn {
         from {
@@ -657,7 +658,9 @@
       .st-veil {
         display: flex;
         align-items: center;
+        gap: 13px;
         padding: 10px 0 8px;
+        margin-top: 8px;
       }
       .veil-bars {
         flex: 1;
@@ -742,6 +745,7 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
+        gap: 12px;
         padding: 14px 30px calc(var(--safe-bottom) + 16px);
         background: linear-gradient(
           180deg,
@@ -757,6 +761,7 @@
         display: grid;
         place-items: center;
         color: var(--ink-soft);
+        flex-shrink: 0;
         transition:
           transform 240ms ease,
           background 200ms ease;
@@ -1693,11 +1698,9 @@
       }
       .cp-cats {
         display: none;
-        flex-wrap: wrap;
-        gap: 9px;
       }
       .cp-cats.show {
-        display: flex;
+        display: block;
       }
       .cp-subs {
         display: none;
@@ -1734,12 +1737,46 @@
         font-weight: 600;
         letter-spacing: -0.01em;
       }
-      .cp-sub-list {
+      .cp-chips-row {
         display: flex;
-        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+      }
+      .cp-chips {
+        display: flex;
+        flex-wrap: nowrap;
         gap: 9px;
+        overflow-x: auto;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        flex: 1;
+        min-width: 0;
+        padding: 2px 1px;
+      }
+      .cp-chips::-webkit-scrollbar {
+        display: none;
+      }
+      .cp-chip-nav {
+        flex-shrink: 0;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: var(--chip);
+        color: var(--ink);
+        transition:
+          background 180ms ease,
+          transform 180ms ease;
+      }
+      .cp-chip-nav:active {
+        transform: scale(0.9);
       }
       .cp-chip {
+        flex-shrink: 0;
+        white-space: nowrap;
         padding: 11px 16px;
         border-radius: 999px;
         background: var(--chip);
@@ -2069,10 +2106,34 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-start;
         padding: calc(var(--safe-top) + 40px) 34px
           calc(var(--safe-bottom) + 44px);
         text-align: center;
+      }
+      .welcome-top-spacer {
+        flex: 0 0 auto;
+        height: min(16vh, 120px);
+        transition: height 380ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .welcome-stage.kb-active .welcome-top-spacer {
+        height: 0;
+      }
+      .welcome-brand {
+        overflow: hidden;
+        max-height: 220px;
+        transition:
+          opacity 300ms ease,
+          max-height 380ms cubic-bezier(0.22, 1, 0.36, 1),
+          margin 380ms cubic-bezier(0.22, 1, 0.36, 1),
+          transform 300ms ease;
+      }
+      .welcome-stage.kb-active .welcome-brand {
+        opacity: 0;
+        max-height: 0;
+        margin-bottom: 0;
+        transform: translateY(-14px);
+        pointer-events: none;
       }
       .welcome-logo {
         width: 92px;
@@ -2121,6 +2182,165 @@
       .welcome-cta.in {
         opacity: 1;
         transform: none;
+      }
+      .welcome-auth {
+        width: 100%;
+        max-width: 320px;
+        margin-top: 34px;
+        opacity: 0;
+        transform: translateY(10px);
+        transition:
+          opacity 700ms ease,
+          transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .welcome-auth.in {
+        opacity: 1;
+        transform: none;
+      }
+      .auth-toggle {
+        display: flex;
+        padding: 4px;
+        margin-bottom: 14px;
+        background: var(--chip);
+        border-radius: 999px;
+      }
+      .auth-seg {
+        flex: 1;
+        min-height: 40px;
+        border-radius: 999px;
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--ink-soft);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition:
+          background 220ms ease,
+          color 220ms ease,
+          box-shadow 220ms ease;
+      }
+      .auth-seg.on {
+        background: var(--screen);
+        color: var(--ink);
+        box-shadow: var(--shadow-soft);
+      }
+      .auth-field {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 52px;
+        padding: 0 16px;
+        margin-bottom: 10px;
+        background: #fff;
+        border: 1.5px solid var(--hairline);
+        border-radius: 14px;
+        transition:
+          border-color 180ms ease,
+          box-shadow 180ms ease;
+      }
+      .auth-field:focus-within {
+        border-color: var(--ink);
+        box-shadow: 0 0 0 3px rgba(28, 26, 22, 0.06);
+      }
+      .auth-field svg {
+        flex-shrink: 0;
+        width: 18px;
+        height: 18px;
+        color: var(--muted);
+      }
+      .auth-field input,
+      .auth-field select {
+        flex: 1;
+        min-width: 0;
+        font-size: 15.5px;
+        letter-spacing: -0.01em;
+        color: var(--ink);
+        background: transparent;
+        border: 0;
+        outline: 0;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+      .auth-field input::placeholder {
+        color: var(--muted);
+      }
+      .auth-extra .auth-row2 {
+        display: flex;
+        gap: 10px;
+      }
+      .auth-extra .auth-row2 .auth-field {
+        flex: 1 1 0;
+        min-width: 0;
+      }
+      .auth-cta {
+        width: 100%;
+        margin-top: 6px;
+      }
+      .auth-hint {
+        margin-top: 14px;
+        font-size: 12.5px;
+        line-height: 1.5;
+        color: var(--muted);
+        letter-spacing: -0.005em;
+        text-align: center;
+      }
+      .auth-step {
+        display: none;
+      }
+      .auth-step.auth-step-active {
+        display: block;
+        animation: authStepIn 320ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      @keyframes authStepIn {
+        from {
+          opacity: 0;
+          transform: translateX(14px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      .auth-dots {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        margin: 0 0 12px;
+      }
+      .auth-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--faint);
+        transition:
+          background 180ms ease,
+          transform 180ms ease;
+      }
+      .auth-dot.on {
+        background: var(--ink);
+        transform: scale(1.25);
+      }
+      .auth-nav {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .auth-back {
+        flex-shrink: 0;
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        background: var(--chip);
+      }
+      .auth-back.is-collapsed {
+        display: none;
+      }
+      #authNav .auth-cta {
+        flex: 1;
+        width: auto;
+        margin-top: 0;
       }
       .dc-inner {
         position: absolute;
@@ -2726,13 +2946,46 @@
         color: var(--muted);
         margin-bottom: 14px;
       }
+      .qp-chips-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
       .qp-chips {
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         gap: 9px;
-        justify-content: center;
+        overflow-x: auto;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        flex: 1;
+        min-width: 0;
+        padding: 2px 1px;
+      }
+      .qp-chips::-webkit-scrollbar {
+        display: none;
+      }
+      .qp-chip-nav {
+        flex-shrink: 0;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: var(--chip);
+        color: var(--ink);
+        transition:
+          background 180ms ease,
+          transform 180ms ease;
+      }
+      .qp-chip-nav:active {
+        transform: scale(0.9);
       }
       .qp-chipx {
+        flex-shrink: 0;
+        white-space: nowrap;
         padding: 10px 15px;
         border-radius: 999px;
         background: var(--chip);
@@ -3174,7 +3427,9 @@
   <body>
     <div id="app">
       <div class="layer is-active" id="l-welcome">
-        <div class="welcome-stage">
+        <div class="welcome-stage" id="welcomeStage">
+          <div class="welcome-top-spacer"></div>
+          <div class="welcome-brand" id="welcomeBrand">
           <img
             class="welcome-logo"
             src="data:image/png;base64,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"
@@ -3184,13 +3439,174 @@
           <h1 class="welcome-line">
             <span id="typeLine"></span><span class="cur" id="typeCur"></span>
           </h1>
-          <button
-            class="cta welcome-cta"
-            id="welcomeBegin"
-            style="width: auto; padding: 0 56px"
-          >
-            Begin
-          </button>
+          </div>
+
+          <div class="welcome-auth" id="welcomeAuth">
+            <div class="auth-toggle">
+              <button class="auth-seg on" id="segSignin" data-mode="signin">
+                Sign in
+              </button>
+              <button class="auth-seg" id="segCreate" data-mode="create">
+                Create account
+              </button>
+            </div>
+
+            <div class="auth-fields" id="authFields">
+              <div class="auth-step" data-step="0">
+                <label class="auth-field">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
+                    /><circle cx="12" cy="7" r="4" />
+                  </svg>
+                  <input
+                    id="authFirst"
+                    type="text"
+                    autocomplete="given-name"
+                    placeholder="First name"
+                  />
+                </label>
+              </div>
+              <div class="auth-step" data-step="1">
+                <label class="auth-field">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
+                    /><circle cx="12" cy="7" r="4" />
+                  </svg>
+                  <input
+                    id="authLast"
+                    type="text"
+                    autocomplete="family-name"
+                    placeholder="Last name"
+                  />
+                </label>
+              </div>
+              <div class="auth-step" data-step="2">
+                <label class="auth-field">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <rect x="3" y="5" width="18" height="14" rx="2" /><polyline
+                      points="3 7 12 13 21 7"
+                    />
+                  </svg>
+                  <input
+                    id="authEmail"
+                    type="email"
+                    inputmode="email"
+                    autocomplete="email"
+                    autocapitalize="none"
+                    spellcheck="false"
+                    placeholder="Email"
+                  />
+                </label>
+              </div>
+              <div class="auth-step" data-step="3">
+                <label class="auth-field">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <rect x="4" y="11" width="16" height="10" rx="2" /><path
+                      d="M8 11V7a4 4 0 0 1 8 0v4"
+                    />
+                  </svg>
+                  <input
+                    id="authPassword"
+                    type="password"
+                    autocomplete="current-password"
+                    placeholder="Password"
+                  />
+                </label>
+              </div>
+              <div class="auth-step" data-step="4">
+                <label class="auth-field">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <rect x="3" y="4" width="18" height="18" rx="2" /><line
+                      x1="16"
+                      y1="2"
+                      x2="16"
+                      y2="6"
+                    /><line x1="8" y1="2" x2="8" y2="6" /><line
+                      x1="3"
+                      y1="10"
+                      x2="21"
+                      y2="10"
+                    />
+                  </svg>
+                  <input id="authDob" type="date" placeholder="Date of birth" />
+                </label>
+              </div>
+              <div class="auth-step" data-step="5">
+                <label class="auth-field">
+                  <select id="authGender">
+                    <option value="">Gender (optional)</option>
+                    <option value="female">Female</option>
+                    <option value="male">Male</option>
+                    <option value="nonbinary">Non-binary</option>
+                    <option value="other">Other</option>
+                    <option value="prefer_not">Prefer not to say</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div class="auth-err" id="authErr" style="display: none"></div>
+            <div class="auth-nav" id="authNav">
+              <button class="icon-btn auth-back" id="authBack" aria-label="Back">
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <line x1="19" y1="12" x2="5" y2="12" /><polyline
+                    points="12 19 5 12 12 5"
+                  />
+                </svg>
+              </button>
+              <button class="cta auth-cta" id="welcomeBegin">Sign in</button>
+            </div>
+            <div class="g-signin"></div>
+            <p class="auth-hint" id="authHint">
+              Welcome back &mdash; enter your details to continue.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -3480,106 +3896,6 @@
         </div>
       </div>
 
-      <!-- ============ SIGN IN (built in Felix's style) ============ -->
-      <div class="layer" id="l-signin">
-        <div class="auth-inner" id="signinForm">
-          <div class="auth-brand">
-            <img class="brand-logo" src="/assets/logo.png" alt="ReWire" />
-          </div>
-          <h1 class="auth-title">Welcome back.</h1>
-          <div class="auth-fields">
-            <input
-              class="auth-input"
-              id="signinEmail"
-              type="email"
-              inputmode="email"
-              autocomplete="email"
-              placeholder="Email"
-            />
-            <input
-              class="auth-input"
-              id="signinPass"
-              type="password"
-              autocomplete="current-password"
-              placeholder="Password"
-            />
-          </div>
-          <div class="auth-err" id="signinErr" style="display: none"></div>
-          <button class="cta" id="signinBtn">Sign in</button>
-          <div class="g-signin"></div>
-          <p class="auth-alt">
-            New to ReWire?
-            <button class="auth-link" id="toSignup">Create an account</button>
-          </p>
-        </div>
-      </div>
-
-      <!-- ============ SIGN UP (built in Felix's style) ============ -->
-      <div class="layer" id="l-signup">
-        <div class="auth-inner">
-          <div class="auth-brand">
-            <img class="brand-logo" src="/assets/logo.png" alt="ReWire" />
-          </div>
-          <h1 class="auth-title">Create your account.</h1>
-          <div class="auth-fields">
-            <div class="auth-row2">
-              <input
-                class="auth-input"
-                id="signupFirst"
-                type="text"
-                autocomplete="given-name"
-                placeholder="First name"
-              />
-              <input
-                class="auth-input"
-                id="signupLast"
-                type="text"
-                autocomplete="family-name"
-                placeholder="Last name"
-              />
-            </div>
-            <input
-              class="auth-input"
-              id="signupEmail"
-              type="email"
-              inputmode="email"
-              autocomplete="email"
-              placeholder="Email"
-            />
-            <input
-              class="auth-input"
-              id="signupPass"
-              type="password"
-              autocomplete="new-password"
-              placeholder="Password (6+ characters)"
-            />
-            <div class="auth-row2">
-              <input
-                class="auth-input"
-                id="signupDob"
-                type="date"
-                placeholder="Date of birth"
-              />
-              <select class="auth-input" id="signupGender">
-                <option value="">Gender (optional)</option>
-                <option value="female">Female</option>
-                <option value="male">Male</option>
-                <option value="nonbinary">Non-binary</option>
-                <option value="other">Other</option>
-                <option value="prefer_not">Prefer not to say</option>
-              </select>
-            </div>
-          </div>
-          <div class="auth-err" id="signupErr" style="display: none"></div>
-          <button class="cta" id="signupBtn">Create account</button>
-          <div class="g-signin"></div>
-          <p class="auth-alt">
-            Already have an account?
-            <button class="auth-link" id="toSignin">Sign in</button>
-          </p>
-        </div>
-      </div>
-
       <!-- ============ SAFETY (clarify / block / crisis) ============ -->
       <section class="screen" id="s-safety">
         <div class="inner">
@@ -3631,6 +3947,9 @@
                 d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
               />
             </svg>
+          </button>
+          <button class="unlock-pill" id="homeUnlock" style="display: none">
+            Unlock &middot; $9
           </button>
           <button
             class="round-btn plus-btn"
@@ -4395,7 +4714,47 @@
             <div class="cp-label" id="cpLabel">
               Pick a starting point, or just type.
             </div>
-            <div class="cp-cats" id="cpCats"></div>
+            <div class="cp-cats" id="cpCats">
+              <div class="cp-chips-row">
+                <button
+                  class="cp-chip-nav"
+                  data-chip-nav="left"
+                  aria-label="Scroll left"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+                <div class="cp-chips" id="cpCatsList"></div>
+                <button
+                  class="cp-chip-nav"
+                  data-chip-nav="right"
+                  aria-label="Scroll right"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              </div>
+            </div>
             <div class="cp-subs" id="cpSubs">
               <div class="cp-head">
                 <button class="cp-back" id="cpBack">
@@ -4414,7 +4773,45 @@
                 </button>
                 <span class="cp-cat-name" id="cpCatName"></span>
               </div>
-              <div class="cp-sub-list" id="cpSubList"></div>
+              <div class="cp-chips-row">
+                <button
+                  class="cp-chip-nav"
+                  data-chip-nav="left"
+                  aria-label="Scroll left"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+                <div class="cp-chips" id="cpSubList"></div>
+                <button
+                  class="cp-chip-nav"
+                  data-chip-nav="right"
+                  aria-label="Scroll right"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
           <textarea
@@ -5081,7 +5478,8 @@
           state.journal = [];
           state.activeId = null;
           stopAllAudio();
-          show("l-signin");
+          runWelcome();
+          show("l-welcome");
         }
 
         /* ---------- app state (replaces Felix's mock arrays) ---------- */
@@ -5836,13 +6234,10 @@
               i++;
               setTimeout(tick, i === 1 ? 700 : 62 + Math.random() * 46);
             } else {
-              setTimeout(() => $("#welcomeBegin").classList.add("in"), 350);
+              setTimeout(() => $("#welcomeAuth").classList.add("in"), 350);
             }
           })();
         }
-        $("#welcomeBegin").addEventListener("click", () =>
-          showLayer("l-disclaimer"),
-        );
 
         /* disclaimer */
         $$(".dc-agree").forEach((a) =>
@@ -5966,13 +6361,18 @@
             const r = REFINE[obSub] || REFINE._generic;
             qHead.textContent = r.q;
             qBody.innerHTML =
-              `<div class="qp-hint">Tap to add, then finish it in your words.</div><div class="qp-chips">` +
+              `<div class="qp-hint">Tap to add, then finish it in your words.</div>` +
+              `<div class="qp-chips-row">` +
+              `<button class="qp-chip-nav" data-chip-nav="left" aria-label="Scroll left"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>` +
+              `<div class="qp-chips">` +
               r.chips
                 .map(
                   (c) =>
                     `<button class="qp-chipx" data-chip="${esc(c)}">${esc(c)}</button>`,
                 )
                 .join("") +
+              `</div>` +
+              `<button class="qp-chip-nav" data-chip-nav="right" aria-label="Scroll right"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>` +
               `</div>`;
             qSetTextarea(true);
             if (!obAnswers[0]) {
@@ -6007,6 +6407,18 @@
           }, 30);
         }
         qBody.addEventListener("click", (e) => {
+          const chipNav = e.target.closest("[data-chip-nav]");
+          if (chipNav) {
+            const track = qBody.querySelector(".qp-chips");
+            if (track) {
+              const amt = Math.max(120, track.clientWidth * 0.7);
+              track.scrollBy({
+                left: chipNav.dataset.chipNav === "left" ? -amt : amt,
+                behavior: "smooth",
+              });
+            }
+            return;
+          }
           const back = e.target.closest("[data-backlist]");
           if (back) {
             qView = "list";
@@ -6107,8 +6519,12 @@
           if (ctx && ctx !== (obGoal || "").trim())
             charge = (charge ? charge + "\n\n" : "") + ctx;
           showScreen("s-building");
+          const _buildStart = Date.now();
           try {
             const r = await POST("/protocols", { type, target, charge });
+            const _buildEl = Date.now() - _buildStart;
+            if (_buildEl < 3000)
+              await new Promise((res) => setTimeout(res, 3000 - _buildEl));
             if (r._paywall) {
               showScreen("s-pay");
               return;
@@ -6122,6 +6538,9 @@
               showSafety(r.status || "clarify", r.category);
             }
           } catch (e) {
+            const _buildEl = Date.now() - _buildStart;
+            if (_buildEl < 3000)
+              await new Promise((res) => setTimeout(res, 3000 - _buildEl));
             showSafety("error", null);
           }
         }
@@ -6154,6 +6573,15 @@
         function renderHome(animate) {
           const p = active();
           const body = $("#homeBody");
+          const unlockBtn = $("#homeUnlock");
+          if (unlockBtn) {
+            const isPaidAll = p
+              ? p.unlocked || state.monthlyActive
+              : state.monthlyActive;
+            unlockBtn.style.display = isPaidAll ? "none" : "";
+            unlockBtn.textContent =
+              "Unlock \u00b7 $" + (state.prices.protocol_price_usd || 9);
+          }
           if (!p) {
             body.innerHTML = `
         <div class="home-empty">
@@ -6167,6 +6595,7 @@
           const done = isDone(p);
           const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
           const startIdx = p.startDow != null ? p.startDow : 1;
+          const protoPaid = p.unlocked || state.monthlyActive;
 
           const stations = p.days
             .map((d, i) => {
@@ -6183,13 +6612,21 @@
               <div class="st-act ${d.done ? "checked" : ""}">
                 <span class="st-act-text">${escapeHtml(d.act)}</span>
               </div>
+              ${
+                i === 0 && !protoPaid
+                  ? `<button class="st-replay" data-replay-first>
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a.6.6 0 0 0 .92.5l10-6.5a.6.6 0 0 0 0-1l-10-6.5A.6.6 0 0 0 8 5.5Z"/></svg>
+                Replay &middot; free
+              </button>`
+                  : ""
+              }
             </div>
           </div>`;
               }
               if (isToday) {
                 const prevDone = i === 0 || p.days[i - 1].done;
                 const timeReady = i === 0 || dayTimeReady(p.days[i - 1]);
-                const isPaid = i === 0 || p.unlocked || state.monthlyActive;
+                const isPaid = i === 0 || protoPaid;
                 const startStation = `
           <div class="station today ${i > 0 && justTicked === i - 1 ? "reveal" : ""}" style="--i:${i}">
             <div class="st-node"><button class="node-jolt" data-jolt aria-label="Start today&rsquo;s jolt">${ICON_PLAY_MED}</button><span class="st-day">${wd}</span><span class="st-line"></span></div>
@@ -6197,11 +6634,18 @@
               <button class="st-act jolt-act" data-jolt><span class="st-act-text jolt-text">Start today&rsquo;s jolt</span></button>
             </div>
           </div>`;
-                // Unpaid day 2-5: always route to the paywall. The Start button
-                // calls startJolt, which returns 402 (pay screen) before the
-                // prior-day / cadence gates, so the paywall is always reachable.
-                // Once unlocked, the gates below apply.
-                if (!isPaid) return startStation;
+                // Unpaid day 2-5: show a locked card (no active Start icon)
+                // but still route the tap through startJolt itself, so the
+                // server (not possibly-stale client state) has the final
+                // say — this is what lets a just-purchased subscription
+                // start working immediately instead of staying stuck here.
+                if (!isPaid) {
+                  return `
+          <div class="station today waiting locked-tap" data-jolt style="--i:${i}">
+            <div class="st-node"><span class="node-wait">${LOCK_SVG}</span><span class="st-day">${wd}</span><span class="st-line"></span></div>
+            <div class="st-body"><div class="today-wait"><span>Tap to unlock and continue your protocol.</span></div></div>
+          </div>`;
+                }
                 if (prevDone && timeReady) return startStation;
                 if (prevDone) {
                   return `
@@ -6217,10 +6661,11 @@
           </div>`;
               }
               return `
-        <div class="station future" style="--i:${i}">
+        <div class="station future ${protoPaid ? "" : "locked-tap"}" ${protoPaid ? "" : "data-paylock"} style="--i:${i}">
           <div class="st-node"><span class="st-dot"></span><span class="st-day">${wd}</span><span class="st-line"></span></div>
           <div class="st-body">
             <div class="st-veil">
+              ${protoPaid ? "" : `<span class="veil-lock">${LOCK_SVG}</span>`}
               <div class="veil-bars"><i></i><i></i></div>
             </div>
           </div>
@@ -6306,7 +6751,7 @@
           cpLabel.style.display = "";
           cpSubs.classList.remove("show");
           const areas = PROTO_AREAS[kind];
-          cpCats.innerHTML =
+          cpCatsList.innerHTML =
             Object.keys(areas)
               .map(
                 (c) =>
@@ -6404,6 +6849,14 @@
         $("#homeBody").addEventListener("click", (e) => {
           const p = active();
           if (!p) return;
+          if (e.target.closest("[data-paylock]")) {
+            showScreen("s-pay");
+            return;
+          }
+          if (e.target.closest("[data-replay-first]")) {
+            startJolt(p, "s-home", true);
+            return;
+          }
           if (e.target.closest("[data-jolt]")) {
             startJolt(p, "s-home");
             return;
@@ -6413,6 +6866,7 @@
             const i = +tick.dataset.tick;
             const day = p.days[i] ? p.days[i]._day : i + 1;
             p.days[i].done = true;
+            p.days[i]._doneAt = new Date().toISOString();
             justTicked = i;
             renderHome();
             justTicked = -1;
@@ -6464,6 +6918,10 @@
             location.reload();
           }
         });
+        $("#homeUnlock") &&
+          $("#homeUnlock").addEventListener("click", () => {
+            showScreen("s-pay");
+          });
         $("#addBtn") &&
           $("#addBtn").addEventListener("click", () => {
             openCompose({
@@ -6546,6 +7004,7 @@
         const cpEl = $("#composePicker"),
           cpLabel = $("#cpLabel"),
           cpCats = $("#cpCats"),
+          cpCatsList = $("#cpCatsList"),
           cpSubs = $("#cpSubs"),
           cpSubList = $("#cpSubList"),
           cpCatName = $("#cpCatName"),
@@ -6557,6 +7016,18 @@
         }
 
         cpEl.addEventListener("click", (e) => {
+          const chipNav = e.target.closest("[data-chip-nav]");
+          if (chipNav) {
+            const track = chipNav.parentElement.querySelector(".cp-chips");
+            if (track) {
+              const amt = Math.max(120, track.clientWidth * 0.7);
+              track.scrollBy({
+                left: chipNav.dataset.chipNav === "left" ? -amt : amt,
+                behavior: "smooth",
+              });
+            }
+            return;
+          }
           if (e.target.closest("[data-cpother]")) {
             cpPick("");
             return;
@@ -6608,8 +7079,14 @@
               charge = draft.charge;
             closeCompose();
             showScreen("s-building");
+            const _buildStart2 = Date.now();
             try {
               const r = await POST("/protocols", { type, target, charge });
+              const _buildEl2 = Date.now() - _buildStart2;
+              if (_buildEl2 < 3000)
+                await new Promise((res) =>
+                  setTimeout(res, 3000 - _buildEl2),
+                );
               if (r._paywall) {
                 showScreen("s-pay");
                 return;
@@ -6624,6 +7101,11 @@
                 showSafety(r.status || "clarify", r.category);
               }
             } catch (e) {
+              const _buildEl2 = Date.now() - _buildStart2;
+              if (_buildEl2 < 3000)
+                await new Promise((res) =>
+                  setTimeout(res, 3000 - _buildEl2),
+                );
               showSafety("error", null);
             }
             return;
@@ -7471,47 +7953,170 @@
             await loadSubStatus();
             renderHome(true);
             show("s-home");
+          } else if (resp.disclaimer_accepted) {
+            showLayer("l-intro");
+            introSet(0);
           } else {
-            runWelcome();
-            show("l-welcome");
+            showLayer("l-disclaimer");
           }
         }
-        $("#signinForm") &&
-          $("#signinBtn").addEventListener("click", async () => {
-            authError("#signinErr", "");
-            const email = $("#signinEmail").value.trim(),
-              password = $("#signinPass").value;
-            if (!email || !password) {
-              authError("#signinErr", "Enter your email and password.");
+
+        let authMode = "signin";
+        let authStepIndex = 0;
+        const AUTH_STEPS = {
+          signin: [2, 3],
+          create: [0, 1, 2, 3, 4, 5],
+        };
+        const authStepHint = {
+          0: "What should we call you?",
+          1: "And your last name?",
+          2: "What's your email?",
+          3: "Create a password (6+ characters).",
+          4: "When's your birthday?",
+          5: "One last thing (optional).",
+        };
+        function authStepEl(n) {
+          return document.querySelector('.auth-step[data-step="' + n + '"]');
+        }
+        function focusActiveStepInput() {
+          const steps = AUTH_STEPS[authMode];
+          const current =
+            authMode === "create" ? steps[authStepIndex] : null;
+          if (current === null) return;
+          const el = authStepEl(current);
+          const field = el && el.querySelector("input, select");
+          if (field && document.activeElement !== field) {
+            try {
+              field.focus({ preventScroll: true });
+            } catch (e) {}
+          }
+        }
+        function renderAuthUI() {
+          const steps = AUTH_STEPS[authMode];
+          $$(".auth-step").forEach((el) =>
+            el.classList.remove("auth-step-active"),
+          );
+          if (authMode === "signin") {
+            steps.forEach((n) => {
+              const el = authStepEl(n);
+              if (el) el.classList.add("auth-step-active");
+            });
+            $("#authBack").classList.add("is-collapsed");
+            $("#welcomeBegin").textContent = "Sign in";
+            $("#authPassword").setAttribute(
+              "autocomplete",
+              "current-password",
+            );
+            $("#authHint").innerHTML =
+              "Welcome back &mdash; enter your details to continue.";
+          } else {
+            const current = steps[authStepIndex];
+            const el = authStepEl(current);
+            if (el) el.classList.add("auth-step-active");
+            $("#authBack").classList.toggle(
+              "is-collapsed",
+              authStepIndex === 0,
+            );
+            $("#authPassword").setAttribute("autocomplete", "new-password");
+            const isLast = authStepIndex === steps.length - 1;
+            $("#welcomeBegin").textContent = isLast
+              ? "Create account"
+              : "Next";
+            $("#authHint").innerHTML =
+              authStepHint[current] ||
+              "Create an account to save your progress.";
+          }
+          authError("#authErr", "");
+        }
+        function setAuthMode(mode) {
+          authMode = mode;
+          authStepIndex = 0;
+          $$(".auth-seg").forEach((s) =>
+            s.classList.toggle("on", s.dataset.mode === mode),
+          );
+          renderAuthUI();
+        }
+        $$(".auth-seg").forEach((s) =>
+          s.addEventListener("click", () => setAuthMode(s.dataset.mode)),
+        );
+        renderAuthUI();
+        $("#authBack") &&
+          $("#authBack").addEventListener("click", () => {
+            if (authStepIndex > 0) {
+              authStepIndex--;
+              renderAuthUI();
+              focusActiveStepInput();
+            }
+          });
+
+        /* ---------- keyboard-aware layout: hide the brand + slide fields up ---------- */
+        (function () {
+          const stage = $("#welcomeStage");
+          const panel = $("#welcomeAuth");
+          if (!stage || !panel) return;
+          let kbTimer = null;
+          function setKb(active) {
+            stage.classList.toggle("kb-active", active);
+          }
+          panel.addEventListener("focusin", () => {
+            clearTimeout(kbTimer);
+            setKb(true);
+          });
+          panel.addEventListener("focusout", () => {
+            clearTimeout(kbTimer);
+            kbTimer = setTimeout(() => {
+              if (!panel.contains(document.activeElement)) setKb(false);
+            }, 80);
+          });
+        })();
+
+        $("#authFields") &&
+          $("#authFields").addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              $("#welcomeBegin").click();
+            }
+          });
+
+        $("#welcomeBegin").addEventListener("click", async () => {
+          authError("#authErr", "");
+          if (authMode === "create") {
+            const steps = AUTH_STEPS.create;
+            const current = steps[authStepIndex];
+            if (current === 2 && !$("#authEmail").value.trim()) {
+              authError("#authErr", "Enter your email.");
               return;
             }
+            if (current === 3 && !$("#authPassword").value) {
+              authError("#authErr", "Enter a password.");
+              return;
+            }
+            const isLast = authStepIndex === steps.length - 1;
+            if (!isLast) {
+              authStepIndex++;
+              renderAuthUI();
+              focusActiveStepInput();
+              return;
+            }
+          }
+          const email = $("#authEmail").value.trim(),
+            password = $("#authPassword").value;
+          if (!email || !password) {
+            authError("#authErr", "Enter your email and password.");
+            return;
+          }
+          if (authMode === "signin") {
             try {
               const r = await POST("/auth/login", { email, password });
               await afterAuth(r);
             } catch (e) {
-              authError("#signinErr", e.message || "Could not sign in.");
+              authError("#authErr", e.message || "Could not sign in.");
             }
-          });
-        $("#toSignup") &&
-          $("#toSignup").addEventListener("click", () => show("l-signup"));
-        $("#toSignin") &&
-          $("#toSignin").addEventListener("click", () => show("l-signin"));
-        $("#signupBtn") &&
-          $("#signupBtn").addEventListener("click", async () => {
-            authError("#signupErr", "");
-            const email = $("#signupEmail").value.trim(),
-              password = $("#signupPass").value;
-            const first_name = $("#signupFirst").value.trim(),
-              last_name = $("#signupLast").value.trim();
-            const dob = $("#signupDob").value,
-              gender = $("#signupGender").value || "";
-            if (!email || !password) {
-              authError(
-                "#signupErr",
-                "Enter an email and a password (6+ characters).",
-              );
-              return;
-            }
+          } else {
+            const first_name = $("#authFirst").value.trim(),
+              last_name = $("#authLast").value.trim();
+            const dob = $("#authDob").value,
+              gender = $("#authGender").value || "";
             try {
               const r = await POST("/auth/register", {
                 email,
@@ -7524,11 +8129,12 @@
               await afterAuth(r);
             } catch (e) {
               authError(
-                "#signupErr",
+                "#authErr",
                 e.message || "Could not create your account.",
               );
             }
-          });
+          }
+        });
 
         let gsiClientId = "";
         async function setupGoogle() {
@@ -7562,7 +8168,7 @@
                   await afterAuth(r);
                 } catch (e) {
                   authError(
-                    "#signinErr",
+                    "#authErr",
                     e.message || "Google sign-in failed.",
                   );
                 }
@@ -7608,7 +8214,8 @@
           loadPrices();
           setupGoogle();
           if (!token) {
-            show("l-signin");
+            runWelcome();
+            show("l-welcome");
             return;
           }
           try {
@@ -7624,12 +8231,12 @@
               showLayer("l-intro");
               introSet(0);
             } else {
-              runWelcome();
-              show("l-welcome");
+              showLayer("l-disclaimer");
             }
           } catch (e) {
             setToken(null);
-            show("l-signin");
+            runWelcome();
+            show("l-welcome");
           }
         }
         boot();
