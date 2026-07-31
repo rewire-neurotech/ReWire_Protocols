@@ -87,6 +87,7 @@ class JournalOut(BaseModel):
     answer: str
     created_at: str
     jolt_audio_url: Optional[str] = None   # replay URL for a reflection's jolt (None for free entries)
+    chills: Optional[str] = None           # "yes" | "no" | null
 
 
 class JournalList(BaseModel):
@@ -234,6 +235,7 @@ def _journal_out(e, jolt_audio_url=None) -> JournalOut:
         answer=decrypt_field(e.answer) or "" if e.answer else "",
         created_at=_ts(e.created_at),
         jolt_audio_url=jolt_audio_url,
+        chills=e.chills or None,
     )
 
 
@@ -318,7 +320,8 @@ def export_data(u: User = Depends(get_current_user_required), db: Session = Depe
     js = db.query(JournalEntry).filter(JournalEntry.user_id == u.id).order_by(JournalEntry.created_at).all()
     journal = [
         {"protocol_id": e.protocol_id, "day": e.day, "question": e.question or "",
-         "answer": decrypt_field(e.answer) or "" if e.answer else "", "created_at": _ts(e.created_at)}
+         "answer": decrypt_field(e.answer) or "" if e.answer else "", "chills": e.chills or "",
+         "created_at": _ts(e.created_at)}
         for e in js
     ]
     return {"exported_at": datetime.now(timezone.utc).isoformat(), "protocols": out, "journal": journal}
