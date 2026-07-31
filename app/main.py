@@ -119,6 +119,16 @@ if Base is not None and engine is not None:
                 print("[migrate] added canceling column to entitlements")
         except Exception:
             pass  # column already exists
+        # migrate: add chills to journal_entries
+        try:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE journal_entries ADD COLUMN chills VARCHAR(10)"
+                ))
+                conn.commit()
+                print("[migrate] added chills column to journal_entries")
+        except Exception:
+            pass  # column already exists
     except Exception as e:
         print(f"[startup] db error: {e}")
 
