@@ -257,6 +257,7 @@ class JournalEntry(Base):
     day = Column(Integer, nullable=True)         # which day's reflection, if any
     question = Column(Text, nullable=True)       # the reflection prompt (null for a free-form note)
     answer = Column(Text, nullable=True)         # the entry text
+    chills = Column(String(10), nullable=True)   # "yes" | "no" | null (not asked, e.g. free-form entry)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
