@@ -50,6 +50,7 @@ class StatusResp(BaseModel):
 class ReflectReq(BaseModel):
     question: str = ""
     answer: str = ""
+    chills: str = ""
 
 
 class Ok(BaseModel):
@@ -266,6 +267,7 @@ def save_reflection(jid: int, req: ReflectReq,
         day=j.day,
         question=req.question or None,
         answer=encrypt_field(req.answer) if req.answer else None,
+        chills=req.chills.strip() or None,
     ))
     db.commit()
     return Ok(status="ok")
