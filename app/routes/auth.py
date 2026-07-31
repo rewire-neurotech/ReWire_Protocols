@@ -169,12 +169,21 @@ def register(req: RegisterReq, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(409, "email already registered")
 
-    dob_val = None
-    if req.dob:
-        try:
-            dob_val = date.fromisoformat(req.dob)
-        except ValueError:
-            raise HTTPException(400, "invalid date, use YYYY-MM-DD")
+    # DOB is required and user must be 18 or older
+    if not req.dob or not req.dob.strip():
+        raise HTTPException(400, "date of birth is required")
+
+    try:
+        dob_val = date.fromisoformat(req.dob.strip())
+    except ValueError:
+        raise HTTPException(400, "invalid date, use YYYY-MM-DD")
+
+    today = date.today()
+    age = today.year - dob_val.year - (
+        (today.month, today.day) < (dob_val.month, dob_val.day)
+    )
+    if age < 18:
+        raise HTTPException(403, "you must be 18 or older to create an account")
 
     u = User(
         email=email,
