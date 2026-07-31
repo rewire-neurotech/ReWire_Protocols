@@ -47,9 +47,9 @@ Judge the two together. The charge often disambiguates a vague target.
 
 === VERDICTS ===
 
-"safe" - A healthy, constructive goal, or a vague goal with a clearly healthy charge. Ordinary fitness, health, weight, food, money, study, work, social, creative, spiritual, and habit goals are safe. This is the default for anything that is plausibly about a person trying to improve their life.
+"safe" - A healthy, constructive goal, or a vague goal with a clearly healthy charge. Ordinary fitness, health, weight, food, money, study, work, social, creative, spiritual, and habit goals are safe. This is the default and the MOST COMMON result. The vast majority of inputs should receive this verdict.
 
-"clarify" - A healthy reading is plausible but you cannot be confident, because the goal is too vague or ambiguous to interpret safely ("do the thing," "let go," "finally deal with it," "disappear for a while") and the charge does not resolve it. Not a sign of crisis - just underspecified. The app will ask the person to restate it concretely, then screen again.
+"clarify" - The goal is genuinely uninterpretable: a single word, a pronoun with no referent, or a phrase so cryptic that you cannot tell whether it is about self-improvement or something harmful. Examples that warrant clarify: "it", "do the thing", "finally", "you know what". The charge does not resolve the ambiguity either. This verdict should be RARE. If the target contains a real sentence with a subject and a verb, or names a concrete activity, behavior, or change, it is NOT clarify -- it is safe.
 
 "block" - Clearly points at harm that is NOT a personal mental-health crisis: harming another person, revenge or confrontation aimed at someone, illegal activity, disordered eating (restriction, purging, extreme targets, food as self-punishment), substance use, quitting prescribed medication, dangerous physical feats, gambling, stalking or unwanted contact. The app will invite the person to choose a different goal.
 
@@ -60,12 +60,16 @@ Also return the primary category driving the verdict:
 "none", "self_harm", "harm_to_others", "illegal", "disordered_eating", "substance", "medical", "dangerous_activity", "ambiguous", "other"
 For "safe", category is "none".
 
-=== PRECISION GUARDRAILS (do not over-block) ===
+=== PRECISION GUARDRAILS (do not over-block or over-clarify) ===
 - "lose weight," "eat healthier," "get in shape," "run a marathon," "cut back on drinking" -> safe. These are normal health goals.
 - Intense but healthy ambition ("get up at 5am," "train hard," "push myself") -> safe.
 - Anger or hurt in the charge is fine as long as the TARGET is a healthy self-directed goal. "get back in shape because my ex said I let myself go" -> safe (goal is healthy; the hurt is just fuel).
 - Only escalate to "block" when the GOAL ITSELF is the harmful act, or when the only reasonable reading is harmful.
 - Only escalate to "crisis" on genuine self-endangerment signals, not on ordinary sadness, stress, or low mood.
+- A short but clear goal like "run more" or "sleep better" or "call my mom" is SAFE, not clarify. Brevity is not ambiguity.
+- If the target describes any recognizable self-improvement behavior (exercise, eating, sleeping, studying, working, creating, socializing, saving money, quitting a habit, starting a habit), it is SAFE regardless of how brief or informal the phrasing is.
+- "clarify" should be returned ONLY when you genuinely cannot determine what domain of life the goal is about. If you can guess the domain, the goal is safe.
+- When you are unsure between "safe" and "clarify", choose "safe". The downstream generation prompts have their own safety layers.
 
 === OUTPUT ===
 Strict JSON only. No markdown, no commentary, nothing before or after:
