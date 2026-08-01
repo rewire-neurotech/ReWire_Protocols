@@ -351,3 +351,17 @@ def get_journal_status(jj_id: int, u: User = Depends(get_current_user_required),
 
     return StatusResp(jolt_id=j.id, stage=j.stage, progress=j.progress,
                       audio_url=url, error=j.gen_error)
+
+@r.post("/journal/{jj_id}/reflect", response_model=Ok)
+def save_journal_reflection(jj_id: int, req: ReflectReq,
+                            u: User = Depends(get_current_user_required),
+                            db: Session = Depends(get_db)):
+    """Save chills answer on the original journal entry after a journal jolt."""
+    jj = db.query(JournalJolt).filter(JournalJolt.id == jj_id, JournalJolt.user_id == u.id).first()
+    if not jj:
+        raise HTTPException(404, "journal jolt not found")
+    entry = db.query(JournalEntry).filter(JournalEntry.id == jj.journal_entry_id).first()
+    if entry:
+        entry.chills = req.chills.strip() or None
+    db.commit()
+    return Ok(status="ok")
