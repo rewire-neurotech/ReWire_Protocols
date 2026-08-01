@@ -296,10 +296,6 @@ def _run_protocol_gen(jolt_id):
 
         # ---- 3. Mix + encrypt (mix tuning identical to v4) ----
         try:
-            vf = f"{_PREFIX}{jolt_id}_voice.wav"
-            shutil.copy2(wav, str(cfg.out_dir_path / vf))
-            encrypt_file(str(cfg.out_dir_path / vf))
-
             af = f"{_PREFIX}{jolt_id}.mp3"
             mix_audio(
                 voice_path=wav, music_path=str(track["file"]),
@@ -317,7 +313,7 @@ def _run_protocol_gen(jolt_id):
                 print(f"[protojolt] {jolt_id} voice temp cleanup failed: {e}")
 
         elapsed = round(time.time() - t0, 1)
-        _update(jolt_id, audio_filename=af, voice_filename=vf,
+        _update(jolt_id, audio_filename=af,
                 gen_time_sec=elapsed, stage="done", progress=100)
         print(f"[protojolt] {jolt_id} done in {elapsed}s")
         _notify_user(ctx["user_id"], "Your jolt is ready", "Put on headphones and press play.")
@@ -454,10 +450,6 @@ def _run_journal_gen(jj_id):
 
         # ---- 3. Mix + encrypt (identical tuning to protocol jolts) ----
         try:
-            vf = f"{_PREFIX_JOURNAL}{jj_id}_voice.wav"
-            shutil.copy2(wav, str(cfg.out_dir_path / vf))
-            encrypt_file(str(cfg.out_dir_path / vf))
-
             af = f"{_PREFIX_JOURNAL}{jj_id}.mp3"
             mix_audio(
                 voice_path=wav, music_path=str(track["file"]),
@@ -475,7 +467,7 @@ def _run_journal_gen(jj_id):
                 print(f"[journaljolt] {jj_id} voice temp cleanup failed: {e}")
 
         elapsed = round(time.time() - t0, 1)
-        _update_journal(jj_id, audio_filename=af, voice_filename=vf,
+        _update_journal(jj_id, audio_filename=af,
                         gen_time_sec=elapsed, stage="done", progress=100)
         print(f"[journaljolt] {jj_id} done in {elapsed}s")
         _notify_user(ctx["user_id"], "Your journal jolt is ready", "Put on headphones and press play.")
