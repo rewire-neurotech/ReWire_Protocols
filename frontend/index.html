@@ -3422,6 +3422,33 @@
         margin: 14px 2px 0;
         max-width: var(--frame);
       }
+      /* ===== q-ideas: "Show me some ideas" escape hatch ===== */
+      .q-ideas { flex-shrink: 0; padding-top: 4px; }
+      .q-ideas[hidden] { display: none; }
+      .q-ideas-btn {
+        display: inline-flex; align-items: center; gap: 7px;
+        color: var(--muted); font-size: 14.5px; font-weight: 500; letter-spacing: -0.01em;
+        padding: 6px 0; transition: color 180ms ease, transform 180ms ease;
+      }
+      .q-ideas-btn svg { color: var(--faint); }
+      .q-ideas-btn:active { transform: scale(0.97); color: var(--ink-soft); }
+
+      /* ===== reflect: chills question + note two-step ===== */
+      .reflect-step { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+      .reflect-step.hidden { display: none; }
+      .reflect-note { margin-top: 14px; font-size: 15px; line-height: 1.5; font-weight: 450; color: var(--muted); letter-spacing: -0.01em; }
+      .chills-choice { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 11px; padding-bottom: 46px; }
+      .chills-opt {
+        width: 100%; max-width: 300px; padding: 19px 18px; border-radius: 16px;
+        background: #fff; border: 1px solid var(--hairline);
+        box-shadow: 0 1px 2px rgba(28,26,22,0.05);
+        font-size: 17px; font-weight: 500; color: var(--ink); letter-spacing: -0.01em;
+        transition: transform 150ms ease, background 180ms ease, color 180ms ease, border-color 180ms ease;
+      }
+      .chills-opt:active { transform: scale(0.97); background: #faf8f2; }
+      .chills-opt.on { background: var(--ink); border-color: var(--ink); color: var(--screen); }
+      .btn-quiet { color: var(--muted); font-size: 15px; font-weight: 500; padding: 12px 4px; transition: transform 180ms ease; }
+      .btn-quiet:active { transform: scale(0.96); }
     </style>
   </head>
   <body>
@@ -3883,6 +3910,12 @@
             id="qArea"
             placeholder="Take your time&hellip;"
           ></textarea>
+          <div class="q-ideas" id="qIdeas" hidden>
+            <button class="q-ideas-btn" data-openlist>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="16.2" y1="16.2" x2="21" y2="21"/></svg>
+              Show me some ideas
+            </button>
+          </div>
           <div class="q-foot">
             <button
               class="cta"
@@ -4528,33 +4561,21 @@
 
       <section class="screen" id="s-reflect">
         <div class="inner">
-          <div class="topbar">
-            <button class="icon-btn" data-nav="home" aria-label="Back">
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <line x1="19" y1="12" x2="5" y2="12" />
-                <polyline points="12 19 5 12 12 5" />
-              </svg>
-            </button>
-            <span class="eyebrow">Reflection</span>
+          <div class="reflect-step" id="reflectChills">
+            <h1 class="reflect-q q-enter">Did you get chills?</h1>
+            <p class="reflect-note q-enter">Goosebumps, a shiver, or tingles down the back, arms or scalp.</p>
+            <div class="chills-choice q-enter">
+              <button class="chills-opt" data-chills="yes">Yes</button>
+              <button class="chills-opt" data-chills="no">No</button>
+            </div>
           </div>
-          <span class="eyebrow reflect-eyebrow">A question for you</span>
-          <h1 class="reflect-q" id="reflectQ"></h1>
-          <textarea
-            class="reflect-area"
-            id="reflectArea"
-            placeholder="Write whatever comes up&hellip;"
-          ></textarea>
-          <div class="reflect-foot">
-            <button class="btn-dark" id="reflectSave">Save</button>
+          <div class="reflect-step hidden" id="reflectNote">
+            <h1 class="reflect-q q-enter" id="reflectQ">Anything come up?</h1>
+            <textarea class="reflect-area q-enter" id="reflectArea" placeholder="Write whatever comes up&hellip;"></textarea>
+            <div class="reflect-foot">
+              <button class="btn-quiet" id="reflectSkip">Skip</button>
+              <button class="btn-dark" id="reflectSave">Save</button>
+            </div>
           </div>
         </div>
       </section>
@@ -5635,50 +5656,14 @@
               },
               { text: "Why does this matter to you?" },
             ],
-            reflect: "How did that feel?",
+            reflect: "Anything come up?",
             picker: {
-              "Health & body": [
-                "Move my body every day",
-                "Eat like I care about myself",
-                "Fix my sleep",
-                "Drink less",
-                "Get outside more",
-              ],
-              "Work & study": [
-                "Do the deep work first",
-                "Stop procrastinating on one big thing",
-                "Learn something new",
-                "Protect my focus",
-                "Leave work at work",
-              ],
-              Creativity: [
-                "Make something every day",
-                "Finish what I started",
-                "Share my work with someone",
-                "Practice my craft",
-                "Start the project I keep dreaming about",
-              ],
-              Relationships: [
-                "Reach out first",
-                "Be more present with the people I love",
-                "Say the hard thing",
-                "Make real time for friends",
-                "Repair something that's strained",
-              ],
-              Money: [
-                "Spend with intention",
-                "Start actually saving",
-                "Face my finances",
-                "Stop buying things I don't need",
-                "Build one money habit that lasts",
-              ],
-              "Daily habits": [
-                "Own my mornings",
-                "Less phone, more life",
-                "Keep my space clear",
-                "End the day well",
-                "Do one hard thing every day",
-              ],
+              "Exercise": ["Run three times this week", "Get to the gym after work", "Walk 30 minutes every day", "Lift three times this week", "Stretch for 10 minutes every morning", "Get back to my sport"],
+              "Health": ["Cook dinner instead of ordering", "Cut the sugar this week", "Be in bed by 10", "Wake up at the same time every day", "Stop scrolling in bed", "Stop drinking on weeknights"],
+              "Work": ["Do the hard task before email", "Two hours of deep work before noon", "Send the thing I keep delaying", "Phone in another room while I work", "Study one hour every evening", "Log off at 6"],
+              "Creativity": ["Write 500 words a day", "Practice 20 minutes every day", "Finish the draft this week", "Post one thing I made", "Open the project every morning", "Sketch for 10 minutes a day"],
+              "Relationships": ["Text the friend I've been avoiding", "Call my parents this week", "Phone away at dinner", "Plan one evening with friends", "Say the thing I've been holding back", "Apologize to someone"],
+              "Money": ["Check my balance every morning", "Move money to savings on payday", "Cancel the subscriptions I don't use", "No online shopping this week", "Open the bills I've been avoiding", "Write down every purchase"],
             },
           },
           integrate: {
@@ -5767,318 +5752,44 @@
           },
         };
         const REFINE = {
-          "Move my body every day": {
-            sentence: "I want to move my body every day",
-            q: "What should we know about you and movement?",
-            chips: [
-              "I love…",
-              "I used to…",
-              "Near me there's…",
-              "Right now I'm mostly sedentary",
-              "Mornings work best for me",
-            ],
-          },
-          "Eat like I care about myself": {
-            sentence: "I want to eat like I care about myself",
-            q: "What should we know about you and food?",
-            chips: [
-              "My weakness is…",
-              "I love eating…",
-              "I barely cook",
-              "I can cook, I just don't",
-              "Most days I eat on the go",
-            ],
-          },
-          "Fix my sleep": {
-            sentence: "I want to fix my sleep",
-            q: "What do your nights actually look like?",
-            chips: [
-              "I fall asleep around…",
-              "My phone keeps me up",
-              "My mind races at night",
-              "My schedule is irregular",
-              "I never feel rested",
-            ],
-          },
-          "Drink less": {
-            sentence: "I want to drink less",
-            q: "What's the honest picture?",
-            chips: [
-              "I mostly drink when…",
-              "It's usually…",
-              "It's how I unwind",
-              "It's the social pressure",
-              "It's been like this for years",
-            ],
-          },
-          "Get outside more": {
-            sentence: "I want to get outside more",
-            q: "What should we know about your world?",
-            chips: [
-              "I live in…",
-              "I love…",
-              "There's a park near me",
-              "I work from home",
-              "Some days I barely leave the house",
-            ],
-          },
-          "Do the deep work first": {
-            sentence: "I want to do the deep work first",
-            q: "What's the work, and what gets in the way?",
-            chips: [
-              "My deep work is…",
-              "My mornings get eaten by…",
-              "I work from home",
-              "I keep starting with email",
-              "I work best in silence",
-            ],
-          },
-          "Stop procrastinating on one big thing": {
-            sentence: "I want to stop procrastinating on one big thing",
-            q: "What's the thing?",
-            chips: [
-              "The thing is…",
-              "It's due…",
-              "I've been avoiding it for…",
-              "It scares me because…",
-            ],
-          },
-          "Learn something new": {
-            sentence: "I want to learn something new",
-            q: "What is it, and where are you starting from?",
-            chips: [
-              "I want to learn…",
-              "I'm a complete beginner",
-              "I studied it once, long ago",
-              "Each day I could give it…",
-            ],
-          },
-          "Protect my focus": {
-            sentence: "I want to protect my focus",
-            q: "What does your day look like?",
-            chips: [
-              "My biggest thief is…",
-              "My phone sits next to me",
-              "Meetings eat my day",
-              "I'm interrupted constantly",
-              "I work…",
-            ],
-          },
-          "Leave work at work": {
-            sentence: "I want to leave work at work",
-            q: "Tell us about your evenings.",
-            chips: [
-              "My evenings usually…",
-              "I check email until…",
-              "I live with…",
-              "Work follows me because…",
-            ],
-          },
-          "Make something every day": {
-            sentence: "I want to make something every day",
-            q: "What do you make, and when could you?",
-            chips: [
-              "I make…",
-              "My best window is…",
-              "I have a space for it",
-              "I've been away from it for…",
-            ],
-          },
-          "Finish what I started": {
-            sentence: "I want to finish what I started",
-            q: "What's the unfinished thing?",
-            chips: [
-              "It's a…",
-              "I stopped because…",
-              "It's been sitting for…",
-              "Honestly, it's almost done",
-            ],
-          },
-          "Share my work with someone": {
-            sentence: "I want to share my work with someone",
-            q: "What's the work, and who could see it?",
-            chips: [
-              "My work is…",
-              "I'd share it with…",
-              "No one has seen it yet",
-              "I shared once and froze",
-            ],
-          },
-          "Practice my craft": {
-            sentence: "I want to practice my craft",
-            q: "What's your craft, and where are you at?",
-            chips: [
-              "My craft is…",
-              "I've practiced for…",
-              "I'm rusty",
-              "Most days I could give it…",
-            ],
-          },
-          "Start the project I keep dreaming about": {
-            sentence: "I want to start the project I keep dreaming about",
-            q: "Tell us about the dream.",
-            chips: [
-              "The project is…",
-              "I've dreamed of it since…",
-              "What stops me is…",
-              "I already have notes",
-            ],
-          },
-          "Reach out first": {
-            sentence: "I want to reach out first",
-            q: "Who's on your mind?",
-            chips: [
-              "It's my…",
-              "We haven't spoken since…",
-              "I miss…",
-              "I don't know what to say",
-            ],
-          },
-          "Be more present with the people I love": {
-            sentence: "I want to be more present with the people I love",
-            q: "Who, and what pulls you away?",
-            chips: [
-              "I live with…",
-              "The person I think of is…",
-              "My phone pulls me away",
-              "Work is always on my mind",
-            ],
-          },
-          "Say the hard thing": {
-            sentence: "I want to say the hard thing",
-            q: "What should we know, without saying it all?",
-            chips: [
-              "It's with my…",
-              "It's about…",
-              "I've rehearsed it for…",
-              "I'm afraid they'll…",
-            ],
-          },
-          "Make real time for friends": {
-            sentence: "I want to make real time for friends",
-            q: "Tell us about your people.",
-            chips: [
-              "My closest friends are…",
-              "We used to…",
-              "Everyone's scattered now",
-              "I'm always the busy one",
-            ],
-          },
-          "Repair something that's strained": {
-            sentence: "I want to repair something that's strained",
-            q: "What should we know?",
-            chips: [
-              "It's with my…",
-              "It's been strained since…",
-              "We still talk, barely",
-              "We haven't spoken at all",
-            ],
-          },
-          "Spend with intention": {
-            sentence: "I want to spend with intention",
-            q: "Where does money actually go?",
-            chips: [
-              "Most of it leaks on…",
-              "My weak spot is…",
-              "I never look at my statements",
-              "Payday disappears fast",
-            ],
-          },
-          "Start actually saving": {
-            sentence: "I want to start actually saving",
-            q: "What are you working toward?",
-            chips: [
-              "I'm saving for…",
-              "I could put aside about…",
-              "I've never managed to save",
-              "I save, then raid it",
-            ],
-          },
-          "Face my finances": {
-            sentence: "I want to face my finances",
-            q: "What's the honest picture?",
-            chips: [
-              "I've been avoiding…",
-              "There's debt from…",
-              "I don't know my numbers",
-              "It's probably better than I fear",
-            ],
-          },
-          "Stop buying things I don't need": {
-            sentence: "I want to stop buying things I don't need",
-            q: "What do you keep buying?",
-            chips: [
-              "It's mostly…",
-              "It happens when…",
-              "Late-night scrolling gets me",
-              "Deliveries arrive that I forgot I ordered",
-            ],
-          },
-          "Build one money habit that lasts": {
-            sentence: "I want to build one money habit that lasts",
-            q: "What's the habit you have in mind?",
-            chips: [
-              "The habit is…",
-              "I've tried before and…",
-              "I get paid…",
-              "Money stresses me out",
-            ],
-          },
-          "Own my mornings": {
-            sentence: "I want to own my mornings",
-            q: "What do mornings look like now?",
-            chips: [
-              "I wake up at…",
-              "First thing, I grab my phone",
-              "I rush out the door",
-              "Mornings are chaos with…",
-            ],
-          },
-          "Less phone, more life": {
-            sentence: "I want less phone and more life",
-            q: "Where does the time actually go?",
-            chips: [
-              "My screen time is…",
-              "It's mostly…",
-              "It's worst at night",
-              "It's the first thing I touch",
-            ],
-          },
-          "Keep my space clear": {
-            sentence: "I want to keep my space clear",
-            q: "Tell us about your space.",
-            chips: [
-              "I live in…",
-              "The mess piles up in…",
-              "I share the space with…",
-              "Clutter finds every surface",
-            ],
-          },
-          "End the day well": {
-            sentence: "I want to end the day well",
-            q: "How do days end now?",
-            chips: [
-              "I usually crash around…",
-              "Nights end with scrolling",
-              "I fall asleep to the TV",
-              "I lie awake thinking about…",
-            ],
-          },
-          "Do one hard thing every day": {
-            sentence: "I want to do one hard thing every day",
-            q: "What counts as hard for you?",
-            chips: [
-              "Hard for me is…",
-              "I avoid…",
-              "I want it to be physical",
-              "I'm good under pressure, bad alone",
-            ],
-          },
-          _generic: {
-            sentence: "",
-            q: "Tell us a little about you and this.",
-            chips: ["I live in…", "I love…", "What stops me is…", "Lately…"],
-          },
+          "Run three times this week": { sentence: "I want to run three times this week", q: "What should we know about you and running?", chips: ["I usually run…", "Last time I ran was…", "Near me there's…", "I'm starting from zero", "Mornings work best for me"] },
+          "Walk 30 minutes every day": { sentence: "I want to walk 30 minutes every day", q: "Where could the walk fit?", chips: ["I could walk…", "Around me there's…", "I sit all day", "My lunch break is…", "I have a dog"] },
+          "Get to the gym after work": { sentence: "I want to get to the gym after work", q: "What happens between work and the gym?", chips: ["My gym is…", "I finish work at…", "I have a membership I never use", "I go home first and stay there", "I don't know what to do there"] },
+          "Lift three times this week": { sentence: "I want to lift three times this week", q: "What should we know about you and lifting?", chips: ["I train at…", "I've lifted before…", "I'm starting from zero", "I have weights at home", "I don't know what to do there"] },
+          "Stretch for 10 minutes every morning": { sentence: "I want to stretch for 10 minutes every morning", q: "What do your mornings look like?", chips: ["I wake up at…", "My body is tightest in…", "I sit all day", "I rush out the door", "I used to practise…"] },
+          "Get back to my sport": { sentence: "I want to get back to my sport", q: "What's the sport, and how long has it been?", chips: ["My sport is…", "I stopped because…", "It's been…", "There's a club near me", "I played for years"] },
+          "Cook dinner instead of ordering": { sentence: "I want to cook dinner instead of ordering", q: "What do your dinners look like now?", chips: ["I usually order…", "I can cook…", "I get home at…", "I shop about…", "I cook for…"] },
+          "Cut the sugar this week": { sentence: "I want to cut the sugar this week", q: "Where does the sugar come in?", chips: ["My weakness is…", "It hits around…", "It's in everything I grab on the go", "I drink it more than I eat it"] },
+          "Be in bed by 10": { sentence: "I want to be in bed by 10", q: "What do your nights look like now?", chips: ["I get to bed around…", "What keeps me up is…", "I get home late", "I wake up at…", "My schedule is irregular"] },
+          "Wake up at the same time every day": { sentence: "I want to wake up at the same time every day", q: "What do your mornings look like now?", chips: ["I wake up anywhere between…", "I hit snooze for…", "My schedule is irregular", "I stay up late on weekends", "I need to be up by…"] },
+          "Stop scrolling in bed": { sentence: "I want to stop scrolling in bed", q: "What happens when you get into bed?", chips: ["I usually open…", "It goes on for…", "My phone charges next to me", "I use it as my alarm", "I tell myself five minutes"] },
+          "Stop drinking on weeknights": { sentence: "I want to stop drinking on weeknights", q: "What's the honest picture?", chips: ["I usually drink…", "It's how I unwind after…", "It's most nights", "It's the social pressure", "I've cut back before and…"] },
+          "Do the hard task before email": { sentence: "I want to do the hard task before email", q: "What's the hard task, and what gets in first?", chips: ["The hard task is…", "I start my day with…", "My first meeting is at…", "I check my phone before I'm even up"] },
+          "Two hours of deep work before noon": { sentence: "I want two hours of deep work before noon", q: "What's the work, and what are mornings like?", chips: ["My deep work is…", "My mornings get eaten by…", "I start around…", "I work from home", "The office is loud"] },
+          "Send the thing I keep delaying": { sentence: "I want to send the thing I keep delaying", q: "What is it, and how long has it been sitting?", chips: ["It's a…", "It goes to…", "I've been sitting on it for…", "I'm afraid they'll…"] },
+          "Phone in another room while I work": { sentence: "I want my phone in another room while I work", q: "What pulls you to it?", chips: ["I check it for…", "My screen time is…", "People need to reach me", "It's the first thing I touch"] },
+          "Study one hour every evening": { sentence: "I want to study one hour every evening", q: "What are you studying, and when could you?", chips: ["I'm studying…", "My exam is…", "I get home at…", "I've fallen behind on…"] },
+          "Log off at 6": { sentence: "I want to log off at 6", q: "What does the end of your day look like?", chips: ["I usually stop around…", "Work follows me because…", "I check email until…", "I live with…"] },
+          "Write 500 words a day": { sentence: "I want to write 500 words a day", q: "What are you writing, and where are you at?", chips: ["I'm writing…", "So far I have…", "I write best at…", "I haven't touched it since…"] },
+          "Practice 20 minutes every day": { sentence: "I want to practice 20 minutes every day", q: "What are you practicing?", chips: ["I practice…", "I've played for…", "I'm rusty", "My instrument sits in…"] },
+          "Finish the draft this week": { sentence: "I want to finish the draft this week", q: "What's the draft, and how close is it?", chips: ["It's a…", "It's about…done", "I stopped because…", "The deadline is…"] },
+          "Post one thing I made": { sentence: "I want to post one thing I made", q: "What would you post, and where?", chips: ["I'd post…", "It would go on…", "No one has seen my work", "I posted once and froze"] },
+          "Open the project every morning": { sentence: "I want to open the project every morning", q: "What's the project?", chips: ["The project is…", "I've dreamed of it since…", "What stops me is…", "I already have notes"] },
+          "Sketch for 10 minutes a day": { sentence: "I want to sketch for 10 minutes a day", q: "What do you draw, and when could you?", chips: ["I draw…", "My best window is…", "I haven't drawn since…", "My supplies sit unused"] },
+          "Text the friend I've been avoiding": { sentence: "I want to text the friend I've been avoiding", q: "Who is it, and what happened?", chips: ["It's my…", "We haven't spoken since…", "I owe them…", "I don't know what to say"] },
+          "Call my parents this week": { sentence: "I want to call my parents this week", q: "What should we know?", chips: ["It's my…", "We speak about…", "Calls turn into…", "I always mean to and don't"] },
+          "Phone away at dinner": { sentence: "I want my phone away at dinner", q: "Who's at the table?", chips: ["I eat with…", "I check it for…", "We all sit on our phones", "Dinner happens in front of the TV"] },
+          "Plan one evening with friends": { sentence: "I want to plan one evening with friends", q: "Tell us about your people.", chips: ["My closest friends are…", "We used to…", "Everyone's scattered now", "I'm always the busy one"] },
+          "Say the thing I've been holding back": { sentence: "I want to say the thing I've been holding back", q: "What should we know, without saying it all?", chips: ["It's with my…", "It's about…", "I've rehearsed it for…", "I'm afraid they'll…"] },
+          "Apologize to someone": { sentence: "I want to apologize to someone", q: "What should we know?", chips: ["It's my…", "It happened…", "I've put it off for…", "I know I was wrong about…"] },
+          "Check my balance every morning": { sentence: "I want to check my balance every morning", q: "What's your relationship with your accounts?", chips: ["I look about…", "I avoid it because…", "I bank with…", "Payday disappears fast"] },
+          "Move money to savings on payday": { sentence: "I want to move money to savings on payday", q: "What are you saving toward?", chips: ["I'm saving for…", "I could put aside about…", "I get paid…", "I save, then raid it"] },
+          "Cancel the subscriptions I don't use": { sentence: "I want to cancel the subscriptions I don't use", q: "What are you paying for?", chips: ["I'm probably paying for…", "I lose track of…", "They're on an old card", "I keep meaning to check"] },
+          "No online shopping this week": { sentence: "I want to go this week without online shopping", q: "What do you keep buying?", chips: ["It's mostly…", "It happens when…", "Late-night scrolling gets me", "Deliveries arrive that I forgot"] },
+          "Open the bills I've been avoiding": { sentence: "I want to open the bills I've been avoiding", q: "What's the honest picture?", chips: ["I've been avoiding…", "There's debt from…", "I don't know my numbers", "It's probably better than I fear"] },
+          "Write down every purchase": { sentence: "I want to write down every purchase", q: "Where does the money actually go?", chips: ["Most of it leaks on…", "My weak spot is…", "I never look at my statements", "I pay for everything by card"] },
+          _generic: { sentence: "", q: "Tell us a little about you and this.", chips: ["I live in…", "I love…", "What stops me is…", "Lately…"] },
+        };
         };
         /* ---------- Felix's home protocol metadata (verbatim) ---------- */
         const PROTO_META = {
@@ -6092,7 +5803,7 @@
               "Momentum",
               "Consolidation",
             ],
-            q: "How did that feel?",
+            q: "Anything come up?",
             chargeQ: "Why does this matter to you?",
             q1: "What's a change you want to start building this week?",
           },
@@ -6115,35 +5826,35 @@
         };
         const PROTO_AREAS = {
           activate: {
-            "Health & body": [
-              "Run three mornings this week",
-              "Cook dinner instead of ordering in",
-              "Phone off by 11pm",
+            "Exercise": [
+              "Run three times this week",
+              "Get to the gym after work",
+              "Walk 30 minutes every day",
             ],
-            "Work & study": [
-              "Write for 30 min before checking email",
-              "Finish the slide deck I keep dodging",
-              "Two hours of exam revision a day",
+            "Health": [
+              "Cook dinner instead of ordering",
+              "Be in bed by 10",
+              "Stop scrolling in bed",
             ],
-            Creativity: [
-              "Post one song to SoundCloud",
-              "Draw something every night",
-              "Write the first chapter",
+            "Work": [
+              "Do the hard task before email",
+              "Two hours of deep work before noon",
+              "Send the thing I keep delaying",
             ],
-            Relationships: [
-              "Text my brother back",
-              "Ask one friend to dinner",
-              "Call my mom on Sunday",
+            "Creativity": [
+              "Write 500 words a day",
+              "Finish the draft this week",
+              "Post one thing I made",
             ],
-            Money: [
-              "Move $50 into savings",
+            "Relationships": [
+              "Text the friend I've been avoiding",
+              "Call my parents this week",
+              "Say the thing I've been holding back",
+            ],
+            "Money": [
+              "Check my balance every morning",
               "Cancel the subscriptions I don't use",
-              "Log every purchase this week",
-            ],
-            "Daily habits": [
-              "Make the bed every morning",
-              "No phone for the first hour",
-              "Walk after lunch",
+              "Open the bills I've been avoiding",
             ],
           },
           integrate: {
@@ -6275,7 +5986,7 @@
           obAnswers[0] = "";
           obAnswers[1] = "";
           obPhase = "q1";
-          qView = "list";
+          qView = "text";
           obSub = "";
           obGoal = "";
           showLayer("l-questions");
@@ -6304,9 +6015,10 @@
           qCta = $("#qCta"),
           qStep = $("#qStep"),
           qBody = $("#qBody"),
-          qInner = $(".q-inner");
+          qInner = $(".q-inner"),
+          qIdeas = $("#qIdeas");
         let obPhase = "q1",
-          qView = "list",
+          qView = "text",
           qCat = "",
           obSub = "",
           obGoal = "";
@@ -6327,7 +6039,7 @@
             qHead.textContent = P.questions[0].text;
             if (qView === "list") {
               qBody.innerHTML =
-                `<div class="qp-list">` +
+                `<div class="qp-backrow"><button class="qp-back" data-backtext><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Write my own</button></div><div class="qp-list">` +
                 Object.keys(P.picker)
                   .map(
                     (c) =>
@@ -6336,6 +6048,7 @@
                   .join("") +
                 `<button class="qp-opt other" data-other>Other</button></div>`;
               qSetTextarea(false);
+              qIdeas.hidden = true;
             } else if (qView === "subs") {
               qBody.innerHTML =
                 `<div class="qp-backrow"><button class="qp-back" data-backlist><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>${esc(qCat)}</button></div><div class="qp-list">` +
@@ -6347,17 +6060,20 @@
                   .join("") +
                 `<button class="qp-opt other" data-other>Other</button></div>`;
               qSetTextarea(false);
+              qIdeas.hidden = true;
             } else {
-              qBody.innerHTML = `<div class="qp-backrow"><button class="qp-back" data-backlist><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Back to options</button></div>`;
+              qBody.innerHTML = "";
               qSetTextarea(true);
+              qIdeas.hidden = false;
               qArea.value = obGoal || "";
-              qArea.placeholder = "In your own words\u2026";
+              qArea.placeholder = "The thing you had in mind\u2026";
               qCta.textContent = "Continue";
               qCta.toggleAttribute("disabled", !qArea.value.trim());
               setTimeout(() => qArea.focus(), 380);
             }
           }
           if (obPhase === "refine") {
+            qIdeas.hidden = true;
             const r = REFINE[obSub] || REFINE._generic;
             qHead.textContent = r.q;
             qBody.innerHTML =
@@ -6385,6 +6101,7 @@
             qCta.toggleAttribute("disabled", !qArea.value.trim());
           }
           if (obPhase === "q2") {
+            qIdeas.hidden = true;
             qHead.textContent = P.questions[1].text;
             qBody.innerHTML = "";
             qSetTextarea(true);
@@ -6406,6 +6123,13 @@
             }, 130);
           }, 30);
         }
+        qIdeas.addEventListener("click", (e) => {
+          if (e.target.closest("[data-openlist]")) {
+            qView = "list";
+            qCat = "";
+            renderQ();
+          }
+        });
         qBody.addEventListener("click", (e) => {
           const chipNav = e.target.closest("[data-chip-nav]");
           if (chipNav) {
@@ -6417,6 +6141,12 @@
                 behavior: "smooth",
               });
             }
+            return;
+          }
+          const toText = e.target.closest("[data-backtext]");
+          if (toText) {
+            qView = "text";
+            renderQ();
             return;
           }
           const back = e.target.closest("[data-backlist]");
@@ -6478,13 +6208,13 @@
             obGoal = qArea.value.trim();
             obAnswers[0] = "";
             obPhase = "refine";
-            qView = "list";
+            qView = "text";
             renderQ();
             return;
           }
           if (obPhase === "refine") {
             obPhase = "q2";
-            qView = "list";
+            qView = "text";
             renderQ();
             return;
           }
@@ -6492,21 +6222,26 @@
         });
         $("#qBack").addEventListener("click", () => {
           if (obPhase === "q1") {
-            if (qView !== "list") {
+            if (qView === "subs") {
               qView = "list";
               renderQ();
-            } else showLayer("l-intro");
+            } else if (qView === "list") {
+              qView = "text";
+              renderQ();
+            } else {
+              showLayer("l-intro");
+            }
             return;
           }
           if (obPhase === "refine") {
             obAnswers[0] = "";
             obPhase = "q1";
-            qView = "list";
+            qView = "text";
             renderQ();
             return;
           }
           obPhase = "refine";
-          qView = "list";
+          qView = "text";
           renderQ();
         });
 
@@ -7111,19 +6846,13 @@
             return;
           }
           if (m === "journal") {
-            let entryId = null;
             try {
-              const saved = await POST("/protocols/journal", { text: txt });
-              entryId = saved && saved.id;
+              await POST("/protocols/journal", { text: txt });
               await loadJournal();
             } catch (e) {}
             closeCompose();
-            if (entryId) {
-              startJournalJolt(entryId, "s-journal");
-            } else {
-              renderJournal();
-              show("s-journal");
-            }
+            renderJournal();
+            show("s-journal");
             return;
           }
           if (m === "journalEdit") {
@@ -7486,6 +7215,18 @@
           bedEndedWaiting = false;
         }
 
+        let chillsAnswer = null;
+        const rfChills = $("#reflectChills"),
+          rfNote = $("#reflectNote");
+
+        function rfAnimate(step) {
+          step.querySelectorAll(".q-enter").forEach((el, i) => {
+            el.classList.remove("in");
+            void el.offsetWidth;
+            setTimeout(() => el.classList.add("in"), 60 + i * 110);
+          });
+        }
+
         function endJolt() {
           clearInterval(joltTimer);
           clearInterval(joltPollTimer);
@@ -7504,12 +7245,31 @@
         }
         function openReflect(p) {
           const meta = PROTO_META[(p && p.type) || "activate"];
-          $("#reflectQ").textContent = (meta && meta.q) || "How did that feel?";
+          chillsAnswer = null;
+          $("#reflectQ").textContent = (meta && meta.q) || "Anything come up?";
           $("#reflectArea").value = "";
+          rfChills.querySelectorAll(".chills-opt").forEach((b) =>
+            b.classList.remove("on"),
+          );
+          rfChills.classList.remove("hidden");
+          rfNote.classList.add("hidden");
           showScreen("s-reflect");
-          setTimeout(() => $("#reflectArea").focus(), 300);
+          rfAnimate(rfChills);
         }
-        $("#reflectSave").addEventListener("click", async () => {
+        rfChills.addEventListener("click", (e) => {
+          const btn = e.target.closest("[data-chills]");
+          if (!btn || chillsAnswer) return;
+          chillsAnswer = btn.dataset.chills;
+          btn.classList.add("on");
+          setTimeout(() => {
+            rfChills.classList.add("hidden");
+            rfNote.classList.remove("hidden");
+            rfAnimate(rfNote);
+            setTimeout(() => $("#reflectArea").focus(), 320);
+          }, 260);
+        });
+
+        async function finishReflect() {
           const answer = $("#reflectArea").value.trim();
           const q = $("#reflectQ").textContent || "";
           if (joltJid) {
@@ -7517,6 +7277,7 @@
               await POST("/protocol-jolt/" + joltJid + "/reflect", {
                 question: q,
                 answer,
+                chills: chillsAnswer || "",
               });
             } catch (e) {}
           }
@@ -7536,10 +7297,15 @@
             if (p && !p.unlocked && !state.monthlyActive) {
               showScreen("s-pay");
               return;
-            } /* your week is ready */
+            }
           }
           renderHome(true);
           show("s-home");
+        }
+        $("#reflectSave").addEventListener("click", finishReflect);
+        $("#reflectSkip").addEventListener("click", () => {
+          $("#reflectArea").value = "";
+          finishReflect();
         });
 
         /* ===== settings ===== */
@@ -8090,6 +7856,30 @@
             if (current === 3 && !$("#authPassword").value) {
               authError("#authErr", "Enter a password.");
               return;
+            }
+            if (current === 4) {
+              const dobVal = $("#authDob").value;
+              if (!dobVal) {
+                authError("#authErr", "Date of birth is required.");
+                return;
+              }
+              const dob = new Date(dobVal + "T00:00:00");
+              const today = new Date();
+              let age =
+                today.getFullYear() - dob.getFullYear();
+              const m = today.getMonth() - dob.getMonth();
+              if (
+                m < 0 ||
+                (m === 0 && today.getDate() < dob.getDate())
+              )
+                age--;
+              if (age < 18) {
+                authError(
+                  "#authErr",
+                  "You must be 18 or older to use ReWire.",
+                );
+                return;
+              }
             }
             const isLast = authStepIndex === steps.length - 1;
             if (!isLast) {
