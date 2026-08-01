@@ -2953,16 +2953,9 @@
       }
       .qp-chips {
         display: flex;
-        flex-wrap: nowrap;
+        flex-wrap: wrap;
         gap: 9px;
-        overflow-x: auto;
-        scroll-behavior: smooth;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-        flex: 1;
-        min-width: 0;
-        padding: 2px 1px;
+        justify-content: center;
       }
       .qp-chips::-webkit-scrollbar {
         display: none;
@@ -6078,8 +6071,6 @@
             qHead.textContent = r.q;
             qBody.innerHTML =
               `<div class="qp-hint">Tap to add, then finish it in your words.</div>` +
-              `<div class="qp-chips-row">` +
-              `<button class="qp-chip-nav" data-chip-nav="left" aria-label="Scroll left"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>` +
               `<div class="qp-chips">` +
               r.chips
                 .map(
@@ -6087,8 +6078,6 @@
                     `<button class="qp-chipx" data-chip="${esc(c)}">${esc(c)}</button>`,
                 )
                 .join("") +
-              `</div>` +
-              `<button class="qp-chip-nav" data-chip-nav="right" aria-label="Scroll right"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>` +
               `</div>`;
             qSetTextarea(true);
             if (!obAnswers[0]) {
