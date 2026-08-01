@@ -3,11 +3,11 @@ services:
     name: rewire
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2
     disk:
       name: audio-storage
       mountPath: /data/audio
-      sizeGB: 5
+      sizeGB: 20
     envVars:
       - key: PYTHONUNBUFFERED
         value: "1"
