@@ -7219,13 +7219,9 @@
           clearInterval(joltTimer);
           clearInterval(joltPollTimer);
           stopAllAudio();
-          if (joltKind === "journal") {
-            renderJournal();
-            show(joltReturn);
-            return;
-          }
           if (joltReplay) {
-            renderHome();
+            if (joltKind === "journal") renderJournal();
+            else renderHome();
             show(joltReturn);
             return;
           }
@@ -7260,6 +7256,21 @@
         async function finishReflect() {
           const answer = $("#reflectArea").value.trim();
           const q = $("#reflectQ").textContent || "";
+          if (joltKind === "journal") {
+            if (joltJid) {
+              try {
+                await POST("/protocol-jolt/journal/" + joltJid + "/reflect", {
+                  chills: chillsAnswer || "",
+                });
+              } catch (e) {}
+            }
+            try {
+              await loadJournal();
+            } catch (e) {}
+            renderJournal();
+            show("s-journal");
+            return;
+          }
           if (joltJid) {
             try {
               await POST("/protocol-jolt/" + joltJid + "/reflect", {
