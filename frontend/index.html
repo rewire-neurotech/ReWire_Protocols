@@ -1185,11 +1185,18 @@
           #e9e5db 100%
         );
         cursor: pointer;
+        -webkit-transform: translate3d(0, 0, 0);
+        transform: translate3d(0, 0, 0);
+        -webkit-perspective: 1000px;
+        perspective: 1000px;
+        isolation: isolate;
       }
       .mist {
         position: absolute;
         inset: 0;
         pointer-events: none;
+        -webkit-transform: translate3d(0, 0, 0);
+        transform: translate3d(0, 0, 0);
       }
       .mist * {
         pointer-events: none;
@@ -1204,6 +1211,9 @@
           blobMorph var(--md, 22s) ease-in-out infinite alternate,
           blobDrift var(--dd, 26s) ease-in-out infinite alternate;
         animation-delay: var(--del, 0s), var(--del, 0s);
+        will-change: transform, border-radius;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
       }
       .veil {
         background: radial-gradient(
@@ -1263,6 +1273,9 @@
         filter: blur(28px);
         pointer-events: none;
         animation: shaftDrift 26s ease-in-out infinite alternate;
+        will-change: transform, opacity;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
       }
       @keyframes shaftDrift {
         from {
@@ -1296,6 +1309,9 @@
         filter: blur(6px);
         pointer-events: none;
         animation: haloBreathe 16s ease-in-out infinite alternate;
+        will-change: transform, opacity;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
       }
       @keyframes haloBreathe {
         from {
@@ -1331,6 +1347,9 @@
         animation:
           blobMorph 16s ease-in-out infinite alternate,
           shadowSway 26s ease-in-out infinite alternate;
+        will-change: transform, border-radius;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
       }
       .jolt-form {
         position: relative;
@@ -1352,6 +1371,9 @@
         animation:
           blobMorph 14s ease-in-out infinite alternate,
           formSway 11s ease-in-out infinite alternate;
+        will-change: transform, border-radius;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
       }
       /* two highlights crossfading as the light travels: west light, then east */
       .jolt-form::before,
@@ -1360,6 +1382,11 @@
         position: absolute;
         inset: 0;
         pointer-events: none;
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+        will-change: opacity;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
       }
       .jolt-form::before {
         background: radial-gradient(
@@ -1435,6 +1462,9 @@
         filter: blur(1.4px);
         opacity: 0;
         animation: moteFloat var(--mdur, 16s) linear var(--mdel, 0s) infinite;
+        will-change: transform, opacity;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
       }
       @keyframes moteFloat {
         0% {
@@ -1468,6 +1498,8 @@
         opacity: 0;
         pointer-events: none;
         transition: opacity 260ms ease;
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
       }
       .jolt-controls.show {
         opacity: 1;
@@ -1488,6 +1520,8 @@
         backdrop-filter: blur(6px);
         border: 1px solid var(--hairline);
         transition: transform 180ms ease;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
       }
       .jolt-close:active {
         transform: scale(0.9);
@@ -1505,6 +1539,8 @@
         color: var(--ink);
         box-shadow: var(--shadow-soft);
         transition: transform 200ms ease;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
       }
       .play-btn:active {
         transform: scale(0.93);
@@ -1515,6 +1551,22 @@
         color: var(--ink-soft);
         letter-spacing: 0.02em;
         font-variant-numeric: tabular-nums;
+      }
+      /* subtle progress line: faint grey track, elapsed time a touch bolder/darker */
+      .jolt-progress {
+        position: relative;
+        width: 108px;
+        height: 3px;
+        border-radius: 2px;
+        background: rgba(28, 26, 22, 0.12);
+        overflow: hidden;
+      }
+      .jolt-progress-fill {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 0%;
+        border-radius: 2px;
+        background: rgba(20, 18, 14, 0.55);
       }
 
       /* ---------- primer ---------- */
@@ -2280,10 +2332,11 @@
       .auth-hint {
         margin-top: 14px;
         font-size: 12.5px;
+        margin-bottom: 11px;
         line-height: 1.5;
-        color: var(--muted);
+        color: black;
         letter-spacing: -0.005em;
-        text-align: center;
+        text-align: start;
       }
       .auth-step {
         display: none;
@@ -2399,6 +2452,7 @@
         font-weight: 450;
         color: var(--ink-soft);
         letter-spacing: -0.006em;
+        margin-bottom: 15px;
       }
       .dc-lede b {
         font-weight: 600;
@@ -2856,6 +2910,7 @@
         display: flex;
         justify-content: flex-end;
         padding-top: 10px;
+        margin-bottom: 20px;
       }
       .q-enter {
         opacity: 0;
@@ -2953,9 +3008,14 @@
       }
       .qp-chips {
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         gap: 9px;
-        justify-content: center;
+        flex: 1;
+        min-width: 0;
+        overflow-x: auto;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
       }
       .qp-chips::-webkit-scrollbar {
         display: none;
@@ -3471,6 +3531,10 @@
               </button>
             </div>
 
+
+            <p class="auth-hint" id="authHint">
+            </p>
+
             <div class="auth-fields" id="authFields">
               <div class="auth-step" data-step="0">
                 <label class="auth-field">
@@ -3623,9 +3687,6 @@
               <button class="cta auth-cta" id="welcomeBegin">Sign in</button>
             </div>
             <div class="g-signin"></div>
-            <p class="auth-hint" id="authHint">
-              Welcome back &mdash; enter your details to continue.
-            </p>
           </div>
         </div>
       </div>
@@ -3655,23 +3716,12 @@
               </div>
               <div class="dc-card-body">
                 <p class="dc-lede">
-                  ReWire creates a short, deliberately intense experience from
-                  your own words, delivered as a voice over music. It is
-                  designed to produce strong feelings. It is
-                  <b>not therapy, not medical care, and not a crisis service</b
-                  >. The experience is <b>generated automatically</b>, so it is
-                  unpredictable and may say things that are inaccurate, that do
-                  not fit you, or that you find upsetting. Please use it
-                  somewhere private and safe, never while driving, and stop at
-                  any time if you need to. You must be <b>18 or older</b> to
-                  continue.
+                  <b>ReWire turns your words into a short, intense voice-over-music experience. It's generated automatically, so it can be inaccurate, off-base, or upsetting. Use it somewhere private, never while driving, and stop any time.</b
+                  ></p>
+
+                <p class="dc-lede">
+                  If you're in crisis or having thoughts of harming yourself, please don't use this now. Call or text 988 (US) or your local emergency number. If you're being treated for a mental health condition, check with your clinician before using ReWire.
                 </p>
-                <div class="dc-crisis">
-                  If you are in crisis or having thoughts of harming yourself,
-                  please do not use this right now. Call or text
-                  <b><a href="tel:988">988</a></b> (US, Suicide and Crisis
-                  Lifeline) or contact your local emergency number.
-                </div>
               </div>
             </div>
           </div>
@@ -3692,8 +3742,7 @@
                     <polyline points="20 6 9 17 4 12" /></svg
                 ></span>
                 <span class="dc-copy"
-                  >I am <b>18 or older</b>, I understand this is
-                  <b>not medical care</b>, and I agree to the
+                  >I'm <b>18 or older</b>, I'm not currently in crisis or having thoughts of harming myself, and I understand this is an automated experience with no medical care attached. I agree to the
                   <span class="dc-tlink" data-terms>Terms</span>.</span
                 >
               </label>
@@ -4318,7 +4367,7 @@
       <section class="screen" id="s-primer">
         <div class="primer-stage">
           <div class="primer-lines">
-            <p class="primer-line" id="pl1">Your jolt is about to start.</p>
+            <p class="primer-line" id="pl1">Your first jolt is about to start.</p>
             <p class="primer-line" id="pl2">
               Find somewhere you won’t be disturbed.
             </p>
@@ -4547,6 +4596,9 @@
               id="playBtn"
               aria-label="Play/Pause"
             ></button>
+            <div class="jolt-progress" id="joltProgress">
+              <div class="jolt-progress-fill" id="joltProgressFill"></div>
+            </div>
             <div class="time-remaining" id="timeRemain">2:30</div>
           </div>
         </div>
@@ -4595,9 +4647,6 @@
             <span style="width: 38px"></span>
           </div>
           <h1 class="pay-title">Your week is ready.</h1>
-          <p class="pay-sub">
-            Four more jolts, one each day, built from your words.
-          </p>
           <ul class="pay-perks dim">
             <li>Unlimited jolts and insights</li>
             <li>New experiences every month</li>
@@ -5420,17 +5469,72 @@
             osc.stop(t + dur + 0.02);
           } catch (e) {}
         }
+        const _uiSampleFiles = {
+          continue: "/assets/rewire_continue.wav",
+          select: "/assets/rewire_select.wav",
+        };
+        const _uiSampleBuffers = {};
+        let _uiSamplesReady = null;
+        function _loadUiSamples() {
+          if (_uiSamplesReady) return _uiSamplesReady;
+          if (!_uiCtx)
+            _uiCtx = new (window.AudioContext || window.webkitAudioContext)();
+          _uiSamplesReady = Promise.all(
+            Object.entries(_uiSampleFiles).map(async ([name, url]) => {
+              const res = await fetch(url);
+              _uiSampleBuffers[name] = await _uiCtx.decodeAudioData(
+                await res.arrayBuffer(),
+              );
+            }),
+          ).catch(() => {});
+          return _uiSamplesReady;
+        }
+        function _playUiSample(name) {
+          if (!state.soundOn) return;
+          try {
+            if (!_uiCtx)
+              _uiCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (_uiCtx.state === "suspended") _uiCtx.resume();
+            if (!_uiSampleBuffers[name]) {
+              _loadUiSamples();
+              return;
+            }
+            const src = _uiCtx.createBufferSource();
+            src.buffer = _uiSampleBuffers[name];
+            src.connect(_uiCtx.destination);
+            src.start();
+          } catch (e) {}
+        }
         function playTap() {
           _uiBlip(1650, 0.05, 0.05);
         }
         function playTransition() {
           _uiBlip(880, 0.11, 0.035);
         }
+        function playContinueSound() {
+          _playUiSample("continue");
+        }
+        function playSelectSound() {
+          _playUiSample("select");
+        }
         /* Tap feedback on interactive elements. Capture phase so it fires even
            when a handler stops propagation. */
         document.addEventListener(
           "click",
           (e) => {
+            _loadUiSamples();
+            if (e.target.closest(".cta")) {
+              playContinueSound();
+              return;
+            }
+            if (
+              e.target.closest(
+                ".toggle, [data-chip], [data-cpcat], [data-cpfill], [data-cpother], .cp-chip",
+              )
+            ) {
+              playSelectSound();
+              return;
+            }
             if (
               e.target.closest(
                 "button, .set-row, [data-create], .journal-row, [data-jopen], [data-nav], [data-menu], [data-sheet]",
@@ -6070,6 +6174,8 @@
             qHead.textContent = r.q;
             qBody.innerHTML =
               `<div class="qp-hint">Tap to add, then finish it in your words.</div>` +
+              `<div class="qp-chips-row">` +
+              `<button class="qp-chip-nav" data-chip-nav="left" aria-label="Scroll left"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>` +
               `<div class="qp-chips">` +
               r.chips
                 .map(
@@ -6077,6 +6183,8 @@
                     `<button class="qp-chipx" data-chip="${esc(c)}">${esc(c)}</button>`,
                 )
                 .join("") +
+              `</div>` +
+              `<button class="qp-chip-nav" data-chip-nav="right" aria-label="Scroll right"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>` +
               `</div>`;
             qSetTextarea(true);
             if (!obAnswers[0]) {
@@ -6889,7 +6997,8 @@
           controls = $("#joltControls"),
           core = $("#joltCore"),
           playBtn = $("#playBtn"),
-          timeRemain = $("#timeRemain");
+          timeRemain = $("#timeRemain"),
+          joltProgressFill = $("#joltProgressFill");
         let joltProto = null,
           joltDay = 1,
           joltJid = null,
@@ -7029,6 +7138,7 @@
           core.classList.remove("paused");
           controls.classList.remove("show");
           timeRemain.textContent = "\u00b7\u00b7\u00b7";
+          joltProgressFill.style.width = "0%";
           showScreen("s-jolt");
           if (joltMixUrl) {
             playMix(joltMixUrl);
@@ -7130,6 +7240,11 @@
               if (curAudio === mixAudio) timeRemain.textContent = fmt(rem);
               else
                 timeRemain.textContent = fmt(rem); /* meditation counts too */
+              const pct = Math.min(
+                100,
+                Math.max(0, (curAudio.currentTime / d) * 100),
+              );
+              joltProgressFill.style.width = pct + "%";
             }
           }, 250);
         }
@@ -7738,7 +7853,7 @@
           2: "What's your email?",
           3: "Create a password (6+ characters).",
           4: "When's your birthday?",
-          5: "One last thing (optional).",
+          5: "Select Gender (optional).",
         };
         function authStepEl(n) {
           return document.querySelector('.auth-step[data-step="' + n + '"]');
@@ -7773,7 +7888,7 @@
               "current-password",
             );
             $("#authHint").innerHTML =
-              "Welcome back &mdash; enter your details to continue.";
+              "";
           } else {
             const current = steps[authStepIndex];
             const el = authStepEl(current);
