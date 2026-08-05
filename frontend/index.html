@@ -2255,6 +2255,20 @@
         margin-bottom: 14px;
         background: var(--chip);
         border-radius: 999px;
+        overflow: hidden;
+        max-height: 48px;
+        transition:
+          opacity 300ms ease,
+          max-height 380ms cubic-bezier(0.22, 1, 0.36, 1),
+          margin 380ms cubic-bezier(0.22, 1, 0.36, 1),
+          transform 300ms ease;
+      }
+      .welcome-stage.kb-active .auth-toggle {
+        opacity: 0;
+        max-height: 0;
+        margin-bottom: 0;
+        transform: translateY(-14px);
+        pointer-events: none;
       }
       .auth-seg {
         flex: 1;
@@ -5508,28 +5522,41 @@
         function playTap() {
           _uiBlip(1650, 0.05, 0.05);
         }
+        let _uiLastCustomSoundTime = 0;
         function playTransition() {
-          _uiBlip(880, 0.11, 0.035);
+          if (Date.now() - _uiLastCustomSoundTime < 400) return;
+          _uiLastCustomSoundTime = Date.now();
+          _playUiSample("continue");
         }
         function playContinueSound() {
+          _uiLastCustomSoundTime = Date.now();
           _playUiSample("continue");
         }
         function playSelectSound() {
+          _uiLastCustomSoundTime = Date.now();
           _playUiSample("select");
         }
+        _loadUiSamples();
         /* Tap feedback on interactive elements. Capture phase so it fires even
            when a handler stops propagation. */
         document.addEventListener(
           "click",
           (e) => {
-            _loadUiSamples();
-            if (e.target.closest(".cta")) {
+            if (e.target.closest("#introCta")) {
               playContinueSound();
               return;
             }
             if (
               e.target.closest(
-                ".toggle, [data-chip], [data-cpcat], [data-cpfill], [data-cpother], .cp-chip",
+                ".cta, .btn-dark, .primer-start, .node-jolt, .jolt-act, .proto-play, .unlock-pill",
+              )
+            ) {
+              playContinueSound();
+              return;
+            }
+            if (
+              e.target.closest(
+                ".toggle, [data-chip], [data-cpcat], [data-cpfill], [data-cpother], .cp-chip, .auth-seg, .chills-opt, .create-item, .pay-opt, .qp-opt",
               )
             ) {
               playSelectSound();
@@ -7938,11 +7965,13 @@
           function setKb(active) {
             stage.classList.toggle("kb-active", active);
           }
-          panel.addEventListener("focusin", () => {
+          panel.addEventListener("focusin", (e) => {
+            if (!e.target.matches("input")) return;
             clearTimeout(kbTimer);
             setKb(true);
           });
-          panel.addEventListener("focusout", () => {
+          panel.addEventListener("focusout", (e) => {
+            if (!e.target.matches("input")) return;
             clearTimeout(kbTimer);
             kbTimer = setTimeout(() => {
               if (!panel.contains(document.activeElement)) setKb(false);
