@@ -177,8 +177,12 @@ class Config:
 
     PROTOCOL_TRACKS = {
         "activate": [
-            {"day": 1, "file": "1_Sacred.mp3", "total_duration_sec": 140, "content_duration_sec": 139, "target_words": 250},
-            {"day": 2, "file": "2_Sacred.mp3", "total_duration_sec": 150, "content_duration_sec": 148, "target_words": 265},
+            # Day 1-2: Felix's new Sacred Revelation tracks (Aug 2026)
+            # Day 1: new_music_1.mpeg — 2:58 content -> 320 words @ 1.8 wps
+            {"day": 1, "file": "new_music_1.mpeg", "total_duration_sec": 180, "content_duration_sec": 178, "target_words": 320},
+            # Day 2: new_music_2.mpeg — 2:55 content -> 315 words @ 1.8 wps
+            {"day": 2, "file": "new_music_2.mpeg", "total_duration_sec": 177, "content_duration_sec": 175, "target_words": 315},
+            # Days 3-5: original Sacred tracks (kept until Felix sends replacements)
             {"day": 3, "file": "3_Sacred.mp3", "total_duration_sec": 140, "content_duration_sec": 139, "target_words": 250},
             {"day": 4, "file": "4_Sacred.mp3", "total_duration_sec": 150, "content_duration_sec": 149, "target_words": 270},
             {"day": 5, "file": "5_Sacred.mp3", "total_duration_sec": 160, "content_duration_sec": 158, "target_words": 285},
