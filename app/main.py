@@ -387,6 +387,46 @@ def push_unsubscribe(req: PushSubReq, db: Session = Depends(get_db), user=Depend
 
 FRONTEND = Path(__file__).resolve().parent.parent / "frontend" / "index.html"
 
+
+# >>> TEMPORARY ENDPOINT — DELETE AFTER DOWNLOADING PRIMER <<<
+@app.get("/api/admin/mix-primer")
+def mix_primer():
+    """One-shot: mix 11labs.mp3 voice over music_primer.mp3, return the result."""
+    import tempfile
+    from app.services.mix import mix as do_mix
+
+    voice_path = cfg.ASSETS_DIR / "11labs.mp3"
+    music_path = cfg.ASSETS_DIR / "music_primer.mp3"
+    if not voice_path.exists() or not music_path.exists():
+        raise HTTPException(404, "primer source files not found in assets/")
+
+    with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
+        out_path = tmp.name
+
+    try:
+        do_mix(
+            voice_path=str(voice_path),
+            music_path=str(music_path),
+            out_path=out_path,
+            content_duration_sec=156,  # voice 155s + 1s fade
+        )
+        data = Path(out_path).read_bytes()
+        return Response(
+            content=data,
+            media_type="audio/mpeg",
+            headers={
+                "Content-Disposition": "attachment; filename=primer_mixed.mp3",
+                "Content-Length": str(len(data)),
+            },
+        )
+    finally:
+        try:
+            os.unlink(out_path)
+        except OSError:
+            pass
+# >>> END TEMPORARY ENDPOINT <<<
+
+
 @app.get("/")
 def serve_frontend():
     if FRONTEND.exists():
