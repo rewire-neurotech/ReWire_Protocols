@@ -3466,6 +3466,52 @@
         margin-top: 14px;
         min-height: 4px;
       }
+      .pwa-install-btn {
+        display: none;
+        align-items: center;
+        gap: 6px;
+        margin-top: 16px;
+        padding: 8px 16px;
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        color: var(--muted);
+        font-family: var(--body);
+        font-size: 12.5px;
+        cursor: pointer;
+        transition: opacity 200ms ease, border-color 200ms ease;
+      }
+      .pwa-install-btn:hover {
+        border-color: var(--ink);
+        color: var(--ink);
+      }
+      .pwa-install-btn svg {
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+      }
+      .pwa-install-tip {
+        display: none;
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-size: 13px;
+        color: var(--ink);
+        white-space: nowrap;
+        box-shadow: 0 4px 16px rgba(0,0,0,.12);
+        z-index: 10;
+      }
+      .pwa-install-tip.show { display: block; }
+      .pwa-install-wrap {
+        position: relative;
+        display: flex;
+        justify-content: center;
+      }
       .auth-alt {
         text-align: center;
         color: var(--muted);
@@ -3701,6 +3747,15 @@
               <button class="cta auth-cta" id="welcomeBegin">Sign in</button>
             </div>
             <div class="g-signin"></div>
+            <div class="pwa-install-wrap">
+              <div class="pwa-install-tip" id="pwaInstallTip">Tap <strong>Share</strong> → <strong>Add to Home Screen</strong></div>
+              <button class="pwa-install-btn" id="pwaInstallBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 5v14M5 12l7-7 7 7"/>
+                </svg>
+                Install app
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -8120,6 +8175,43 @@
             $$(".g-signin").forEach((el) => (el.style.display = "none"));
           }
         }
+
+        /* ===== PWA install prompt ===== */
+        let _deferredInstallPrompt = null;
+        const _isStandalone = window.matchMedia("(display-mode: standalone)").matches
+                            || navigator.standalone === true;
+        const _isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) && !window.MSStream;
+
+        if (!_isStandalone) {
+          window.addEventListener("beforeinstallprompt", (e) => {
+            e.preventDefault();
+            _deferredInstallPrompt = e;
+            const btn = $("#pwaInstallBtn");
+            if (btn) btn.style.display = "flex";
+          });
+
+          if (_isIOS) {
+            const btn = document.getElementById("pwaInstallBtn");
+            if (btn) btn.style.display = "flex";
+          }
+        }
+
+        (function initPwaBtn() {
+          const btn = $("#pwaInstallBtn");
+          const tip = $("#pwaInstallTip");
+          if (!btn) return;
+          btn.addEventListener("click", async () => {
+            if (_deferredInstallPrompt) {
+              _deferredInstallPrompt.prompt();
+              const result = await _deferredInstallPrompt.userChoice;
+              if (result.outcome === "accepted") btn.style.display = "none";
+              _deferredInstallPrompt = null;
+            } else if (_isIOS && tip) {
+              tip.classList.toggle("show");
+              setTimeout(() => tip.classList.remove("show"), 5000);
+            }
+          });
+        })();
 
         /* ===== boot ===== */
         async function boot() {
