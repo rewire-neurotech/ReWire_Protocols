@@ -1629,20 +1629,6 @@
       .primer-start:active {
         transform: scale(0.97);
       }
-      .primer-skip {
-        background: none;
-        border: none;
-        color: var(--muted);
-        font-family: var(--body);
-        font-size: 14px;
-        margin-top: 16px;
-        cursor: pointer;
-        opacity: 0;
-        transition: opacity 600ms ease;
-      }
-      .primer-skip.in {
-        opacity: 1;
-      }
 
       /* ---------- REFLECT ---------- */
       .reflect-q {
@@ -4459,7 +4445,6 @@
             </p>
           </div>
           <button class="primer-start" id="primerStart">Start</button>
-          <button class="primer-skip" id="primerSkip">Skip</button>
         </div>
       </section>
 
@@ -7215,7 +7200,6 @@
             $(sel).classList.remove("in"),
           );
           $("#primerStart").classList.remove("in");
-          $("#primerSkip").classList.remove("in");
           stopPrimerAudio();
           primerTimers.forEach(clearTimeout);
           primerTimers = [];
@@ -7242,7 +7226,6 @@
 
         $("#primerStart").addEventListener("click", () => {
           $("#primerStart").classList.remove("in");
-          $("#primerSkip").classList.add("in");
           stopPrimerAudio();
           try {
             primerAudio = new Audio(PRIMER_URL);
@@ -7255,11 +7238,6 @@
           } catch(e) {
             beginStimulus();
           }
-        });
-
-        $("#primerSkip").addEventListener("click", () => {
-          stopPrimerAudio();
-          beginStimulus();
         });
 
         function beginStimulus() {
