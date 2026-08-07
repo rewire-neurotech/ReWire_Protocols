@@ -143,23 +143,21 @@ def start_jolt(pid: int, req: StartReq,
     #    membership). Checked BEFORE the prior-day / daily-cadence gates below,
     #    so an unpaid user always reaches the paywall and can purchase, instead
     #    of being told to finish yesterday or come back tomorrow first.
-    # >>> TEMPORARILY DISABLED FOR TESTING NEW TRACKS -- RE-ENABLE AFTER <<<
-    # if day > cfg.PROTOCOL_FREE_DAYS and not _protocol_unlocked(p, u.id, db):
-    #     raise HTTPException(402, "unlock required for this protocol")
+    if day > cfg.PROTOCOL_FREE_DAYS and not _protocol_unlocked(p, u.id, db):
+        raise HTTPException(402, "unlock required for this protocol")
 
     # 5) Prior-day + daily-cadence gating (only reached once the day is
     #    unlocked): yesterday's action must be marked done, and the calendar
     #    must have moved past the day it was completed (judged in UTC, matching
     #    the client's own check). The None guard fails open on any legacy row
     #    missing the timestamp.
-    # >>> TEMPORARILY DISABLED FOR TESTING NEW TRACKS -- RE-ENABLE AFTER <<<
-    # if day > 1:
-    #     prev = (db.query(ProtocolDay)
-    #             .filter(ProtocolDay.protocol_id == pid, ProtocolDay.day == day - 1).first())
-    #     if not (prev and prev.done):
-    #         raise HTTPException(403, "mark yesterday's step done to unlock today's jolt")
-    #     if prev.done_at is not None and not day_time_unlocked(prev.done_at):
-    #         raise HTTPException(403, "come back tomorrow for the next day's jolt")
+    if day > 1:
+        prev = (db.query(ProtocolDay)
+                .filter(ProtocolDay.protocol_id == pid, ProtocolDay.day == day - 1).first())
+        if not (prev and prev.done):
+            raise HTTPException(403, "mark yesterday's step done to unlock today's jolt")
+        if prev.done_at is not None and not day_time_unlocked(prev.done_at):
+            raise HTTPException(403, "come back tomorrow for the next day's jolt")
 
     # 6) Create the jolt row and hand it to the background pool.
     j = ProtocolJolt(protocol_id=pid, day=day, user_id=u.id, stage="queued", progress=10)
