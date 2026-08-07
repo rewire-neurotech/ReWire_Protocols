@@ -3492,25 +3492,16 @@
       }
       .pwa-install-tip {
         display: none;
-        position: absolute;
-        bottom: calc(100% + 8px);
-        left: 50%;
-        transform: translateX(-50%);
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 12px 16px;
+        margin-top: 10px;
         font-size: 13px;
-        color: var(--ink);
-        white-space: nowrap;
-        box-shadow: 0 4px 16px rgba(0,0,0,.12);
-        z-index: 10;
+        color: var(--muted);
+        text-align: center;
       }
       .pwa-install-tip.show { display: block; }
       .pwa-install-wrap {
-        position: relative;
         display: flex;
-        justify-content: center;
+        flex-direction: column;
+        align-items: center;
       }
       .auth-alt {
         text-align: center;
@@ -7074,7 +7065,7 @@
      Felix's screens/controls preserved; the WebAudio drone is replaced
      by real streaming from the backend.
      ===================================================================== */
-        const MEDITATION_URL = "/assets/christian_meditation.mpeg";
+        const MEDITATION_URL = "/assets/primer_mixed.mp3";
         const stage = $("#joltStage"),
           controls = $("#joltControls"),
           core = $("#joltCore"),
@@ -7191,16 +7182,12 @@
           runPrimer();
         }
 
-        const PRIMER_URL = "/assets/primer_mixed.mp3";
-        let primerAudio = null;
-
         function runPrimer() {
           showScreen("s-primer");
           ["#pl1", "#pl2", "#pl3"].forEach((sel) =>
             $(sel).classList.remove("in"),
           );
           $("#primerStart").classList.remove("in");
-          stopPrimerAudio();
           primerTimers.forEach(clearTimeout);
           primerTimers = [];
           primerTimers.push(
@@ -7216,29 +7203,7 @@
             setTimeout(() => $("#primerStart").classList.add("in"), 3900),
           );
         }
-
-        function stopPrimerAudio() {
-          if (primerAudio) {
-            try { primerAudio.pause(); primerAudio.src = ""; } catch(e) {}
-            primerAudio = null;
-          }
-        }
-
-        $("#primerStart").addEventListener("click", () => {
-          $("#primerStart").classList.remove("in");
-          stopPrimerAudio();
-          try {
-            primerAudio = new Audio(PRIMER_URL);
-            primerAudio.volume = 1;
-            primerAudio.addEventListener("ended", () => {
-              stopPrimerAudio();
-              beginStimulus();
-            });
-            primerAudio.play().catch(() => { beginStimulus(); });
-          } catch(e) {
-            beginStimulus();
-          }
-        });
+        $("#primerStart").addEventListener("click", beginStimulus);
 
         function beginStimulus() {
           paused = false;
@@ -7420,7 +7385,6 @@
         }
         function stopAllAudio() {
           clearInterval(joltPollTimer);
-          stopPrimerAudio();
           stopMed();
           stopMix();
           curAudio = null;
