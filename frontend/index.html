@@ -1629,6 +1629,20 @@
       .primer-start:active {
         transform: scale(0.97);
       }
+      .primer-skip {
+        background: none;
+        border: none;
+        color: var(--muted);
+        font-family: var(--body);
+        font-size: 14px;
+        margin-top: 16px;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 600ms ease;
+      }
+      .primer-skip.in {
+        opacity: 1;
+      }
 
       /* ---------- REFLECT ---------- */
       .reflect-q {
@@ -4445,6 +4459,7 @@
             </p>
           </div>
           <button class="primer-start" id="primerStart">Start</button>
+          <button class="primer-skip" id="primerSkip">Skip</button>
         </div>
       </section>
 
@@ -7191,12 +7206,17 @@
           runPrimer();
         }
 
+        const PRIMER_URL = "/assets/primer_mixed.mp3";
+        let primerAudio = null;
+
         function runPrimer() {
           showScreen("s-primer");
           ["#pl1", "#pl2", "#pl3"].forEach((sel) =>
             $(sel).classList.remove("in"),
           );
           $("#primerStart").classList.remove("in");
+          $("#primerSkip").classList.remove("in");
+          stopPrimerAudio();
           primerTimers.forEach(clearTimeout);
           primerTimers = [];
           primerTimers.push(
@@ -7212,7 +7232,35 @@
             setTimeout(() => $("#primerStart").classList.add("in"), 3900),
           );
         }
-        $("#primerStart").addEventListener("click", beginStimulus);
+
+        function stopPrimerAudio() {
+          if (primerAudio) {
+            try { primerAudio.pause(); primerAudio.src = ""; } catch(e) {}
+            primerAudio = null;
+          }
+        }
+
+        $("#primerStart").addEventListener("click", () => {
+          $("#primerStart").classList.remove("in");
+          $("#primerSkip").classList.add("in");
+          stopPrimerAudio();
+          try {
+            primerAudio = new Audio(PRIMER_URL);
+            primerAudio.volume = 1;
+            primerAudio.addEventListener("ended", () => {
+              stopPrimerAudio();
+              beginStimulus();
+            });
+            primerAudio.play().catch(() => { beginStimulus(); });
+          } catch(e) {
+            beginStimulus();
+          }
+        });
+
+        $("#primerSkip").addEventListener("click", () => {
+          stopPrimerAudio();
+          beginStimulus();
+        });
 
         function beginStimulus() {
           paused = false;
@@ -7394,6 +7442,7 @@
         }
         function stopAllAudio() {
           clearInterval(joltPollTimer);
+          stopPrimerAudio();
           stopMed();
           stopMix();
           curAudio = null;
