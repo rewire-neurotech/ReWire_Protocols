@@ -656,13 +656,14 @@ def mix(
             gap_hold_ms=1500,
         )
 
+        # Fade-out on music only (voice stays at full volume until the last word)
+        tail_ms = min(700, max(300, target_ms // 25))
+        music_adapt = music_adapt.fade_out(tail_ms)
+
         final_mix = music_adapt.overlay(voice_exact)
 
         final_mix = _apply_peak_guard(final_mix, ceiling_dbfs=final_peak_dbfs)
         final_mix = _hard_fit_samples(final_mix, target_samples_per_ch)
-
-        tail_ms = min(700, max(300, target_ms // 25))
-        final_mix = final_mix.fade_out(tail_ms)
 
         tmp_wav_in = _mktemp(".wav")
         final_mix.export(tmp_wav_in, format="wav")
