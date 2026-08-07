@@ -387,6 +387,55 @@ def push_unsubscribe(req: PushSubReq, db: Session = Depends(get_db), user=Depend
 
 FRONTEND = Path(__file__).resolve().parent.parent / "frontend" / "index.html"
 
+
+# >>> TEMPORARY ENDPOINT — DELETE AFTER DOWNLOADING PRIMER SAMPLES <<<
+@app.get("/api/admin/mix-primer")
+def mix_primer(offset: float = 0.0):
+    """One-shot: mix 11labs.mp3 over music_primer.mp3 with optional music volume offset.
+    Usage: /api/admin/mix-primer?offset=-0.5  or  ?offset=-1.0
+    The offset is added to the base music_target_dbfs of -24.0."""
+    import tempfile
+    from app.services.mix import mix as do_mix
+
+    voice_path = cfg.ASSETS_DIR / "11labs.mp3"
+    music_path = cfg.ASSETS_DIR / "music_primer.mp3"
+    if not voice_path.exists() or not music_path.exists():
+        raise HTTPException(404, "primer source files not found in assets/")
+
+    music_db = -24.0 + offset
+
+    with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
+        out_path = tmp.name
+
+    try:
+        do_mix(
+            voice_path=str(voice_path),
+            music_path=str(music_path),
+            out_path=out_path,
+            content_duration_sec=156,
+            voice_target_dbfs=-12.5,
+            music_target_dbfs=music_db,
+            duck_db=5.0,
+            ffmpeg_bin=cfg.FFMPEG_BIN,
+        )
+        data = Path(out_path).read_bytes()
+        fname = f"primer_mixed_{offset:+.1f}dB.mp3"
+        return Response(
+            content=data,
+            media_type="audio/mpeg",
+            headers={
+                "Content-Disposition": f"attachment; filename={fname}",
+                "Content-Length": str(len(data)),
+            },
+        )
+    finally:
+        try:
+            os.unlink(out_path)
+        except OSError:
+            pass
+# >>> END TEMPORARY ENDPOINT <<<
+
+
 @app.get("/")
 def serve_frontend():
     if FRONTEND.exists():
