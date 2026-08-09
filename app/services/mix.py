@@ -476,6 +476,8 @@ def mix(
     ffmpeg_bin: str | None = None,
     stems_dir: str | Path | None = None,
     content_duration_sec: Optional[float] = None,
+    duck_max_db: float = -4.0,
+    duck_floor_db: float = 0.0,
     **_ignored,
 ) -> int:
 
@@ -647,8 +649,8 @@ def mix(
         music_adapt = _duck_music_to_voice(
             music_exact,
             voice_exact,
-            floor_boost_db=0.0,
-            max_duck_db=-4.0,
+            floor_boost_db=duck_floor_db,
+            max_duck_db=duck_max_db,
             attack_ms=30,
             release_ms=1500,
             win_ms=30,
