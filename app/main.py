@@ -390,10 +390,13 @@ FRONTEND = Path(__file__).resolve().parent.parent / "frontend" / "index.html"
 
 # >>> TEMPORARY ENDPOINT — DELETE AFTER DOWNLOADING PRIMER SAMPLES <<<
 @app.get("/api/admin/mix-primer")
-def mix_primer(offset: float = 0.0):
-    """One-shot: mix 11labs.mp3 over music_primer.mp3 with optional music volume offset.
-    Usage: /api/admin/mix-primer?offset=-0.5  or  ?offset=-1.0
-    The offset is added to the base music_target_dbfs of -24.0."""
+def mix_primer(offset: float = 0.0, duck: float = -4.0, voice: float = -12.5):
+    """One-shot: mix 11labs.mp3 over music_primer.mp3 with tunable params.
+    Usage: /api/admin/mix-primer?offset=-0.5&duck=-1.0&voice=-11.5
+      offset: added to base music_target_dbfs of -24.0  (negative = quieter music)
+      duck:   max_duck_db, how much music dips under voice (-4.0 = heavy, 0.0 = none)
+      voice:  voice_target_dbfs (-12.5 = default, -11.0 = louder)
+    """
     import tempfile
     from app.services.mix import mix as do_mix
 
@@ -413,13 +416,15 @@ def mix_primer(offset: float = 0.0):
             music_path=str(music_path),
             out_path=out_path,
             content_duration_sec=156,
-            voice_target_dbfs=-12.5,
+            voice_target_dbfs=voice,
             music_target_dbfs=music_db,
             duck_db=5.0,
+            duck_max_db=duck,
+            duck_floor_db=0.0,
             ffmpeg_bin=cfg.FFMPEG_BIN,
         )
         data = Path(out_path).read_bytes()
-        fname = f"primer_mixed_{offset:+.1f}dB.mp3"
+        fname = f"primer_off{offset:+.1f}_duck{duck:.1f}_voice{voice:.1f}.mp3"
         return Response(
             content=data,
             media_type="audio/mpeg",
