@@ -387,66 +387,6 @@ def push_unsubscribe(req: PushSubReq, db: Session = Depends(get_db), user=Depend
 
 FRONTEND = Path(__file__).resolve().parent.parent / "frontend" / "index.html"
 
-
-# >>> TEMPORARY ENDPOINT — DELETE AFTER DOWNLOADING JOLT SPEECH <<<
-@app.get("/api/admin/jolt-speech")
-def jolt_speech(
-    target: str = "Exercise every day",
-    charge: str = "I keep saying I'll start tomorrow and I'm tired of it",
-):
-    """Generate a day-1 jolt speech, TTS it, return raw voice MP3 (no mixing).
-    Usage: /api/admin/jolt-speech
-           /api/admin/jolt-speech?target=...&charge=...
-    """
-    import tempfile, subprocess
-    from app.services import llm
-    from app.services.tts import synth
-
-    # Generate speech text via Claude (same as production pipeline)
-    plan = {"days": [
-        {"day": 1, "action": "Take the first step today — no matter how small."},
-        {"day": 2, "action": "Build on yesterday's momentum."},
-        {"day": 3, "action": "Push through the middle."},
-        {"day": 4, "action": "Find your proof — look at what you've done."},
-        {"day": 5, "action": "Lock it in. This is who you are now."},
-    ]}
-    track = cfg.get_protocol_track("activate", 1)
-
-    speech = llm.generate_protocol_speech(
-        "activate", 1, target, charge, plan,
-    )
-
-    # TTS via ElevenLabs (same voice + settings as production)
-    wav_path = synth(speech, track["voice_id"], cfg.ELEVENLABS_API_KEY,
-                     voice_settings=track["voice_settings"])
-
-    # Convert WAV to MP3
-    mp3_tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
-    mp3_tmp.close()
-    try:
-        subprocess.run(
-            [cfg.FFMPEG_BIN, "-y", "-i", wav_path, "-codec:a", "libmp3lame",
-             "-b:a", "256k", mp3_tmp.name],
-            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-        )
-        data = Path(mp3_tmp.name).read_bytes()
-        return Response(
-            content=data,
-            media_type="audio/mpeg",
-            headers={
-                "Content-Disposition": "attachment; filename=jolt_speech_raw.mp3",
-                "Content-Length": str(len(data)),
-            },
-        )
-    finally:
-        for f in [wav_path, mp3_tmp.name]:
-            try:
-                os.unlink(f)
-            except OSError:
-                pass
-# >>> END TEMPORARY ENDPOINT <<<
-
-
 @app.get("/")
 def serve_frontend():
     if FRONTEND.exists():
