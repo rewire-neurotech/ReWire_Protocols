@@ -482,7 +482,11 @@ class Payment(Base):
     __tablename__ = "payments"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    # Nullable so that deleting an account can anonymise the payment (user_id
+    # set to NULL) rather than destroy it. A deleted user must not retroactively
+    # erase money that was actually collected -- the revenue chart would simply
+    # drop, silently, with no way to tell it from churn.
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
 
     kind = Column(String(20), nullable=False, index=True)   # protocol | monthly | monthly_renewal
     amount_cents = Column(Integer, nullable=False, default=0)
