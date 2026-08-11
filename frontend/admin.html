@@ -767,10 +767,10 @@
         <img class="mark" src="/assets/logo.png" alt="ReWire" />
         <h1>ReWire ops</h1>
         <p class="sub">Internal console. Team accounts only.</p>
-        <label class="f"><span>Email</span><input class="t" type="email" id="loginEmail" autocomplete="username" /></label>
+        <label class="f"><span>Username</span><input class="t" type="text" id="loginEmail" autocomplete="username" /></label>
         <label class="f"><span>Password</span><input class="t" type="password" id="loginPassword" autocomplete="current-password" /></label>
         <button class="primary" type="button" id="signInBtn">Sign in</button>
-        <p class="hint" id="loginHint">Sign in with your ReWire account. Team accounts only.</p>
+        <p class="hint" id="loginHint">Team accounts only.</p>
       </div>
     </div>
 
@@ -1032,7 +1032,7 @@
         $("#console").hidden = true;
         const hint = $("#loginHint");
         if (hint) {
-          hint.textContent = msg || "Sign in with your ReWire account. Team accounts only.";
+          hint.textContent = msg || "Team accounts only.";
           hint.style.color = msg ? "var(--alarm)" : "";
         }
       }
@@ -1049,20 +1049,24 @@
       async function signIn() {
         const email = ($("#loginEmail").value || "").trim();
         const password = $("#loginPassword").value || "";
-        if (!email || !password) { showGate("Enter your email and password."); return; }
+        if (!email || !password) { showGate("Enter your username and password."); return; }
         $("#signInBtn").disabled = true;
         try {
-          const r = await fetch("/api/auth/login", {
+          /* One endpoint for both ways in: a normal account email + password,
+             or the dev username when ADMIN_DEV_LOGIN is switched on. The server
+             decides which applies; the console does not need to know. */
+          const r = await fetch("/api/admin/login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: email, password: password }),
+            body: JSON.stringify({ identifier: email, password: password }),
           });
-          if (!r.ok) { showGate("Wrong email or password."); return; }
+          if (!r.ok) {
+            let msg = "Wrong username or password.";
+            try { const j = await r.json(); if (j.detail) msg = j.detail; } catch (e) {}
+            showGate(msg);
+            return;
+          }
           const j = await r.json();
-          /* Gate on the flag the server sends. The endpoints enforce this
-             independently -- this only avoids showing an empty console to
-             somebody who would be refused by every request anyway. */
-          if (!j.is_admin) { showGate("That account does not have admin access."); return; }
           setToken(j.token);
           showConsole();
           reload();
