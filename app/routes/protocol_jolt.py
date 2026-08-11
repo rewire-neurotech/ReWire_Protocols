@@ -14,6 +14,7 @@ from app.routes.protocols import _audio_url_for, _protocol_unlocked, _own, _as_a
 from app.utils.encryption import encrypt_field, decrypt_field, decrypt_file_to_bytes
 from app import tasks
 from app.services import llm
+from app.services.safety_log import log_safety_event, compose_said
 
 r = APIRouter(prefix="/api/protocol-jolt", tags=["protocol-jolt"])
 
@@ -315,6 +316,29 @@ def start_journal_jolt(entry_id: int,
     verdict = llm.screen_input(text, "")
     v = verdict.get("verdict", "clarify")
     if v in ("crisis", "block"):
+        # ADMIN CONSOLE: record the flag BEFORE returning. This path previously
+        # discarded both the verdict and the entry text that produced it.
+        #
+        # Journal flags matter more than their volume suggests. A protocol
+        # target is something a person chose to declare; a journal entry is
+        # what they wrote when nobody asked them to be constructive, so it is
+        # where genuine distress surfaces first. The entry itself is already
+        # stored (encrypted) in journal_entries, but nothing recorded that the
+        # screen fired on it, which meant the case was invisible for review.
+        #
+        # The user's experience is unchanged: same response, same speed,
+        # whether or not this write succeeds (log_safety_event never raises).
+        log_safety_event(
+            db,
+            user_id=u.id,
+            layer="L1",
+            source="journal_jolt",
+            verdict=v,
+            category=verdict.get("category", "other"),
+            said=compose_said(text, ""),
+            rationale=verdict.get("rationale", ""),
+            journal_entry_id=entry_id,
+        )
         return JournalJoltStartResp(status=v, category=verdict.get("category", "other"))
 
     # 5) Create the jolt row and hand it to the background pool.
