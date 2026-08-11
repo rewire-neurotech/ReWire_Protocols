@@ -1,0 +1,1477 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ReWire ops · V5</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600&family=Inter:wght@400;450;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --display: "Familjen Grotesk", sans-serif;
+        --body: "Inter", sans-serif;
+        --data: "IBM Plex Mono", ui-monospace, monospace;
+
+        --paper: #fbf9f4;
+        --card: #ffffff;
+        --ink: #1c1a16;
+        --ink-soft: #4d4a43;
+        --muted: #9c968a;
+        --faint: #c6c0b3;
+        --hairline: rgba(0, 0, 0, 0.09);
+        --chip: #ece9e1;
+
+        --peach: #f2a385;
+        --pink: #e48ba6;
+        --lavender: #a99be8;
+
+        --alarm: #b23a3a;
+        --alarm-soft: #f6e5e3;
+        --amber: #b57a20;
+        --amber-soft: #faeeda;
+        --good: #3f8f7d;
+        --good-soft: #ddece6;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: var(--body);
+        -webkit-font-smoothing: antialiased;
+      }
+      body {
+        padding: 0 20px 72px;
+      }
+      .wrap {
+        max-width: 1180px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        font-family: var(--display);
+        font-size: 21px;
+        font-weight: 500;
+        margin: 0;
+        letter-spacing: -0.01em;
+      }
+      h2 {
+        font-family: var(--display);
+        font-size: 16px;
+        font-weight: 500;
+        margin: 0;
+        letter-spacing: -0.005em;
+      }
+      .eyebrow {
+        font-family: var(--data);
+        font-size: 10.5px;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      /* ---------- login ---------- */
+      .gate {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 40px 0;
+      }
+      .gate #loginCard {
+        width: 100%;
+        max-width: 330px;
+        background: var(--card);
+        border: 1px solid var(--hairline);
+        border-radius: 14px;
+        padding: 28px 26px 26px;
+      }
+      .gate .mark {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        /* The mockup used a peach/pink/lavender gradient block here. Swapped
+           for the real logo: the gradient has to go rather than sit behind it,
+           because the mark is a dark glyph on transparency and would read as
+           muddy over colour. object-fit keeps its 185x220 proportions inside
+           the 34px box instead of squashing it to a square. */
+        object-fit: contain;
+        display: block;
+        margin-bottom: 18px;
+      }
+      .gate h1 {
+        font-size: 19px;
+        margin-bottom: 4px;
+      }
+      .gate p.sub {
+        font-size: 12.5px;
+        color: var(--muted);
+        margin: 0 0 22px;
+      }
+      label.f {
+        display: block;
+        margin-bottom: 14px;
+      }
+      label.f span {
+        display: block;
+        font-family: var(--data);
+        font-size: 10.5px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      input.t {
+        width: 100%;
+        font-family: var(--body);
+        font-size: 13.5px;
+        padding: 9px 11px;
+        border: 1px solid var(--hairline);
+        border-radius: 8px;
+        background: var(--paper);
+        color: var(--ink);
+      }
+      button.primary {
+        width: 100%;
+        font-family: var(--body);
+        font-size: 13.5px;
+        font-weight: 500;
+        padding: 11px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--ink);
+        color: var(--paper);
+        cursor: pointer;
+        margin-top: 6px;
+      }
+      .gate .hint {
+        font-size: 11.5px;
+        color: var(--muted);
+        margin: 16px 0 0;
+        line-height: 1.5;
+        padding-top: 14px;
+        border-top: 1px solid var(--hairline);
+      }
+
+      /* ---------- header + tabs ---------- */
+      header.top {
+        display: flex;
+        align-items: baseline;
+        gap: 14px;
+        flex-wrap: wrap;
+        padding: 26px 0 14px;
+      }
+      header.top .spacer {
+        flex: 1 1 40px;
+      }
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-family: var(--data);
+        font-size: 11px;
+        padding: 5px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(242, 163, 133, 0.45);
+        background: #fdf3ec;
+        color: #8a4a2c;
+      }
+      .status .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--peach);
+      }
+      nav.tabs {
+        display: flex;
+        gap: 4px;
+        border-bottom: 1px solid var(--hairline);
+        margin-bottom: 24px;
+      }
+      nav.tabs button {
+        font-family: var(--body);
+        font-size: 13.5px;
+        padding: 9px 14px 11px;
+        border: 0;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+      }
+      nav.tabs button[aria-selected="true"] {
+        color: var(--ink);
+        border-bottom-color: var(--ink);
+      }
+      nav.tabs button .c {
+        font-family: var(--data);
+        font-size: 10.5px;
+        margin-left: 6px;
+        padding: 1px 5px;
+        border-radius: 4px;
+        background: var(--chip);
+        color: var(--ink-soft);
+      }
+      nav.tabs button .c.alarm {
+        background: var(--alarm-soft);
+        color: var(--alarm);
+      }
+      .seg {
+        display: inline-flex;
+        border: 1px solid var(--hairline);
+        border-radius: 8px;
+        overflow: hidden;
+        background: var(--card);
+      }
+      .seg button {
+        font-family: var(--data);
+        font-size: 11px;
+        padding: 6px 11px;
+        border: 0;
+        background: transparent;
+        color: var(--ink-soft);
+        cursor: pointer;
+      }
+      .seg button + button {
+        border-left: 1px solid var(--hairline);
+      }
+      .seg button[aria-pressed="true"] {
+        background: var(--ink);
+        color: var(--paper);
+      }
+      .ghost {
+        font-family: var(--data);
+        font-size: 11px;
+        padding: 6px 11px;
+        border: 1px solid var(--hairline);
+        border-radius: 8px;
+        background: var(--card);
+        color: var(--ink-soft);
+        cursor: pointer;
+      }
+      button:focus-visible {
+        outline: 2px solid var(--lavender);
+        outline-offset: 2px;
+      }
+
+      /* ---------- KPI ---------- */
+      .kpis {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1px;
+        background: var(--hairline);
+        border: 1px solid var(--hairline);
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 20px;
+      }
+      .kpis > div {
+        background: var(--card);
+        padding: 18px 20px 20px;
+      }
+      .kpis .v {
+        font-family: var(--data);
+        font-variant-numeric: tabular-nums;
+        font-size: 32px;
+        letter-spacing: -0.025em;
+        margin-top: 8px;
+        display: block;
+        line-height: 1.05;
+      }
+      .kpis .d {
+        font-size: 11.5px;
+        color: var(--muted);
+        margin-top: 6px;
+        display: block;
+      }
+      .trend {
+        font-family: var(--data);
+        font-size: 11px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-left: 7px;
+        vertical-align: 5px;
+      }
+      .trend.up {
+        background: var(--good-soft);
+        color: var(--good);
+      }
+      .trend.down {
+        background: var(--alarm-soft);
+        color: var(--alarm);
+      }
+
+      .panel {
+        background: var(--card);
+        border: 1px solid var(--hairline);
+        border-radius: 12px;
+        padding: 20px 22px 22px;
+        margin-bottom: 20px;
+      }
+      .panel > header {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 4px;
+      }
+      .panel > header .spacer {
+        flex: 1 1 20px;
+      }
+      .lede {
+        font-size: 12.5px;
+        color: var(--muted);
+        margin: 6px 0 18px;
+        max-width: 66ch;
+        line-height: 1.5;
+      }
+      .cols {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        align-items: start;
+      }
+      .chart {
+        display: block;
+        width: 100%;
+        height: 150px;
+      }
+      .axis {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 8px;
+        font-family: var(--data);
+        font-size: 10.5px;
+        color: var(--muted);
+      }
+      .foot {
+        display: flex;
+        gap: 18px;
+        flex-wrap: wrap;
+        margin-top: 16px;
+        padding-top: 14px;
+        border-top: 1px solid var(--hairline);
+      }
+      .foot div {
+        font-size: 12px;
+        color: var(--ink-soft);
+      }
+      .foot b {
+        font-family: var(--data);
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* funnel */
+      .funnel {
+        display: grid;
+        gap: 10px;
+      }
+      .fstep {
+        display: grid;
+        grid-template-columns: 132px 1fr 108px;
+        align-items: center;
+        gap: 14px;
+      }
+      .fstep .lab {
+        font-size: 12.5px;
+        color: var(--ink-soft);
+      }
+      .fstep .track {
+        height: 30px;
+        border-radius: 5px;
+        background: var(--chip);
+        overflow: hidden;
+      }
+      .fstep .track i {
+        display: block;
+        height: 100%;
+        border-radius: 5px;
+        background: var(--lavender);
+      }
+      .fstep .track i.mid {
+        background: var(--pink);
+      }
+      .fstep .track i.end {
+        background: var(--good);
+      }
+      .fstep .val {
+        font-family: var(--data);
+        font-variant-numeric: tabular-nums;
+        font-size: 13px;
+        text-align: right;
+        color: var(--ink);
+      }
+      .fstep .val small {
+        display: block;
+        font-size: 10.5px;
+        color: var(--muted);
+      }
+
+      /* ---------- tables ---------- */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+      }
+      th {
+        font-family: var(--data);
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: var(--muted);
+        text-align: left;
+        padding: 0 10px 9px 0;
+        border-bottom: 1px solid var(--hairline);
+        white-space: nowrap;
+      }
+      td {
+        padding: 10px 10px 10px 0;
+        border-bottom: 1px solid var(--hairline);
+        color: var(--ink-soft);
+        vertical-align: baseline;
+      }
+      td.mono,
+      th.mono {
+        font-family: var(--data);
+        font-variant-numeric: tabular-nums;
+        font-size: 11.5px;
+      }
+      td.r,
+      th.r {
+        text-align: right;
+      }
+      th.sortable {
+        cursor: pointer;
+        user-select: none;
+      }
+      th.sortable:hover {
+        color: var(--ink-soft);
+      }
+      th.sortable[aria-sort] {
+        color: var(--ink);
+      }
+      th .arrow {
+        opacity: 0;
+        margin-left: 4px;
+      }
+      th.sortable[aria-sort] .arrow {
+        opacity: 1;
+      }
+      tr.person {
+        cursor: pointer;
+      }
+      tr.person:hover td {
+        background: #faf8f3;
+      }
+      tr.person.open td {
+        border-bottom-color: transparent;
+      }
+      td.detail {
+        padding: 0 0 18px;
+        border-bottom: 1px solid var(--hairline);
+      }
+      .tag {
+        display: inline-block;
+        font-family: var(--data);
+        font-size: 10px;
+        padding: 2px 7px;
+        border-radius: 4px;
+        background: var(--chip);
+        color: var(--ink-soft);
+        white-space: nowrap;
+      }
+      .tag.good {
+        background: var(--good-soft);
+        color: var(--good);
+      }
+      .scroll {
+        max-height: 420px;
+        overflow-y: auto;
+        margin: 0 -22px -22px;
+        padding: 0 22px 6px;
+      }
+
+      /* goal + charge cards */
+      .protos {
+        display: grid;
+        gap: 10px;
+        padding: 4px 0 0;
+      }
+      .proto {
+        border: 1px solid var(--hairline);
+        border-radius: 9px;
+        background: var(--paper);
+        padding: 13px 15px;
+      }
+      .proto .ptop {
+        display: flex;
+        gap: 12px;
+        align-items: baseline;
+        margin-bottom: 9px;
+      }
+      .proto .ptop .spacer {
+        flex: 1 1 10px;
+      }
+      .proto .ptop .when {
+        font-family: var(--data);
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .field {
+        margin-bottom: 8px;
+      }
+      .field:last-child {
+        margin-bottom: 0;
+      }
+      .field .k {
+        font-family: var(--data);
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        display: block;
+        margin-bottom: 3px;
+      }
+      .field .txt {
+        font-size: 13px;
+        color: var(--ink);
+        line-height: 1.5;
+      }
+      .field .txt.charge {
+        color: var(--ink-soft);
+        font-style: italic;
+      }
+      .dots {
+        display: flex;
+        gap: 4px;
+      }
+      .dots i {
+        width: 15px;
+        height: 6px;
+        border-radius: 3px;
+        background: var(--chip);
+      }
+      .dots i.on {
+        background: var(--pink);
+      }
+
+      /* ---------- safety ---------- */
+      .qcard {
+        border: 1px solid var(--hairline);
+        border-radius: 10px;
+        padding: 14px 16px;
+        background: var(--card);
+        display: grid;
+        grid-template-columns: 56px 1fr 186px;
+        gap: 14px;
+        align-items: start;
+        margin-bottom: 9px;
+      }
+      .qcard.hot {
+        border-color: rgba(178, 58, 58, 0.3);
+        background: #fffcfb;
+      }
+      .qcard.done {
+        opacity: 0.6;
+      }
+      .sevpill {
+        font-family: var(--data);
+        font-size: 12px;
+        font-weight: 500;
+        padding: 3px 8px;
+        border-radius: 5px;
+        text-align: center;
+        display: inline-block;
+      }
+      .sevpill.s4 {
+        background: var(--alarm-soft);
+        color: var(--alarm);
+      }
+      .sevpill.s3 {
+        background: var(--amber-soft);
+        color: var(--amber);
+      }
+      .sevpill.s2 {
+        background: var(--chip);
+        color: var(--ink-soft);
+      }
+      .qcard .meta {
+        font-family: var(--data);
+        font-size: 11px;
+        color: var(--muted);
+        margin-bottom: 9px;
+      }
+      .qcard .said {
+        font-size: 13.5px;
+        color: var(--ink);
+        line-height: 1.55;
+        background: var(--paper);
+        border-left: 2px solid var(--faint);
+        border-radius: 0 6px 6px 0;
+        padding: 9px 12px;
+        margin-bottom: 8px;
+      }
+      .qcard.hot .said {
+        border-left-color: var(--alarm);
+      }
+      .qcard .auto {
+        font-size: 12px;
+        color: var(--ink-soft);
+      }
+      .qactions {
+        display: grid;
+        gap: 6px;
+      }
+      .qactions button {
+        font-family: var(--body);
+        font-size: 12px;
+        padding: 7px 10px;
+        border: 1px solid var(--hairline);
+        border-radius: 7px;
+        background: var(--card);
+        color: var(--ink);
+        cursor: pointer;
+        text-align: left;
+      }
+      .qactions button.yes {
+        background: var(--alarm-soft);
+        border-color: rgba(178, 58, 58, 0.25);
+        color: var(--alarm);
+      }
+      .qactions button.no {
+        background: var(--good-soft);
+        border-color: rgba(63, 143, 125, 0.25);
+        color: var(--good);
+      }
+      .verdictline {
+        font-family: var(--data);
+        font-size: 11px;
+        color: var(--ink-soft);
+        line-height: 1.6;
+      }
+      .overdue {
+        color: var(--alarm);
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+      .flowstep {
+        border: 1px solid var(--hairline);
+        border-radius: 9px;
+        padding: 14px 15px;
+        background: var(--paper);
+      }
+      .flowstep .num {
+        font-family: var(--data);
+        font-size: 11px;
+        color: var(--muted);
+        display: block;
+        margin-bottom: 6px;
+      }
+      .flowstep h3 {
+        font-family: var(--display);
+        font-size: 13.5px;
+        font-weight: 500;
+        margin: 0 0 5px;
+      }
+      .flowstep p {
+        font-size: 12.5px;
+        color: var(--ink-soft);
+        line-height: 1.5;
+        margin: 0;
+      }
+      .flowstep.auto {
+        background: var(--good-soft);
+        border-color: rgba(63, 143, 125, 0.25);
+      }
+      .flowstep.you {
+        background: var(--amber-soft);
+        border-color: rgba(181, 122, 32, 0.25);
+      }
+      .aside {
+        font-size: 12.5px;
+        color: var(--ink-soft);
+        line-height: 1.6;
+        margin: 18px 0 0;
+        padding-top: 16px;
+        border-top: 1px solid var(--hairline);
+        max-width: 76ch;
+      }
+      .aside b {
+        font-weight: 600;
+        color: var(--ink);
+      }
+
+      .banner {
+        display: flex;
+        gap: 14px;
+        align-items: baseline;
+        background: #fdf3ec;
+        border: 1px solid rgba(242, 163, 133, 0.4);
+        border-radius: 10px;
+        padding: 13px 16px;
+        margin-bottom: 20px;
+        font-size: 12.5px;
+        color: #8a4a2c;
+        line-height: 1.55;
+      }
+      .banner b {
+        font-weight: 600;
+      }
+      input.search {
+        font-family: var(--body);
+        font-size: 12.5px;
+        padding: 6px 10px;
+        border: 1px solid var(--hairline);
+        border-radius: 8px;
+        background: var(--card);
+        color: var(--ink);
+        width: 220px;
+      }
+
+      @media (max-width: 900px) {
+        .cols {
+          grid-template-columns: 1fr;
+        }
+        .kpis {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .qcard {
+          grid-template-columns: 1fr;
+        }
+        .fstep {
+          grid-template-columns: 96px 1fr 92px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="gate" id="gate">
+      <div id="loginCard">
+        <img class="mark" src="/assets/logo.png" alt="ReWire" />
+        <h1>ReWire ops</h1>
+        <p class="sub">Internal console. Team accounts only.</p>
+        <label class="f"><span>Email</span><input class="t" type="email" id="loginEmail" autocomplete="username" /></label>
+        <label class="f"><span>Password</span><input class="t" type="password" id="loginPassword" autocomplete="current-password" /></label>
+        <button class="primary" type="button" id="signInBtn">Sign in</button>
+        <p class="hint" id="loginHint">Sign in with your ReWire account. Team accounts only.</p>
+      </div>
+    </div>
+
+    <div class="wrap" id="console" hidden>
+      <header class="top">
+        <h1>ReWire ops</h1>
+        <span class="eyebrow">V5</span>
+        <span class="spacer"></span>
+        <div class="seg" id="rangeSeg" role="group" aria-label="Time range">
+          <button data-range="7" aria-pressed="false">7d</button>
+          <button data-range="30" aria-pressed="true">30d</button>
+          <button data-range="90" aria-pressed="false">90d</button>
+        </div>
+        <button class="ghost" id="refreshBtn">Refresh</button>
+        <span class="status" id="statusPill"><span class="dot"></span><span id="statusText">loading</span></span>
+        <button class="ghost" id="signOut">Sign out</button>
+      </header>
+
+      <nav class="tabs" role="tablist">
+        <button role="tab" data-tab="overview" aria-selected="true">Overview</button>
+        <button role="tab" data-tab="people" aria-selected="false">
+          People<span class="c" id="tabPeopleCount">—</span>
+        </button>
+        <button role="tab" data-tab="safety" aria-selected="false">
+          Safety<span class="c alarm" id="tabSafetyCount">—</span>
+        </button>
+      </nav>
+
+      <div class="banner" id="banner">
+        <div><b>Live data.</b> Everything below is real. Emails are masked; opening a person or the safety queue is recorded in the audit log.</div>
+      </div>
+
+      <!-- ---------------- overview ---------------- -->
+      <section id="tab-overview">
+        <div class="kpis" id="kpis"></div>
+
+        <div class="cols">
+          <section class="panel">
+            <header>
+              <h2>Revenue</h2>
+              <span class="spacer"></span>
+              <span class="eyebrow" id="revEyebrow">—</span>
+            </header>
+            <p class="lede">Money collected, adding up across the window.</p>
+            <svg class="chart" id="revChart" viewBox="0 0 520 150" preserveAspectRatio="none" role="img" aria-label="Cumulative revenue"></svg>
+            <div class="axis" id="revAxis"></div>
+            <div class="foot" id="revFoot"></div>
+          </section>
+
+          <section class="panel">
+            <header>
+              <h2>Users</h2>
+              <span class="spacer"></span>
+              <span class="eyebrow" id="userEyebrow">—</span>
+            </header>
+            <p class="lede">Total accounts, growing across the window.</p>
+            <svg class="chart" id="userChart" viewBox="0 0 520 150" preserveAspectRatio="none" role="img" aria-label="Cumulative users"></svg>
+            <div class="axis" id="userAxis"></div>
+            <div class="foot" id="userFoot"></div>
+          </section>
+        </div>
+
+        <div class="cols">
+          <section class="panel">
+            <header><h2>Retention</h2></header>
+            <p class="lede">
+              Of everyone who signed up, the share still opening the app this
+              many days later.
+            </p>
+            <svg class="chart" id="retChart" viewBox="0 0 520 150" role="img" aria-label="Retention curve"></svg>
+            <div class="foot" id="retFoot"></div>
+          </section>
+
+          <section class="panel">
+            <header><h2>Signup to paying</h2></header>
+            <p class="lede">Where people fall out between arriving and paying.</p>
+            <div class="funnel" id="funnel"></div>
+            <div class="foot" id="funnelFoot"></div>
+          </section>
+        </div>
+      </section>
+
+      <!-- ---------------- people ---------------- -->
+      <section id="tab-people" hidden>
+        <section class="panel">
+          <header>
+            <h2>People</h2>
+            <span class="spacer"></span>
+            <input class="search" id="peopleSearch" placeholder="Search account, goal, or charge" aria-label="Search" />
+            <span class="eyebrow" id="peopleCount">—</span>
+          </header>
+          <p class="lede">
+            Click any column heading to sort — protocols to find your heaviest
+            users, last seen to find who's slipping away. Click a row to read
+            every protocol that person wrote, in their own words.
+          </p>
+          <table>
+            <thead>
+              <tr id="peopleHead">
+                <th class="sortable" data-sort="joined">Joined<span class="arrow">↓</span></th>
+                <th>Account</th>
+                <th class="sortable r" data-sort="protocols">Protocols<span class="arrow">↓</span></th>
+                <th>Most recent goal</th>
+                <th class="sortable" data-sort="plan">Plan<span class="arrow">↓</span></th>
+                <th class="sortable" data-sort="last">Last seen<span class="arrow">↓</span></th>
+              </tr>
+            </thead>
+            <tbody id="peopleRows"></tbody>
+          </table>
+        </section>
+      </section>
+
+      <!-- ---------------- safety ---------------- -->
+      <section id="tab-safety" hidden>
+        <div class="kpis" id="safetyKpis"></div>
+        <section class="panel">
+          <header><h2>What happens when something gets flagged</h2></header>
+          <p class="lede">Read this once and the tab below makes sense.</p>
+          <div class="flow">
+            <div class="flowstep">
+              <span class="num">1 · instant</span>
+              <h3>Screening</h3>
+              <p>Someone writes a goal. ST1 reads it before a single word is generated.</p>
+            </div>
+            <div class="flowstep auto">
+              <span class="num">2 · instant, automatic</span>
+              <h3>The app responds by itself</h3>
+              <p>If it's flagged, generation stops and crisis resources appear straight away. No human is involved and nobody is waiting on one.</p>
+            </div>
+            <div class="flowstep you">
+              <span class="num">3 · later, you</span>
+              <h3>You check the call</h3>
+              <p>It lands in the list below. You read what they wrote and say whether the screen got it right.</p>
+            </div>
+          </div>
+          <p class="aside">
+            <b>The list below is quality control, not an emergency room.</b> The
+            person was already helped, in the moment, by step 2. Reading a case
+            two days later changes nothing for them — it changes whether ST1 is
+            tuned correctly for the next person. That's why there's no
+            stopwatch on it, and why the only thing being asked of you is
+            right or wrong.
+          </p>
+        </section>
+
+        <section class="panel">
+          <header>
+            <h2>Was the screen right?</h2>
+            <span class="spacer"></span>
+            <div class="seg" id="qSeg" role="group" aria-label="Queue filter">
+              <button data-q="open" aria-pressed="true">Open</button>
+              <button data-q="all" aria-pressed="false">All</button>
+            </div>
+          </header>
+          <p class="lede">
+            What the person actually wrote, next to what the app did about it.
+            Your answer is the only thing that tells you whether screening is
+            tuned right, so a wrong call is as useful to record as a right one.
+          </p>
+          <div id="queue"></div>
+        </section>
+      </section>
+    </div>
+
+    <script>
+      /* =====================================================================
+         ReWire ops console.
+
+         Felix's mockup, wired to the real API. His CSS and markup are preserved
+         byte for byte; the only thing replaced is where the data comes from.
+
+         What was removed: the GOALS / FLAGS sample arrays and the seeded
+         sample() generator that invented every number and name.
+
+         What was kept untouched: render(), line(), renderKpis(),
+         renderRevenue(), renderUsers(), renderRetention(), renderFunnel().
+         The API returns the exact shapes those functions already expected, so
+         none of the drawing code needed editing.
+
+         What genuinely had to change, and why:
+           * the login gate now authenticates instead of toggling two divs
+           * reload() fetches instead of generating
+           * a person's protocols load ON EXPAND, not up front -- charges are
+             the most private thing users write, so each read is a deliberate,
+             audited act rather than a side effect of opening a tab
+           * u.protocols[0] is guarded (real accounts can have zero protocols;
+             the mockup would throw)
+           * the confidence figure is gone -- the safety screen does not emit
+             one and inventing a number on a safety card is not acceptable
+           * review decisions persist server-side instead of living in memory
+         ===================================================================== */
+
+      /* ---------------- state ---------------- */
+      const ui = {
+        range: 30, tab: "overview", q: "", qFilter: "open", open: null,
+        data: null, people: [], detail: {}, safety: null,
+        sort: { key: "protocols", dir: "desc" },
+        loading: false,
+      };
+      const PLAN_RANK = { free: 0, protocol: 1, monthly: 2 };
+      const SEV_RANK = { S2: 2, S3: 3, S4: 4 };
+
+      const $ = (s) => document.querySelector(s);
+      const $$ = (s) => Array.prototype.slice.call(document.querySelectorAll(s));
+      const esc = (s) =>
+        String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
+          ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+      const n = (v) => (v == null ? "—" : Number(v).toLocaleString("en-US"));
+      const usd = (v) => (v == null ? "—" : "$" + Number(v).toLocaleString("en-US"));
+      const pct = (v) => (v == null ? "—" : Math.round(v * 100) + "%");
+      function ago(ts) {
+        if (!ts) return "never";
+        const s = Math.max(0, (Date.now() - new Date(ts).getTime()) / 1000);
+        if (s < 60) return Math.floor(s) + "s";
+        if (s < 3600) return Math.floor(s / 60) + "m";
+        if (s < 86400) return Math.floor(s / 3600) + "h";
+        return Math.floor(s / 86400) + "d";
+      }
+      const shortDate = (ts) => {
+        if (!ts) return "—";
+        const d = new Date(ts);
+        return isNaN(d) ? "—" : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      };
+
+      /* ---------------- api ---------------- */
+      /* Same JWT the app itself uses. The console is not a separate credential
+         system -- it is the normal login plus an is_admin check server-side. */
+      let token = null;
+      try { token = localStorage.getItem("rw_admin_token"); } catch (e) {}
+      function setToken(t) {
+        token = t;
+        try {
+          if (t) localStorage.setItem("rw_admin_token", t);
+          else localStorage.removeItem("rw_admin_token");
+        } catch (e) {}
+      }
+
+      async function api(path, opts) {
+        const o = opts || {};
+        const h = { "Content-Type": "application/json" };
+        if (token) h["Authorization"] = "Bearer " + token;
+        const res = await fetch(path, Object.assign({}, o, { headers: h }));
+        if (res.status === 401) { signOut(); throw new Error("Session expired."); }
+        if (res.status === 403) { throw new Error("This account is not an admin."); }
+        if (!res.ok) {
+          let msg = "Request failed (" + res.status + ")";
+          try { const j = await res.json(); if (j.detail) msg = j.detail; } catch (e) {}
+          throw new Error(msg);
+        }
+        return res.json().catch(() => ({}));
+      }
+      const GET = (p) => api(p);
+      const POST = (p, d) => api(p, { method: "POST", body: JSON.stringify(d || {}) });
+      const DEL = (p) => api(p, { method: "DELETE" });
+
+      /* ---------------- auth ---------------- */
+      function showGate(msg) {
+        $("#gate").hidden = false;
+        $("#console").hidden = true;
+        const hint = $("#loginHint");
+        if (hint) {
+          hint.textContent = msg || "Sign in with your ReWire account. Team accounts only.";
+          hint.style.color = msg ? "var(--alarm)" : "";
+        }
+      }
+      function showConsole() {
+        $("#gate").hidden = true;
+        $("#console").hidden = false;
+      }
+      function signOut() {
+        setToken(null);
+        ui.data = null; ui.people = []; ui.detail = {}; ui.safety = null; ui.open = null;
+        showGate();
+      }
+
+      async function signIn() {
+        const email = ($("#loginEmail").value || "").trim();
+        const password = $("#loginPassword").value || "";
+        if (!email || !password) { showGate("Enter your email and password."); return; }
+        $("#signInBtn").disabled = true;
+        try {
+          const r = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: email, password: password }),
+          });
+          if (!r.ok) { showGate("Wrong email or password."); return; }
+          const j = await r.json();
+          /* Gate on the flag the server sends. The endpoints enforce this
+             independently -- this only avoids showing an empty console to
+             somebody who would be refused by every request anyway. */
+          if (!j.is_admin) { showGate("That account does not have admin access."); return; }
+          setToken(j.token);
+          showConsole();
+          reload();
+        } catch (e) {
+          showGate("Could not reach the server.");
+        } finally {
+          $("#signInBtn").disabled = false;
+        }
+      }
+
+      /* ---------------- render ---------------- */
+      function render() {
+        const d = ui.data;
+        if (!d) return;
+        renderKpis(d);
+        renderRevenue(d);
+        renderUsers(d);
+        renderRetention(d);
+        renderFunnel(d);
+        renderPeople();
+        renderSafety();
+        $("#tabPeopleCount").textContent = n(d.totalUsers);
+        $("#statusText").textContent = d.range_days + "d · " + n(d.totalUsers) + " people";
+      }
+
+      function trend(now, prev) {
+        if (!prev) return "";
+        const ch = (now - prev) / prev;
+        const cls = ch >= 0 ? "up" : "down";
+        return '<span class="trend ' + cls + '">' + (ch >= 0 ? "+" : "") + Math.round(ch * 100) + "%</span>";
+      }
+
+      function kpi(lab, v, extra, d) {
+        return '<div><span class="eyebrow">' + esc(lab) + '</span><span class="v">' + esc(v) +
+          (extra || "") + '</span><span class="d">' + esc(d) + "</span></div>";
+      }
+
+      function renderKpis(d) {
+        const conv = d.funnel.paid / Math.max(1, d.funnel.signedUp);
+        $("#kpis").innerHTML =
+          kpi("Revenue", usd(d.revenue), trend(d.revenue, d.prevRevenue), "collected in " + d.range_days + " days") +
+          kpi("Users", n(d.totalUsers), trend(d.newUsers, d.prevUsers), n(d.newUsers) + " joined in this window") +
+          kpi("Retention", pct(d.retention.d7), "", "still active after 7 days") +
+          kpi("Paying", pct(conv), "", n(d.funnel.paid) + " of " + n(d.funnel.signedUp) + " who signed up");
+      }
+
+      function line(series, key, color, fill) {
+        const W = 520, H = 150, pad = 6;
+        const max = Math.max(1, ...series.map((p) => p[key]));
+        const x = (i) => (series.length === 1 ? 0 : (i / (series.length - 1)) * W);
+        const y = (v) => H - pad - (v / max) * (H - pad * 2);
+        const pts = series.map((p, i) => x(i).toFixed(1) + "," + y(p[key]).toFixed(1));
+        const area = "M0," + H + " L" + pts.join(" L") + " L" + W + "," + H + " Z";
+        return (
+          '<path d="' + area + '" fill="' + fill + '"/>' +
+          '<polyline points="' + pts.join(" ") + '" fill="none" stroke="' + color +
+          '" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>'
+        );
+      }
+
+      function renderRevenue(d) {
+        $("#revChart").innerHTML = line(d.series, "cum_revenue", "var(--good)", "rgba(63,143,125,0.13)");
+        $("#revAxis").innerHTML =
+          "<span>" + esc(shortDate(d.series[0].date)) + "</span><span>" +
+          esc(shortDate(d.series[d.series.length - 1].date)) + "</span>";
+        $("#revEyebrow").textContent = usd(d.revenue) + " total";
+        const best = d.series.reduce((a, b) => (b.revenue > a.revenue ? b : a), d.series[0]);
+        $("#revFoot").innerHTML =
+          "<div>Per day: <b>" + usd(Math.round(d.revenue / d.series.length)) + "</b></div>" +
+          "<div>Best day: <b>" + esc(shortDate(best.date)) + "</b> at <b>" + usd(best.revenue) + "</b></div>" +
+          "<div>Previous " + d.range_days + " days: <b>" + usd(d.prevRevenue) + "</b></div>";
+      }
+
+      function renderUsers(d) {
+        $("#userChart").innerHTML = line(d.series, "cum_users", "var(--lavender)", "rgba(169,155,232,0.15)");
+        $("#userAxis").innerHTML =
+          "<span>" + esc(shortDate(d.series[0].date)) + "</span><span>" +
+          esc(shortDate(d.series[d.series.length - 1].date)) + "</span>";
+        $("#userEyebrow").textContent = n(d.totalUsers) + " total";
+        $("#userFoot").innerHTML =
+          "<div>New: <b>" + n(d.newUsers) + "</b></div>" +
+          "<div>Per day: <b>" + (d.newUsers / d.series.length).toFixed(1) + "</b></div>" +
+          "<div>Previous " + d.range_days + " days: <b>" + n(d.prevUsers) + "</b> new</div>";
+      }
+
+      function renderRetention(d) {
+        const W = 520, H = 150, padL = 34, padR = 10, padT = 10, padB = 26;
+        const maxDay = 30;
+        const x = (day) => padL + (day / maxDay) * (W - padL - padR);
+        const y = (r) => padT + (1 - r) * (H - padT - padB);
+        const pts = d.curve.map((c) => x(c.day).toFixed(1) + "," + y(c.rate).toFixed(1));
+        let g = "";
+        [1, 0.5, 0].forEach((r) => {
+          g += '<line x1="' + padL + '" y1="' + y(r) + '" x2="' + (W - padR) + '" y2="' + y(r) +
+            '" stroke="var(--hairline)" stroke-width="1"/>' +
+            '<text x="' + (padL - 7) + '" y="' + (y(r) + 3.5) +
+            '" text-anchor="end" font-family="var(--data)" font-size="9.5" fill="var(--muted)">' +
+            Math.round(r * 100) + "</text>";
+        });
+        g += '<path d="M' + x(0) + "," + y(0) + " L" + pts.join(" L") + " L" + x(maxDay) + "," + y(0) +
+          ' Z" fill="rgba(169,155,232,0.14)"/>';
+        g += '<polyline points="' + pts.join(" ") + '" fill="none" stroke="var(--lavender)" stroke-width="2.2" stroke-linejoin="round"/>';
+        d.curve.forEach((c) => {
+          if ([1, 7, 30].indexOf(c.day) > -1) {
+            g += '<circle cx="' + x(c.day) + '" cy="' + y(c.rate) + '" r="3.4" fill="var(--card)" stroke="var(--lavender)" stroke-width="2"/>';
+            g += '<text x="' + x(c.day) + '" y="' + (H - 8) +
+              '" text-anchor="middle" font-family="var(--data)" font-size="9.5" fill="var(--muted)">d' + c.day + "</text>";
+          }
+        });
+        $("#retChart").innerHTML = g;
+        const at = (day) => d.curve.filter((c) => c.day === day)[0];
+        const f = (day) => { const c = at(day); return c ? pct(c.rate) : "—"; };
+        /* Cohort size is shown because a retention figure with nobody behind it
+           is noise. On a young install d30 legitimately reads 0% of 0 people. */
+        const c30 = at(30);
+        $("#retFoot").innerHTML =
+          "<div>Next day: <b>" + f(1) + "</b></div><div>After a week: <b>" + f(7) +
+          "</b></div><div>After a month: <b>" + f(30) + "</b>" +
+          (c30 ? " <span style='color:var(--muted)'>(" + n(c30.cohort) + " old enough to count)</span>" : "") +
+          "</div>";
+      }
+
+      function renderFunnel(d) {
+        const f = d.funnel;
+        const denom = Math.max(1, f.signedUp);
+        const rows = [
+          ["Signed up", f.signedUp, "", 1],
+          ["Started a protocol", f.startedOne, "mid", f.startedOne / denom],
+          ["Paid", f.paid, "end", f.paid / denom],
+        ];
+        $("#funnel").innerHTML = rows
+          .map(
+            (r) =>
+              '<div class="fstep"><span class="lab">' + esc(r[0]) +
+              '</span><span class="track"><i class="' + r[2] + '" style="width:' +
+              (r[3] * 100).toFixed(1) + '%"></i></span><span class="val">' + n(r[1]) +
+              "<small>" + pct(r[3]) + " of signups</small></span></div>",
+          )
+          .join("");
+        $("#funnelFoot").innerHTML =
+          "<div>Lost before starting: <b>" + n(f.signedUp - f.startedOne) + "</b></div>" +
+          "<div>Started but never paid: <b>" + n(f.startedOne - f.paid) + "</b></div>" +
+          "<div>Of those who started, paid: <b>" + pct(f.paid / Math.max(1, f.startedOne)) + "</b></div>";
+      }
+
+      /* ---------------- people ---------------- */
+      function renderPeople() {
+        const list = ui.people.slice();
+        const key = ui.sort.key, dir = ui.sort.dir === "asc" ? 1 : -1;
+        const val = (u) =>
+          key === "protocols" ? u.protocol_count
+          : key === "plan" ? (PLAN_RANK[u.plan] || 0)
+          : key === "last" ? (u.last_active ? new Date(u.last_active).getTime() : 0)
+          : new Date(u.created_at).getTime();
+        list.sort((a, b) => {
+          const c = (val(a) - val(b)) * dir;
+          return c !== 0 ? c : new Date(b.created_at) - new Date(a.created_at);
+        });
+        $$("#peopleHead th.sortable").forEach((th) => {
+          if (th.dataset.sort === key) th.setAttribute("aria-sort", ui.sort.dir === "asc" ? "ascending" : "descending");
+          else th.removeAttribute("aria-sort");
+          const ar = th.querySelector(".arrow");
+          if (ar) ar.textContent = ui.sort.dir === "asc" ? "↑" : "↓";
+        });
+
+        $("#peopleCount").textContent = n(list.length) + " shown";
+        if (!list.length) {
+          $("#peopleRows").innerHTML =
+            '<tr><td colspan="6" style="color:var(--muted);padding:18px 0">' +
+            (ui.q ? "Nobody matches that search." : "No accounts yet.") + "</td></tr>";
+          return;
+        }
+
+        $("#peopleRows").innerHTML = list
+          .map((u) => {
+            /* Real accounts can have zero protocols -- somebody who signed up
+               and stopped. The mockup read u.protocols[0].goal unguarded and
+               would throw on the first such row. */
+            const goal = u.latest_goal || "";
+            const row =
+              '<tr class="person' + (ui.open === u.id ? " open" : "") + '" data-id="' + esc(u.id) +
+              '"><td class="mono">' + esc(shortDate(u.created_at)) + '</td><td class="mono">' +
+              esc(u.email_masked) + '</td><td class="mono r">' + n(u.protocol_count) +
+              "</td><td>" + (goal ? esc(goal) : '<span style="color:var(--faint)">—</span>') +
+              '</td><td><span class="tag ' + (u.plan === "monthly" ? "good" : "") + '">' +
+              esc(u.plan) + '</span></td><td class="mono">' +
+              (u.last_active ? esc(ago(u.last_active)) + " ago" : '<span style="color:var(--faint)">never</span>') +
+              "</td></tr>";
+            if (ui.open !== u.id) return row;
+            return row + '<tr><td class="detail" colspan="6">' + detailHtml(u.id) + "</td></tr>";
+          })
+          .join("");
+
+        $$("#peopleRows tr.person").forEach((tr) =>
+          tr.addEventListener("click", () => togglePerson(tr.dataset.id)),
+        );
+      }
+
+      function detailHtml(id) {
+        const d = ui.detail[id];
+        if (d === "loading") return '<div class="protos"><div class="proto" style="color:var(--muted)">Loading…</div></div>';
+        if (d === "error") return '<div class="protos"><div class="proto" style="color:var(--alarm)">Could not load this person.</div></div>';
+        if (!d) return "";
+        if (!d.protocols.length)
+          return '<div class="protos"><div class="proto" style="color:var(--muted)">This account has not created a protocol.</div></div>';
+        const total = d.protocols.length;
+        return '<div class="protos">' + d.protocols.map((p, i) =>
+          '<div class="proto"><div class="ptop"><span class="tag">Protocol ' + (total - i) +
+          '</span><span class="dots" title="day ' + p.day + ' of 5">' +
+          [1, 2, 3, 4, 5].map((k) => '<i class="' + (k <= p.day ? "on" : "") + '"></i>').join("") +
+          '</span><span class="spacer"></span><span class="when">' + esc(p.status) + " · " +
+          esc(shortDate(p.created_at)) + '</span></div><div class="field"><span class="k">Goal</span><span class="txt">' +
+          esc(p.goal) + "</span></div>" +
+          (p.charge
+            ? '<div class="field"><span class="k">Charge</span><span class="txt charge">' + esc(p.charge) + "</span></div>"
+            : "") +
+          "</div>").join("") + "</div>";
+      }
+
+      /* Protocols load ON EXPAND rather than with the list. Charges are the
+         most private thing a person writes, and every read of them is written
+         to the audit log -- which is only meaningful if reading is a deliberate
+         act, not a side effect of opening the tab. */
+      async function togglePerson(id) {
+        if (ui.open === id) { ui.open = null; renderPeople(); return; }
+        ui.open = id;
+        if (!ui.detail[id] || ui.detail[id] === "error") {
+          ui.detail[id] = "loading";
+          renderPeople();
+          try {
+            ui.detail[id] = await GET("/api/admin/people/" + encodeURIComponent(id));
+          } catch (e) {
+            ui.detail[id] = "error";
+          }
+        }
+        renderPeople();
+      }
+
+      /* ---------------- safety ---------------- */
+      function renderSafety() {
+        const s = ui.safety;
+        if (!s) return;
+        const cases = s.cases;
+        const undecided = cases.filter((c) => !c.decision);
+        const totalReviewed = s.reviewed;
+        const totalConfirmed = s.confirmed;
+
+        $("#tabSafetyCount").textContent = n(s.open_count);
+        $("#safetyKpis").innerHTML =
+          kpi("Left to check", n(s.open_count), "", n(cases.length) + " shown in this window") +
+          kpi("Screen was right", totalReviewed ? pct(totalConfirmed / totalReviewed) : "—", "",
+              n(totalConfirmed) + " of " + n(totalReviewed) + " checked") +
+          kpi("Screen was wrong", totalReviewed ? pct(1 - totalConfirmed / totalReviewed) : "—", "",
+              "blocked someone who was fine") +
+          kpi("Most serious", undecided.length
+                ? undecided.map((c) => c.sev).sort((a, b) => (SEV_RANK[b] || 0) - (SEV_RANK[a] || 0))[0]
+                : "none", "", "still unchecked");
+
+        $("#queue").innerHTML = cases.length
+          ? cases.map((c) => {
+              const dec = c.decision;
+              return (
+                '<div class="qcard ' + (dec ? "done" : c.sev === "S4" || c.sev === "S3" ? "hot" : "") + '">' +
+                '<span><span class="sevpill ' + esc(String(c.sev).toLowerCase()) + '">' + esc(c.sev) + "</span></span>" +
+                '<span><div class="meta">' + esc(c.category) + " · " + esc(ago(c.ts)) + " ago · " +
+                esc(c.layer) + " · " + esc(c.user) +
+                '</div><div class="said">' + esc(c.said) + '</div><div class="auto">App already did: ' +
+                esc(c.auto) + "</div></span>" +
+                '<span class="qactions">' +
+                (dec
+                  ? '<span class="verdictline"><b>' +
+                    (dec === "confirmed" ? "Right call" : "Wrong call") +
+                    "</b><br>" + esc(c.decided_by || "logged") + "</span>" +
+                    '<button data-undo="' + esc(c.id) + '">Undo</button>'
+                  : '<button class="yes" data-set="confirmed" data-id="' + esc(c.id) + '">Right call</button>' +
+                    '<button class="no" data-set="false" data-id="' + esc(c.id) + '">Wrong call</button>') +
+                "</span></div>"
+              );
+            }).join("")
+          : '<p class="lede" style="margin:0">' +
+            (ui.qFilter === "open"
+              ? "Nothing waiting. Switch to All to see what has been decided."
+              : "No flags in this window. Nothing has been stopped by a safety screen.") +
+            "</p>";
+
+        $$("#queue button[data-set]").forEach((b) =>
+          b.addEventListener("click", async () => {
+            b.disabled = true;
+            try {
+              await POST("/api/admin/safety/" + encodeURIComponent(b.dataset.id) + "/review",
+                         { decision: b.dataset.set });
+              await loadSafety();
+            } catch (e) { b.disabled = false; }
+          }),
+        );
+        $$("#queue button[data-undo]").forEach((b) =>
+          b.addEventListener("click", async () => {
+            b.disabled = true;
+            try {
+              await DEL("/api/admin/safety/" + encodeURIComponent(b.dataset.undo) + "/review");
+              await loadSafety();
+            } catch (e) { b.disabled = false; }
+          }),
+        );
+      }
+
+      /* ---------------- loading ---------------- */
+      async function loadSafety() {
+        ui.safety = await GET("/api/admin/safety?days=" + ui.range + "&scope=" + ui.qFilter);
+        renderSafety();
+      }
+      async function loadPeople() {
+        const r = await GET("/api/admin/people?q=" + encodeURIComponent(ui.q));
+        ui.people = r.people || [];
+        renderPeople();
+      }
+      async function reload() {
+        if (ui.loading) return;
+        ui.loading = true;
+        $("#refreshBtn").disabled = true;
+        $("#statusText").textContent = "loading";
+        try {
+          const [overview, people, safety] = await Promise.all([
+            GET("/api/admin/overview?days=" + ui.range),
+            GET("/api/admin/people?q=" + encodeURIComponent(ui.q)),
+            GET("/api/admin/safety?days=" + ui.range + "&scope=" + ui.qFilter),
+          ]);
+          ui.data = overview;
+          ui.people = people.people || [];
+          ui.safety = safety;
+          ui.detail = {};
+          render();
+        } catch (e) {
+          $("#statusText").textContent = "error";
+          console.error(e);
+        } finally {
+          ui.loading = false;
+          $("#refreshBtn").disabled = false;
+        }
+      }
+
+      /* ---------------- wiring ---------------- */
+      $("#signInBtn").addEventListener("click", signIn);
+      ["#loginEmail", "#loginPassword"].forEach((sel) =>
+        $(sel).addEventListener("keydown", (e) => { if (e.key === "Enter") signIn(); }),
+      );
+      $("#signOut").addEventListener("click", signOut);
+
+      $$("nav.tabs button").forEach((b) =>
+        b.addEventListener("click", () => {
+          ui.tab = b.dataset.tab;
+          $$("nav.tabs button").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
+          ["overview", "people", "safety"].forEach((t) => {
+            $("#tab-" + t).hidden = t !== ui.tab;
+          });
+        }),
+      );
+
+      $("#rangeSeg").addEventListener("click", (e) => {
+        const b = e.target.closest("button[data-range]");
+        if (!b) return;
+        ui.range = Number(b.dataset.range);
+        $("#rangeSeg").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+        ui.open = null;
+        reload();
+      });
+
+      $("#qSeg").addEventListener("click", (e) => {
+        const b = e.target.closest("button[data-q]");
+        if (!b) return;
+        ui.qFilter = b.dataset.q;
+        $("#qSeg").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+        loadSafety().catch(() => {});
+      });
+
+      $("#peopleHead").addEventListener("click", (e) => {
+        const th = e.target.closest("th.sortable");
+        if (!th) return;
+        const k = th.dataset.sort;
+        if (ui.sort.key === k) ui.sort.dir = ui.sort.dir === "desc" ? "asc" : "desc";
+        else ui.sort = { key: k, dir: "desc" };
+        ui.open = null;
+        renderPeople();
+      });
+
+      /* Debounced so a search does not fire a request per keystroke. */
+      let searchTimer = null;
+      $("#peopleSearch").addEventListener("input", (e) => {
+        ui.q = e.target.value;
+        ui.open = null;
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => loadPeople().catch(() => {}), 250);
+      });
+
+      $("#refreshBtn").addEventListener("click", () => { ui.open = null; reload(); });
+
+      /* ---------------- boot ---------------- */
+      (async function boot() {
+        if (!token) { showGate(); return; }
+        try {
+          const me = await GET("/api/auth/me");
+          if (!me.is_admin) { showGate("That account does not have admin access."); setToken(null); return; }
+          showConsole();
+          reload();
+        } catch (e) {
+          setToken(null);
+          showGate();
+        }
+      })();
+    </script>
+  </body>
+</html>
