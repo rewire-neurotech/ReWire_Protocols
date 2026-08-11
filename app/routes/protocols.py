@@ -11,6 +11,7 @@ from app.models import Protocol, ProtocolDay, ProtocolJolt, JournalEntry, Entitl
 from app.routes.auth import get_current_user_required
 from app.utils.encryption import encrypt_field, decrypt_field
 from app.services import llm
+from app.services.safety_log import log_safety_event, compose_said
 
 r = APIRouter(prefix="/api/protocols", tags=["protocols"])
 
@@ -347,13 +348,42 @@ def create_protocol(req: CreateProtocolReq, u: User = Depends(get_current_user_r
     verdict = llm.screen_input(target, charge)
     v = verdict.get("verdict", "clarify")
     if v != "safe":
+        # ADMIN CONSOLE: record the flag BEFORE returning. Previously this
+        # verdict -- and the words that produced it -- were discarded here, so
+        # every crisis and block the screen has ever caught left no trace. The
+        # person's experience is unchanged: they still get the same response,
+        # immediately, whether or not this write succeeds (log_safety_event
+        # never raises).
+        log_safety_event(
+            db,
+            user_id=u.id,
+            layer="L1",
+            source="protocol_create",
+            verdict=v,
+            category=verdict.get("category", "other"),
+            said=compose_said(target, charge),
+            rationale=verdict.get("rationale", ""),
+        )
         return CreateProtocolResp(status=v, category=verdict.get("category", "other"), protocol=None)
 
     # 2) Plan the 5-day arc
     try:
         plan = llm.generate_plan(target, charge)
-    except llm.ProtocolUnsafe:
+    except llm.ProtocolUnsafe as e:
         # Plan judged the goal unsafe -> treat like a soft block.
+        # ADMIN CONSOLE: this is a second-layer catch -- the input screen passed
+        # it and the plan prompt refused it. Those are the most interesting rows
+        # in the whole queue, because they are exactly where L1 was too lenient.
+        log_safety_event(
+            db,
+            user_id=u.id,
+            layer="L2",
+            source="protocol_plan",
+            verdict=(e.verdict or "unsafe"),
+            category=(e.category or "other"),
+            said=compose_said(target, charge),
+            rationale=(e.detail or ""),
+        )
         return CreateProtocolResp(status="block", category="other", protocol=None)
 
     # 3) Store: deactivate previous active protocols, then create this one active.
