@@ -33,6 +33,7 @@ from app.models import Protocol, ProtocolDay, ProtocolJolt, JournalEntry, Journa
 from app.services import llm
 from app.services.tts import synth
 from app.services.mix import mix as mix_audio
+from app.services.safety_log import log_safety_event_bg, compose_said
 from app.utils.encryption import encrypt_field, decrypt_field, encrypt_file
 
 
@@ -61,6 +62,29 @@ def _count_spoken_words(text: str) -> int:
     stripped = _TAG_RE.sub("", text)
     stripped = stripped.replace("---", " ")
     return len(stripped.split())
+
+
+# ADMIN CONSOLE: map the stage on a ProtocolUnsafe onto the console's layer.
+#
+#   llm.generate_protocol_speech / generate_journal_speech raise with
+#     stage="speech"        -> the SPEECH prompt itself returned REWIRE_UNSAFE
+#     stage="output_screen" -> the generated speech failed output screening
+#                              after its retry cap
+#
+# These are the two catches that happen AFTER the input screen already said the
+# goal was safe, which makes them the most informative rows in the review queue:
+# each one is a case where L1 was too lenient and a later layer had to save it.
+# Until now they only ever became a "blocked" stage on a jolt row -- the words
+# and the reason were never recorded anywhere reviewable.
+_STAGE_TO_LAYER = {
+    "plan": "L2",
+    "speech": "L2",
+    "output_screen": "L3",
+}
+
+
+def _layer_for_stage(stage: str) -> str:
+    return _STAGE_TO_LAYER.get((stage or "").strip().lower(), "L2")
 
 
 def _update(jolt_id, **kw):
@@ -201,6 +225,7 @@ def _load_job(jolt_id):
 
         return {
             "user_id": j.user_id,
+            "protocol_id": p.id,
             "protocol_type": p.type or "activate",
             "day": j.day,
             "target": p.target or "",
@@ -327,6 +352,25 @@ def _run_protocol_gen(jolt_id):
             screen_verdict=(e.verdict if e.stage == "output_screen" else None),
             screen_category=(e.category or None),
         )
+        # ADMIN CONSOLE: record the flag. The jolt row already carries a
+        # "blocked" stage, but that is a state for the frontend to poll, not a
+        # reviewable record -- it holds no verbatim text and no reason, and it
+        # is scoped to one day of one protocol.
+        #
+        # log_safety_event_bg opens its own short session on purpose: this
+        # worker deliberately holds no DB session while it does the slow
+        # speech / TTS / mix work, and it is running on a pool thread.
+        log_safety_event_bg(
+            user_id=ctx.get("user_id"),
+            layer=_layer_for_stage(e.stage),
+            source="protocol_jolt",
+            verdict=(e.verdict or "unsafe"),
+            category=(e.category or "other"),
+            said=compose_said(ctx.get("target", ""), ctx.get("charge", "")),
+            rationale=(e.detail or ""),
+            protocol_id=ctx.get("protocol_id"),
+            jolt_id=jolt_id,
+        )
 
     except Exception as e:
         print(f"[protojolt] {jolt_id} error: {e}")
@@ -376,7 +420,7 @@ def _load_journal_job(jj_id):
         if not e:
             return {"missing_entry": True, "user_id": j.user_id}
         text = (decrypt_field(e.answer) or "") if e.answer else ""
-        return {"user_id": j.user_id, "entry_text": text}
+        return {"user_id": j.user_id, "journal_entry_id": e.id, "entry_text": text}
     finally:
         db.close()
 
@@ -480,6 +524,21 @@ def _run_journal_gen(jj_id):
             gen_error=f"unsafe:{e.stage}:{e.verdict}",
             screen_verdict=(e.verdict if e.stage == "output_screen" else None),
             screen_category=(e.category or None),
+        )
+        # ADMIN CONSOLE: same record as the protocol path above. Note this fires
+        # on an entry the input screen had ALREADY cleared in
+        # routes/protocol_jolt.py -- so the speech prompt or the output screen
+        # caught something L1 let past.
+        log_safety_event_bg(
+            user_id=ctx.get("user_id"),
+            layer=_layer_for_stage(e.stage),
+            source="journal_jolt",
+            verdict=(e.verdict or "unsafe"),
+            category=(e.category or "other"),
+            said=compose_said(entry_text, ""),
+            rationale=(e.detail or ""),
+            journal_entry_id=ctx.get("journal_entry_id"),
+            jolt_id=jj_id,
         )
 
     except Exception as e:
