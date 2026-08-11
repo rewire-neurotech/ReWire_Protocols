@@ -1,4 +1,11 @@
 from __future__ import annotations
+
+"""Voice-first mix variant.
+
+This keeps the original processing chain, but uses a fixed music offset instead
+of voice-reactive ducking. The constant balance is deliberately subtle enough
+for the music to remain important while avoiding audible gain riding.
+"""
 import array as _array
 import math
 import shutil
@@ -27,13 +34,23 @@ from ..utils.audio import (
 # Every intermediate WAV a mix produces is created inside a private temp
 # directory belonging to that one mix() call, and the directory is deleted
 # when the mix finishes or fails. This prevents /tmp from filling up
-# (500-800MB of abandoned WAVs per jolt previously). The audio processing
-# chain itself is completely unchanged: identical parameters, identical
-# order of operations, identical bytes flowing through every stage.
+# (500-800MB of abandoned WAVs per jolt previously).
 # ---------------------------------------------------------------------------
 import threading
 
 _TLS = threading.local()
+
+# Transparent, fixed balances for each program.
+DEFAULT_MUSIC_GAIN_DB = -7.0
+JOLT_MUSIC_GAIN_DB = -8.5
+JOLT1_MUSIC_GAIN_DB = -7.0
+JOLT1_MUSIC_BASS_DB = 4.0
+JOLT1_MUSIC_TARGET_LUFS = -16.0
+JOLT1_MUSIC_DELAY_MS = 5000
+JOLT1_MUSIC_FADEIN_MS = 2000
+PRIMER_MUSIC_FADEOUT_MS = 1000
+DEFAULT_VOICE_TARGET_LUFS = -15.0
+DEFAULT_POST_VOICE_TAIL_MS = 2000
 
 
 def _mktemp(suffix: str = ".wav") -> str:
@@ -157,6 +174,44 @@ def _ffmpeg_has(ffmpeg_path: str, needle: str) -> bool:
         return needle in (out.stdout + out.stderr)
     except Exception:
         return False
+
+
+def _apply_ffmpeg_filter(
+    seg: AudioSegment,
+    filter_chain: str,
+    ffmpeg_path: str,
+) -> AudioSegment:
+    """Run a profile-specific filter chain while preserving format and length."""
+    tmp_in = _mktemp(".wav")
+    tmp_out = _mktemp(".wav")
+    seg.export(tmp_in, format="wav")
+    try:
+        subprocess.run(
+            [
+                ffmpeg_path,
+                "-y",
+                "-i",
+                tmp_in,
+                "-af",
+                filter_chain,
+                "-ar",
+                str(seg.frame_rate),
+                "-ac",
+                str(seg.channels),
+                tmp_out,
+            ],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return (
+            AudioSegment.from_file(tmp_out)
+            .set_frame_rate(seg.frame_rate)
+            .set_channels(seg.channels)
+        )
+    except Exception as exc:
+        print(f"[Mix] Optional profile filter skipped: {exc}")
+        return seg
 
 
 def _atempo_chain(factor: float) -> str:
@@ -329,6 +384,8 @@ def _rms_dbfs_from_samples(samples, sample_width: int) -> float:
     return 20.0 * math.log10(rms / full_scale)
 
 
+# Retained only for source compatibility with code that may import this private
+# helper. mix() deliberately does not call it in the voice-first variant.
 def _duck_music_to_voice(
     music: AudioSegment,
     voice: AudioSegment,
@@ -466,22 +523,57 @@ def mix(
     voice_path: str | Path,
     music_path: str | Path,
     out_path: str | Path,
-    duck_db: float = 4.0,
+    duck_db: float = 4.0,  # Legacy argument; ignored (no ducking).
     sync_mode: Literal["retime_voice_to_music", "retime_music_to_voice", "no_retime_trim_pad"] = "retime_voice_to_music",
     voice_target_dbfs: float = -13.0,
     music_target_dbfs: float = -14.5,
     final_peak_dbfs: float = -1.0,
     music_fadein_ms: int = 10,
-    music_premix_gain_db: float = -1.0,
+    music_premix_gain_db: float | None = None,
     ffmpeg_bin: str | None = None,
     stems_dir: str | Path | None = None,
     content_duration_sec: Optional[float] = None,
-    duck_max_db: float = -4.0,
-    duck_floor_db: float = 0.0,
+    duck_max_db: float = -4.0,  # Legacy argument; ignored (no ducking).
+    duck_floor_db: float = 0.0,  # Legacy argument; ignored (no ducking).
+    music_fadeout_ms: int | None = None,
+    mix_profile: Literal["auto", "primer", "jolt", "jolt1"] = "auto",
+    voice_target_lufs: float = DEFAULT_VOICE_TARGET_LUFS,
+    post_voice_tail_ms: int = DEFAULT_POST_VOICE_TAIL_MS,
     **_ignored,
 ) -> int:
 
     ffmpeg_path = _ffmpeg_bin(ffmpeg_bin)
+
+    # Existing callers do not need to change: the supplied primer/jolt filenames
+    # select their profile automatically. Explicit arguments always win.
+    if mix_profile == "auto":
+        path_hint = f"{Path(voice_path).name} {Path(music_path).name}".lower()
+        music_name = Path(music_path).name.lower()
+        if "jolt_1" in music_name or music_name.startswith("1. "):
+            resolved_profile = "jolt1"
+        elif "jolt" in path_hint:
+            resolved_profile = "jolt"
+        elif "primer" in path_hint:
+            resolved_profile = "primer"
+        else:
+            resolved_profile = "default"
+    else:
+        resolved_profile = mix_profile
+
+    if music_premix_gain_db is None:
+        if resolved_profile == "jolt1":
+            music_premix_gain_db = JOLT1_MUSIC_GAIN_DB
+        elif resolved_profile == "jolt":
+            music_premix_gain_db = JOLT_MUSIC_GAIN_DB
+        else:
+            music_premix_gain_db = DEFAULT_MUSIC_GAIN_DB
+
+    if music_fadeout_ms is None:
+        music_fadeout_ms = (
+            PRIMER_MUSIC_FADEOUT_MS
+            if resolved_profile == "primer"
+            else None
+        )
 
     # Private scratch directory for this mix; removed in the finally block
     # strictly AFTER the final mp3 has been written to the output path.
@@ -565,7 +657,7 @@ def mix(
             except Exception:
                 pass
 
-        voice = _normalize_lufs(voice, -15.0)
+        voice = _normalize_lufs(voice, voice_target_lufs)
         if len(voice) <= 0:
             raise ValueError("Voice stem is empty or unreadable.")
 
@@ -604,6 +696,29 @@ def mix(
                 voice = AudioSegment.from_file(tmp_veq_out).set_frame_rate(44100).set_channels(2)
             except Exception:
                 pass
+
+        if resolved_profile == "jolt1":
+            # Keep the narration dry and centered, then add presence and air.
+            # This creates a close, whispered-in-the-ear character without
+            # reverb or stereo tricks that would weaken intelligibility.
+            close_voice_filters: list[str] = []
+            if _ffmpeg_has(ffmpeg_path, "equalizer"):
+                close_voice_filters.append(
+                    "equalizer=f=3000:t=q:w=1:g=2.5"
+                )
+            if _ffmpeg_has(ffmpeg_path, "highshelf"):
+                close_voice_filters.append("highshelf=f=7500:g=1.5")
+            if close_voice_filters:
+                voice = _apply_ffmpeg_filter(
+                    voice,
+                    ",".join(close_voice_filters),
+                    ffmpeg_path,
+                )
+
+        # Compression and EQ can change loudness differently for different
+        # recordings. Normalize once more after all voice processing so primer
+        # and jolt hand off at the same measured voice level.
+        voice = _normalize_lufs(voice, voice_target_lufs)
 
         if stems_dir is not None:
             voice.export(str(Path(stems_dir) / "stem_voice.mp3"), format="mp3", bitrate="256k")
@@ -644,25 +759,86 @@ def mix(
         voice_exact = _hard_fit_samples(voice_exact, target_samples_per_ch)
         music_exact = _hard_fit_samples(music_exact, target_samples_per_ch)
 
+        if resolved_profile == "jolt1":
+            # Make the jolt immersive without crowding the narration: weight
+            # the sub/bass region, slightly clear low-mid mud, and widen only
+            # the music's side information. Re-normalizing afterward means the
+            # bass change affects tone rather than causing an uncontrolled jump.
+            jolt_music_filters: list[str] = []
+            if _ffmpeg_has(ffmpeg_path, "bass"):
+                jolt_music_filters.append(
+                    f"bass=f=105:t=q:w=0.7:g={JOLT1_MUSIC_BASS_DB}"
+                )
+            if _ffmpeg_has(ffmpeg_path, "equalizer"):
+                jolt_music_filters.append(
+                    "equalizer=f=280:t=q:w=1:g=-1"
+                )
+            if _ffmpeg_has(ffmpeg_path, "stereotools"):
+                jolt_music_filters.append("stereotools=mlev=0.98:slev=1.18")
+            if jolt_music_filters:
+                music_exact = _apply_ffmpeg_filter(
+                    music_exact,
+                    ",".join(jolt_music_filters),
+                    ffmpeg_path,
+                )
+                music_exact = _normalize_lufs(
+                    music_exact,
+                    JOLT1_MUSIC_TARGET_LUFS,
+                )
+
+            # Let the first sentence land on its own. The music then emerges
+            # gradually, while the speech timing remains completely unchanged.
+            music_exact = music_exact.fade_in(JOLT1_MUSIC_FADEIN_MS)
+            # Build real zero-valued PCM rather than relying on gain or shifted
+            # timestamps; later normalization can never reveal music here.
+            delayed_music = music_exact._spawn(
+                bytes(len(music_exact.raw_data))
+            )
+            music_exact = delayed_music.overlay(
+                music_exact,
+                position=JOLT1_MUSIC_DELAY_MS,
+            )
+            music_exact = _hard_fit_samples(
+                music_exact,
+                target_samples_per_ch,
+            )
+
         music_exact = music_exact.apply_gain(music_premix_gain_db)
 
-        music_adapt = _duck_music_to_voice(
-            music_exact,
-            voice_exact,
-            floor_boost_db=duck_floor_db,
-            max_duck_db=duck_max_db,
-            attack_ms=30,
-            release_ms=1500,
-            win_ms=30,
-            lookahead_ms=150,
-            gap_hold_ms=1500,
-        )
+        # Transparent balance: keep the music at one fixed level for the whole
+        # mix. No voice detector, side-chain, automation, or ducking is applied.
+        music_adapt = music_exact
 
-        # Fade-out on music only (voice stays at full volume until the last word)
-        tail_ms = min(700, max(300, target_ms // 25))
+        # Fade-out is applied to the music stem before overlay, so the voice
+        # remains untouched and fully audible through its final word.
+        tail_ms = (
+            music_fadeout_ms
+            if music_fadeout_ms is not None
+            else min(700, max(300, target_ms // 25))
+        )
+        tail_ms = min(max(0, int(tail_ms)), target_ms)
         music_adapt = music_adapt.fade_out(tail_ms)
 
         final_mix = music_adapt.overlay(voice_exact)
+
+        # Keep real audio through the final voice sample, then append silence.
+        # Padding before MP3 encoding prevents the encoder/end trim from eating
+        # the last word. Neither the voice nor its final syllable is faded.
+        post_voice_tail_ms = max(0, int(post_voice_tail_ms))
+        if post_voice_tail_ms:
+            post_tail = (
+                AudioSegment.silent(
+                    duration=post_voice_tail_ms,
+                    frame_rate=music.frame_rate,
+                )
+                .set_channels(ch)
+                .set_sample_width(sw)
+            )
+            final_mix = final_mix + post_tail
+            target_samples_per_ch += len(post_tail.raw_data) // frame_bytes
+            target_ms = int(
+                round(1000 * target_samples_per_ch / music.frame_rate)
+            )
 
         final_mix = _apply_peak_guard(final_mix, ceiling_dbfs=final_peak_dbfs)
         final_mix = _hard_fit_samples(final_mix, target_samples_per_ch)
