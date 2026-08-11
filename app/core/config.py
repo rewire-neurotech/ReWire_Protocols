@@ -338,6 +338,27 @@ class Config:
     # match the chart Felix drew (its x scale is fixed at 0..30).
     ADMIN_RETENTION_DAYS: tuple = (0, 1, 3, 7, 14, 21, 30)
 
+    # --- dev login (INTERNAL TESTING ONLY) --------------------------------- #
+    # A username/password that signs straight into the console without an
+    # account, for internal testing before there are real team accounts.
+    #
+    # OFF unless ADMIN_DEV_LOGIN is explicitly set to true. Unset, the code path
+    # does not exist -- the endpoint refuses before looking at any credential.
+    # This is deliberate: /admin is a public URL, and what sits behind it is
+    # every user's private charge text plus verbatim writing from people in
+    # crisis. A weak credential is a reasonable trade for a few days of internal
+    # testing; one that survives into production by accident is not.
+    #
+    # To retire it: delete ADMIN_DEV_LOGIN from the environment. Nothing else
+    # changes -- normal email/password sign-in for accounts in ADMIN_EMAILS
+    # keeps working either way, and both paths run through the same JWT.
+    ADMIN_DEV_LOGIN: bool = os.getenv("ADMIN_DEV_LOGIN", "").lower() in ("true", "1", "yes")
+    ADMIN_DEV_USER: str = os.getenv("ADMIN_DEV_USER", "admin")
+    ADMIN_DEV_PASS: str = os.getenv("ADMIN_DEV_PASS", "admin")
+    # The account rows created by the dev login are tagged with this address so
+    # they are obvious in the users table and in audit_logs.
+    ADMIN_DEV_EMAIL: str = os.getenv("ADMIN_DEV_EMAIL", "admin@console.local")
+
     # --- privacy switches -------------------------------------------------- #
     # Emails are masked server-side (j***23@gmail.com), never sent whole to the
     # browser. Set false only with a deliberate reason.
