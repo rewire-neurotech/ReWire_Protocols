@@ -13,13 +13,14 @@ from app.core.config import cfg
 
 try:
     from app.db import engine, SessionLocal, get_db
-    from app.models import Base, PromoCode, PushSubscription
+    from app.models import Base, PromoCode, PushSubscription, User
 except Exception:
     engine = None
     Base = None
     SessionLocal = None
     PromoCode = None
     PushSubscription = None
+    User = None
     get_db = None
 
 
@@ -35,6 +36,50 @@ def _seed_promos():
         db.commit()
     except Exception as e:
         print(f"[startup] promo seed error: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+
+def _promote_admins():
+    """ADMIN CONSOLE: grant is_admin to every account listed in ADMIN_EMAILS.
+
+    This is how the first admin comes to exist at all: there is no shell on
+    Render and no UI for setting the flag, so it is driven by an env var.
+    routes/auth.py runs the same check at sign-in, which covers an account
+    created after this process booted.
+
+    Only ever GRANTS. Removing an email from ADMIN_EMAILS does not revoke the
+    flag, so a decision made deliberately in the database is never undone by an
+    env var somebody forgot to update. Revoke by setting is_admin = false
+    directly.
+
+    MUST run after the ALTER TABLE migrations below, because querying User
+    selects every column on the model -- including last_active_at, which does
+    not exist until that migration has run.
+    """
+    if SessionLocal is None or User is None:
+        return
+    emails = cfg.admin_emails
+    if not emails:
+        return
+    db = SessionLocal()
+    try:
+        promoted = 0
+        for e in emails:
+            u = db.query(User).filter(User.email == e).first()
+            if u is None:
+                print(f"[startup] ADMIN_EMAILS: no account yet for {e} "
+                      f"(will be promoted when it signs in)")
+                continue
+            if not u.is_admin:
+                u.is_admin = True
+                promoted += 1
+        if promoted:
+            db.commit()
+            print(f"[startup] promoted {promoted} admin account(s) from ADMIN_EMAILS")
+    except Exception as e:
+        print(f"[startup] admin promotion error: {e}")
         db.rollback()
     finally:
         db.close()
@@ -129,6 +174,37 @@ if Base is not None and engine is not None:
                 print("[migrate] added chills column to journal_entries")
         except Exception:
             pass  # column already exists
+
+        # ------------------------------------------------------------------ #
+        # ADMIN CONSOLE MIGRATION
+        # ------------------------------------------------------------------ #
+        # migrate: add last_active_at to users
+        #
+        # THIS ONE IS NOT OPTIONAL. Every other migration above adds a column
+        # that only one feature reads, so a database missing it merely loses
+        # that feature. last_active_at is different: it is declared on the User
+        # model, so SQLAlchemy puts it in EVERY select and insert against
+        # `users`. On a database where this ALTER has not run, login,
+        # registration and every authenticated request fail outright.
+        #
+        # create_all() cannot do this -- it only creates missing TABLES, never
+        # adds columns to existing ones. TIMESTAMP is accepted by both Postgres
+        # and SQLite. Wrapped like its neighbours so a redeploy against an
+        # already-migrated database is a silent no-op.
+        try:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE users ADD COLUMN last_active_at TIMESTAMP"
+                ))
+                conn.commit()
+                print("[migrate] added last_active_at column to users")
+        except Exception:
+            pass  # column already exists
+
+        # Runs LAST, after the migration above: querying User selects every
+        # column on the model, so promotion would fail on a database that has
+        # not been migrated yet.
+        _promote_admins()
     except Exception as e:
         print(f"[startup] db error: {e}")
 
@@ -160,6 +236,20 @@ app.include_router(protocols_r)
 from app.routes.protocol_jolt import r as protocol_jolt_r
 app.include_router(protocol_jolt_r)
 
+# --- admin console router (Phase 2) ---
+# Guarded on purpose, matching the defensive import style at the top of this
+# file. Phase 1 (data capture) can deploy before app/routes/admin.py exists:
+# the app boots normally and simply has no /api/admin/* endpoints. Once that
+# file lands, this picks it up with no further change here.
+try:
+    from app.routes.admin import r as admin_r
+    app.include_router(admin_r)
+    print("[startup] admin console router mounted")
+except ImportError:
+    print("[startup] admin console router not present yet (Phase 2 pending)")
+except Exception as e:
+    print(f"[startup] admin router failed to mount: {e}")
+
 # Recover any jolts orphaned by the previous shutdown (restart, deploy,
 # OOM, /tmp-limit kill): mark stuck rows as error so clients fail fast
 # instead of polling a dead jolt, and sweep leftover scratch directories.
@@ -179,7 +269,7 @@ except Exception as e:
 
 
 _SW_JS = """
-var CACHE_NAME = 'rewire-v5-v1';
+var CACHE_NAME = 'rewire-v5-v2';
 var APP_SHELL = ['/', '/assets/logo.png'];
 
 self.addEventListener('install', function(e) {
@@ -206,6 +296,10 @@ self.addEventListener('fetch', function(e) {
   if (e.request.method !== 'GET') return;
   var url = new URL(e.request.url);
   if (url.pathname.startsWith('/api/') || url.pathname === '/sw.js' || url.pathname === '/manifest.json') return;
+  /* Never cache the internal console. It is a separate document from the PWA
+     shell, it is only ever opened on a desktop browser, and a cached copy would
+     keep serving stale HTML after a deploy. */
+  if (url.pathname === '/admin' || url.pathname.startsWith('/admin/')) return;
   e.respondWith(
     fetch(e.request).then(function(resp) {
       if (resp.ok) {
@@ -386,9 +480,32 @@ def push_unsubscribe(req: PushSubReq, db: Session = Depends(get_db), user=Depend
 
 
 FRONTEND = Path(__file__).resolve().parent.parent / "frontend" / "index.html"
+ADMIN_FRONTEND = Path(__file__).resolve().parent.parent / "frontend" / "admin.html"
 
 @app.get("/")
 def serve_frontend():
     if FRONTEND.exists():
         return FileResponse(str(FRONTEND), media_type="text/html")
     return {"error": "frontend not found"}
+
+
+@app.get("/admin")
+def serve_admin():
+    """The internal ops console.
+
+    Static HTML only -- it holds no secrets and gates nothing by itself. Access
+    control lives entirely on the /api/admin/* endpoints, which require a valid
+    JWT belonging to an account with is_admin set. Serving the shell to an
+    anonymous browser reveals nothing: every panel is empty until an admin
+    signs in, exactly like the app's own index.html.
+
+    no-store because this is a desktop page behind a login, never a PWA shell,
+    and a cached copy after a deploy is worse than a round trip.
+    """
+    if ADMIN_FRONTEND.exists():
+        return FileResponse(
+            str(ADMIN_FRONTEND),
+            media_type="text/html",
+            headers={"Cache-Control": "no-store"},
+        )
+    return {"error": "admin console not found"}
