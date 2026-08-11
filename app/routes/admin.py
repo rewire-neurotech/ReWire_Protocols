@@ -47,7 +47,7 @@ from app.models import (
     User, Protocol, ProtocolDay, ProtocolJolt, JournalEntry,
     Entitlement, Payment, UserActivity, SafetyEvent, SafetyReview, AuditLog,
 )
-from app.routes.auth import get_current_admin_required
+from app.routes.auth import get_current_admin_required, check_pw, make_token
 from app.utils.encryption import decrypt_field
 
 r = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -280,6 +280,85 @@ class ReviewReq(BaseModel):
 
 class Ok(BaseModel):
     status: str
+
+
+# --------------------------------------------------------------------------- #
+# Login
+# --------------------------------------------------------------------------- #
+
+class LoginReq(BaseModel):
+    identifier: str = ""      # email, or the dev username
+    password: str = ""
+
+
+class LoginResp(BaseModel):
+    token: str
+    email: str
+    mode: str                 # "account" | "dev"
+
+
+@r.post("/login", response_model=LoginResp)
+def admin_login(req: LoginReq, db: Session = Depends(get_db)):
+    """Sign in to the console.
+
+    Two ways in, both ending at the same place: a normal JWT for an account
+    with is_admin set. Every /api/admin/* route checks that flag independently,
+    so neither path is a bypass of the actual authorisation.
+
+    1) ACCOUNT  -- the email and password the person already uses for the app.
+       The account must be listed in ADMIN_EMAILS (or have is_admin set
+       directly). This is the path that should exist in production.
+
+    2) DEV      -- a fixed username/password, no account needed. Exists ONLY
+       when ADMIN_DEV_LOGIN is explicitly true; otherwise this branch is never
+       reached and the credential is meaningless. On first use it creates a
+       marked, password-less account (ADMIN_DEV_EMAIL) so that reviews and
+       audit rows still have a real user to attribute to, rather than the
+       console having a second identity system of its own.
+
+       Retiring it is removing one environment variable. The account it made
+       can then be deleted, and every safety review it recorded survives with
+       its reviewer_email intact.
+    """
+    ident = (req.identifier or "").strip()
+    pw = req.password or ""
+    if not ident or not pw:
+        raise HTTPException(400, "Enter a username and password")
+
+    # ---- 2) dev login ------------------------------------------------- #
+    if cfg.ADMIN_DEV_LOGIN and ident.lower() == (cfg.ADMIN_DEV_USER or "").strip().lower():
+        if pw != cfg.ADMIN_DEV_PASS:
+            raise HTTPException(401, "Wrong username or password")
+        u = db.query(User).filter(User.email == cfg.ADMIN_DEV_EMAIL).first()
+        if not u:
+            u = User(
+                email=cfg.ADMIN_DEV_EMAIL,
+                auth_provider="local",
+                first_name="Console",
+                last_name="(dev login)",
+                is_admin=True,
+                onboarding_complete=True,
+            )
+            db.add(u)
+            db.commit()
+            db.refresh(u)
+            print(f"[admin] created dev-login account {cfg.ADMIN_DEV_EMAIL}")
+        elif not u.is_admin:
+            u.is_admin = True
+            db.commit()
+        print("[admin] dev login used (ADMIN_DEV_LOGIN is on)")
+        return LoginResp(token=make_token(u.id, u.email), email=u.email, mode="dev")
+
+    # ---- 1) normal account -------------------------------------------- #
+    u = db.query(User).filter(User.email == ident.lower()).first()
+    if not u or not u.password_hash or not check_pw(pw, u.password_hash):
+        raise HTTPException(401, "Wrong username or password")
+    if not u.is_admin and cfg.is_admin_email(u.email):
+        u.is_admin = True
+        db.commit()
+    if not u.is_admin:
+        raise HTTPException(403, "This account does not have admin access")
+    return LoginResp(token=make_token(u.id, u.email), email=u.email, mode="account")
 
 
 # --------------------------------------------------------------------------- #
