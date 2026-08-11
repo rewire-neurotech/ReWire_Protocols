@@ -32,6 +32,11 @@ services:
       #   ADMIN_EMAILS=felix@rewire.bio,ashwin@rewire.bio
       - key: ADMIN_EMAILS
         sync: false
+      # INTERNAL TESTING ONLY: set to "true" to enable the admin/admin console
+      # login. Leave unset (or remove) for production -- unset, the code path
+      # does not exist. Optional overrides: ADMIN_DEV_USER, ADMIN_DEV_PASS.
+      - key: ADMIN_DEV_LOGIN
+        sync: false
       - key: OUT_DIR
         value: /data/audio
       - key: PUBLIC_BASE_URL
