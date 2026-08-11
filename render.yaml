@@ -23,6 +23,15 @@ services:
         value: /usr/bin/ffprobe
       - key: ALLOWED_ORIGINS
         value: "*"
+      # ADMIN CONSOLE: comma-separated emails promoted to is_admin on boot.
+      # sync:false keeps the actual value in the Render dashboard rather than
+      # in the repo, matching how every other credential here is handled.
+      # Accounts must already exist; this only ever grants the flag, never
+      # revokes it. Leaving it unset is safe -- the app runs normally and simply
+      # has no admins.
+      #   ADMIN_EMAILS=felix@rewire.bio,ashwin@rewire.bio
+      - key: ADMIN_EMAILS
+        sync: false
       - key: OUT_DIR
         value: /data/audio
       - key: PUBLIC_BASE_URL
