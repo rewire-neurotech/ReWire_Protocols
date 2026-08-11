@@ -288,5 +288,151 @@ class Config:
     S3_REGION: str = os.getenv("S3_REGION", "auto")
     SIGNED_URL_TTL_SEC: int = int(os.getenv("SIGNED_URL_TTL_SEC", "3600"))
 
+    # ------------------------------------------------------------------ #
+    # ADMIN CONSOLE
+    # ------------------------------------------------------------------ #
+    # Everything below exists only to serve the internal ops console at
+    # /admin. None of it changes app behaviour for a normal user.
+
+    # Bootstrap: comma-separated emails promoted to is_admin=True at startup
+    # (see main.py). This is how the first admin exists at all, since there is
+    # no shell on Render and no UI for granting the flag. Matching is
+    # case-insensitive and whitespace-tolerant. Accounts must already exist;
+    # this never creates one.
+    #   ADMIN_EMAILS="felix@rewire.bio,ashwin@rewire.bio"
+    ADMIN_EMAILS_RAW: str = os.getenv("ADMIN_EMAILS", "")
+
+    @property
+    def admin_emails(self) -> list:
+        return [
+            e.strip().lower()
+            for e in (self.ADMIN_EMAILS_RAW or "").split(",")
+            if e.strip()
+        ]
+
+    def is_admin_email(self, email: str) -> bool:
+        return bool(email) and email.strip().lower() in self.admin_emails
+
+    # How long a single process waits before writing another activity row for
+    # the same user. UserActivity is unique per (user, UTC date), so a duplicate
+    # write is harmless -- this is purely to avoid a pointless DB round trip on
+    # every single request. In-memory per worker, so with 2 uvicorn workers the
+    # real ceiling is 2 writes per user per window. Still nothing.
+    ACTIVITY_TOUCH_TTL_SEC: int = int(os.getenv("ACTIVITY_TOUCH_TTL_SEC", "900"))
+
+    # A protocol that is neither complete nor touched within this many days is
+    # shown as "stalled" in the console. Purely a display concept: the backend
+    # itself only knows active | complete, and this never writes to the DB.
+    PROTOCOL_STALLED_DAYS: int = int(os.getenv("PROTOCOL_STALLED_DAYS", "5"))
+
+    # Time windows the console's 7d / 30d / 90d segment may request. Anything
+    # else is clamped to ADMIN_DEFAULT_RANGE_DAYS, so a hand-edited query string
+    # cannot ask the database for an unbounded scan.
+    ADMIN_RANGE_DAYS_ALLOWED: tuple = (7, 30, 90)
+    ADMIN_DEFAULT_RANGE_DAYS: int = 30
+
+    # Hard ceiling on rows returned by the People table and the safety queue.
+    ADMIN_MAX_ROWS: int = int(os.getenv("ADMIN_MAX_ROWS", "500"))
+
+    # The retention curve's x-axis, in days since signup. Must stay <= 30 to
+    # match the chart Felix drew (its x scale is fixed at 0..30).
+    ADMIN_RETENTION_DAYS: tuple = (0, 1, 3, 7, 14, 21, 30)
+
+    # --- privacy switches -------------------------------------------------- #
+    # Emails are masked server-side (j***23@gmail.com), never sent whole to the
+    # browser. Set false only with a deliberate reason.
+    ADMIN_MASK_EMAILS: bool = os.getenv("ADMIN_MASK_EMAILS", "true").lower() not in ("false", "0", "no")
+
+    # Whether the People detail panel may decrypt and show Protocol.charge --
+    # the rawest thing a user writes. Agreed policy is: show it, and log every
+    # single read to the audit_logs table (Option A). Flipping this to false
+    # hides charges without any other change.
+    ADMIN_SHOW_CHARGE: bool = os.getenv("ADMIN_SHOW_CHARGE", "true").lower() not in ("false", "0", "no")
+
+    # Write an AuditLog row every time an admin opens a person's detail panel.
+    # This is the accountability half of the decision above; it should not be
+    # turned off while ADMIN_SHOW_CHARGE is on.
+    ADMIN_AUDIT_READS: bool = os.getenv("ADMIN_AUDIT_READS", "true").lower() not in ("false", "0", "no")
+
+    # ------------------------------------------------------------------ #
+    # SAFETY SEVERITY (derived, not model-reported)
+    # ------------------------------------------------------------------ #
+    # The console shows an S2 / S3 / S4 pill on each flagged case. The input
+    # screen does NOT emit a severity, and we are deliberately not changing its
+    # prompt to add one: the ST1 benchmark (3,248 rows) is frozen against the
+    # prompt currently running, and editing it would mean those numbers no
+    # longer describe production. The same reasoning is why no confidence score
+    # is shown -- rather than invent one.
+    #
+    # So severity is a lookup on what the screen DOES tell us: verdict first,
+    # then category. When ST3 lands it produces a calibrated score by design,
+    # and severity_for() gets replaced by a real model output without the
+    # console changing at all.
+    #
+    #   S4  the person themselves may be in danger        -> every crisis verdict
+    #   S3  serious harm, not a personal crisis           -> self-harm-adjacent
+    #                                                        blocks, and anything
+    #                                                        the generation layers
+    #                                                        (L2/L3) had to stop
+    #   S2  everything else worth a second pair of eyes
+    #
+    # Note S4 covers all crisis verdicts rather than only "explicit intent":
+    # the screen cannot distinguish stated-plan from no-plan, and quietly
+    # downgrading half of them on a guess is the wrong direction to be wrong in.
+    SEVERITY_S3_BLOCK_CATEGORIES: tuple = (
+        "self_harm",
+        "harm_to_others",
+        "disordered_eating",
+        "self_punishment",
+    )
+
+    # Ordering used for the "Most serious" KPI. Higher wins.
+    SEVERITY_ORDER: dict = {"S2": 2, "S3": 3, "S4": 4}
+
+    def severity_for(self, verdict: str, category: str = "") -> str:
+        """Map a screen verdict + category onto the console's S2/S3/S4 pill.
+
+        verdict  : clarify | block | crisis        (L1, input screen)
+                   unsafe                          (L2, REWIRE_UNSAFE token)
+                   fail                            (L3, output screen)
+        category : the screen's own category, or "" when it did not give one.
+
+        Never raises and never returns None -- an unrecognised verdict falls to
+        S2 so an unexpected value still shows up in the queue rather than
+        vanishing from it.
+        """
+        v = (verdict or "").strip().lower()
+        c = (category or "").strip().lower()
+
+        if v == "crisis":
+            return "S4"
+        if v == "block":
+            return "S3" if c in self.SEVERITY_S3_BLOCK_CATEGORIES else "S2"
+        if v in ("unsafe", "fail"):
+            # The input screen let this through and a later layer caught it.
+            # Worth a look regardless of category.
+            return "S3"
+        if v == "clarify":
+            return "S2"
+        return "S2"
+
+    # Plain-English description of what the app already did, shown on each
+    # queue card under "App already did:". Keyed by verdict. These must stay
+    # factually true against the routes -- see routes/protocols.py and
+    # routes/protocol_jolt.py for the behaviour each one describes.
+    AUTO_ACTION_TEXT: dict = {
+        "crisis":  "Generation blocked. Crisis resources shown instead.",
+        "block":   "Generation blocked. Asked them to choose a different goal.",
+        "clarify": "Generation paused. Asked them to restate the goal.",
+        "unsafe":  "Speech generation refused by the safety prompt. Nothing was voiced.",
+        "fail":    "Generated speech failed the output screen after retries. Nothing was voiced.",
+    }
+
+    def auto_action_for(self, verdict: str) -> str:
+        return self.AUTO_ACTION_TEXT.get(
+            (verdict or "").strip().lower(),
+            "Generation stopped.",
+        )
+
 
 cfg = Config()
