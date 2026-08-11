@@ -502,11 +502,11 @@ def jolt_speech(
         raise HTTPException(400, "day must be 1-5")
 
     plan = {"days": [
-        {"day": 1, "action": "Take the first step today — no matter how small."},
-        {"day": 2, "action": "Build on yesterday's momentum."},
-        {"day": 3, "action": "Push through the middle."},
-        {"day": 4, "action": "Find your proof — look at what you've done."},
-        {"day": 5, "action": "Lock it in. This is who you are now."},
+        {"day": 1, "action": "Take the first step today — no matter how small.", "brief": "Begin. The hardest part is starting."},
+        {"day": 2, "action": "Build on yesterday's momentum.", "brief": "You proved you can do it. Now do it again."},
+        {"day": 3, "action": "Push through the middle.", "brief": "The middle is where most people quit. Not you."},
+        {"day": 4, "action": "Find your proof — look at what you've done.", "brief": "Three days in. The evidence is building."},
+        {"day": 5, "action": "Lock it in. This is who you are now.", "brief": "This is no longer a goal. It is who you are."},
     ]}
     track = cfg.get_protocol_track("activate", day)
 
