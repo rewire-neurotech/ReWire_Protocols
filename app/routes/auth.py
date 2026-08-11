@@ -1,3 +1,5 @@
+import threading
+import time
 from datetime import datetime, timedelta, timezone, date
 from typing import Optional
 
@@ -14,6 +16,7 @@ from app.models import (
     User, Subscription, Goal, Challenge, Tip, Jolt, Reflection,
     PushSubscription, AuditLog,
     Protocol, ProtocolDay, ProtocolJolt, JournalEntry, Entitlement,
+    UserActivity, SafetyEvent, SafetyReview, Payment,
 )
 
 r = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -52,6 +55,81 @@ def _as_aware_utc(dt):
     return dt.astimezone(timezone.utc)
 
 
+# --------------------------------------------------------------------------- #
+# ADMIN CONSOLE: activity touch
+# --------------------------------------------------------------------------- #
+# The app records what people CREATE (a protocol, a journal entry, a tick) but
+# nothing about them simply OPENING it. That makes two console numbers
+# unanswerable: the retention curve ("of everyone who signed up, what share came
+# back on day N") and the People table's "Last seen" column.
+#
+# This fixes both with one write. Every authenticated request marks the user
+# present for today, at most once per ACTIVITY_TOUCH_TTL_SEC per worker process.
+#
+# Two things make it safe to sit in the hot path of every request:
+#   1. The in-memory throttle means the DB is touched roughly once per user per
+#      15 minutes per worker, not once per request.
+#   2. Everything is wrapped and rolled back on failure. If the write fails for
+#      ANY reason -- most importantly, if users.last_active_at does not exist yet
+#      because the migration in main.py has not run -- the request continues
+#      exactly as before. Telemetry must never be able to take the app down.
+
+_activity_seen: dict = {}
+_activity_lock = threading.Lock()
+
+
+def _touch_activity(u: User, db: Session) -> None:
+    """Mark a user present today. Throttled, best-effort, never raises."""
+    try:
+        now_mono = time.monotonic()
+        with _activity_lock:
+            last = _activity_seen.get(u.id)
+            if last is not None and (now_mono - last) < cfg.ACTIVITY_TOUCH_TTL_SEC:
+                return
+            _activity_seen[u.id] = now_mono
+
+        now_utc = datetime.now(timezone.utc)
+        today = now_utc.date()
+
+        exists = (db.query(UserActivity.id)
+                  .filter(UserActivity.user_id == u.id,
+                          UserActivity.activity_date == today)
+                  .first())
+        if not exists:
+            db.add(UserActivity(user_id=u.id, activity_date=today))
+        u.last_active_at = now_utc
+        db.commit()
+    except Exception as e:
+        # Includes the harmless duplicate-day race between two workers, which
+        # the unique constraint rejects by design.
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        print(f"[activity] touch skipped for user {getattr(u, 'id', '?')}: {e}")
+
+
+def _sync_admin_flag(u: User, db: Session) -> None:
+    """Promote an account listed in ADMIN_EMAILS at sign-in time.
+
+    main.py does the same sweep at startup; this covers the account that is
+    added to ADMIN_EMAILS, or created, after the process is already running.
+    Only ever grants -- never revokes, so a flag set deliberately in the
+    database is not undone by an env var someone forgot to update.
+    """
+    try:
+        if not u.is_admin and cfg.is_admin_email(u.email):
+            u.is_admin = True
+            db.commit()
+            print(f"[admin] promoted {u.email} from ADMIN_EMAILS")
+    except Exception as e:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        print(f"[admin] promote failed for {getattr(u, 'email', '?')}: {e}")
+
+
 def get_current_user_optional(
     creds: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
     db: Session = Depends(get_db),
@@ -79,6 +157,26 @@ def get_current_user_required(
     u = db.query(User).filter(User.id == int(uid)).first()
     if not u:
         raise HTTPException(401, "user not found")
+    _touch_activity(u, db)
+    return u
+
+
+def get_current_admin_required(
+    u: User = Depends(get_current_user_required),
+) -> User:
+    """Dependency for every /api/admin/* route.
+
+    Deliberately a thin wrapper over the normal user dependency: the console
+    signs in through the same /api/auth/login the app uses, with the same JWT,
+    and the only extra requirement is the is_admin flag. No second credential
+    system, no separate session store, nothing new to leak.
+
+    403 rather than 404: the console needs to tell "your token expired" (401)
+    apart from "this account is not an admin" (403) so it can show the right
+    message instead of a dead screen.
+    """
+    if not u.is_admin:
+        raise HTTPException(403, "admin access required")
     return u
 
 
@@ -133,6 +231,7 @@ class AuthResp(BaseModel):
     onboarding_complete: bool = False
     disclaimer_accepted: bool = False
     has_subscription: bool = False
+    is_admin: bool = False          # admin console gate; always false for app users
 
 class UserResp(BaseModel):
     user_id: int
@@ -143,18 +242,24 @@ class UserResp(BaseModel):
     onboarding_complete: bool = False
     disclaimer_accepted: bool = False
     has_subscription: bool = False
+    is_admin: bool = False          # admin console gate; always false for app users
 
 class StatusResp(BaseModel):
     status: str
 
 
 def _auth_resp(u, token, db):
+    # Runs on every sign-in path (local, register, Google), so an account listed
+    # in ADMIN_EMAILS gets its flag the first time it signs in, without waiting
+    # for a redeploy.
+    _sync_admin_flag(u, db)
     return AuthResp(
         token=token, user_id=u.id, email=u.email,
         first_name=u.first_name or "", last_name=u.last_name or "",
         onboarding_complete=u.onboarding_complete,
         disclaimer_accepted=u.disclaimer_accepted_at is not None,
         has_subscription=_has_active_sub(u.id, db),
+        is_admin=bool(u.is_admin),
     )
 
 
@@ -365,6 +470,7 @@ def get_me(u: User = Depends(get_current_user_required), db: Session = Depends(g
         onboarding_complete=u.onboarding_complete,
         disclaimer_accepted=u.disclaimer_accepted_at is not None,
         has_subscription=_has_active_sub(u.id, db),
+        is_admin=bool(u.is_admin),
     )
 
 
@@ -406,8 +512,47 @@ def delete_account(u: User = Depends(get_current_user_required),
     db.query(PushSubscription).filter(PushSubscription.user_id == uid).delete(synchronize_session=False)
     db.query(AuditLog).filter(AuditLog.user_id == uid).delete(synchronize_session=False)
 
+    # --- admin-console data ---------------------------------------------- #
+    # These tables reference users.id, so they MUST be cleared or anonymised
+    # before db.delete(u) or Postgres rejects the delete on a foreign key and
+    # account deletion starts returning 500. Each is handled differently on
+    # purpose:
+
+    # Pure behavioural telemetry, worthless once the account is gone: delete.
+    db.query(UserActivity).filter(UserActivity.user_id == uid).delete(synchronize_session=False)
+
+    # Safety flags: ANONYMISE, do not delete. The verbatim text they wrote is
+    # personal data and goes (said = NULL), but the row itself -- verdict,
+    # category, severity, timestamp -- is the record of how the screen behaved,
+    # and it is the denominator of "was the screen right?" in the console.
+    # Deleting it would silently rewrite the safety statistics every time
+    # somebody closes their account.
+    db.query(SafetyEvent).filter(SafetyEvent.user_id == uid).update(
+        {"user_id": None, "said": None}, synchronize_session=False
+    )
+
+    # If this account ever reviewed a flag in the console, keep the decision and
+    # drop the reviewer identity.
+    db.query(SafetyReview).filter(SafetyReview.reviewer_user_id == uid).update(
+        {"reviewer_user_id": None, "reviewer_email": None}, synchronize_session=False
+    )
+
+    # Money actually collected: ANONYMISE, do not delete. A closed account must
+    # not retroactively erase revenue -- the chart would simply drop, with no
+    # way to tell it apart from churn. The Stripe ids stay for reconciliation.
+    db.query(Payment).filter(Payment.user_id == uid).update(
+        {"user_id": None}, synchronize_session=False
+    )
+
     # Delete the user
     db.delete(u)
     db.commit()
+
+    # Drop the throttle entry so a recycled id cannot inherit a stale timestamp.
+    try:
+        with _activity_lock:
+            _activity_seen.pop(uid, None)
+    except Exception:
+        pass
 
     return StatusResp(status="ok")
