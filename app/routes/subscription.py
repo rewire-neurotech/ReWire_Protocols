@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import cfg
 from app.db import get_db, SessionLocal
-from app.models import User, Entitlement, Protocol
+from app.models import User, Entitlement, Protocol, Payment
 from app.routes.auth import get_current_user_required
 
 r = APIRouter(prefix="/api/subscription", tags=["subscription"])
@@ -90,24 +90,102 @@ def _unlocked_protocol_ids(user_id, db) -> List[int]:
     return [e.protocol_id for e in rows if e.protocol_id]
 
 
-def _grant_protocol(db, user_id, protocol_id, session_id) -> str:
+def _record_payment(db, *, user_id, kind, amount_cents, currency="usd",
+                    entitlement_id=None, session_id=None, invoice_id=None,
+                    subscription_id=None) -> bool:
+    """ADMIN CONSOLE: write one row to the money ledger.
+
+    Entitlements answer "what does this person have access to". They cannot
+    answer "how much was collected, and when", for two reasons:
+      1. no amount is stored on them at all, and
+      2. a monthly RENEWAL creates no entitlement row -- the webhook only pushes
+         expires_at forward -- so months 2, 3, 4... leave no trace whatsoever.
+    Revenue inferred from entitlements therefore counts every subscriber exactly
+    once and then flattens, which on a chart is indistinguishable from churn.
+
+    This ledger fixes both. Revenue for any window is a single SUM over
+    created_at here.
+
+    Idempotent on session_id (checkout) or invoice_id (renewal), checked in code
+    to match how the _grant_* functions already guard themselves. Never raises:
+    a bookkeeping failure must not turn into a 500 on a webhook, because Stripe
+    answers a 500 by retrying the event forever.
+    """
+    try:
+        if amount_cents is None:
+            return False
+
+        q = db.query(Payment)
+        if invoice_id:
+            if q.filter(Payment.stripe_invoice_id == invoice_id).first():
+                return False
+        elif session_id:
+            if q.filter(Payment.stripe_session_id == session_id).first():
+                return False
+
+        db.add(Payment(
+            user_id=user_id,
+            kind=kind,
+            amount_cents=int(amount_cents),
+            currency=(currency or "usd").lower()[:10],
+            entitlement_id=entitlement_id,
+            stripe_session_id=session_id,
+            stripe_invoice_id=invoice_id,
+            stripe_subscription_id=subscription_id,
+        ))
+        db.commit()
+        print(f"[payments] recorded {kind} {amount_cents} {currency} for user {user_id}")
+        return True
+    except Exception as e:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        print(f"[payments] FAILED to record {kind} for user {user_id}: {e}")
+        return False
+
+
+def _fallback_cents(kind: str) -> int:
+    """Config price in cents, used only when Stripe gave us no amount.
+
+    Real amounts always come from Stripe (session.amount_total /
+    invoice.amount_paid) so the history stays correct if prices ever change.
+    This is the last resort -- and the DEV_MODE grant path, which never talks to
+    Stripe at all.
+    """
+    if kind == "protocol":
+        return int(cfg.PROTOCOL_PRICE_USD) * 100
+    return int(cfg.MONTHLY_PRICE_USD) * 100
+
+
+def _grant_protocol(db, user_id, protocol_id, session_id,
+                    amount_cents=None, currency="usd") -> str:
     """Idempotent on session_id. Unlocks one protocol forever."""
     existing = db.query(Entitlement).filter(Entitlement.stripe_session_id == session_id).first()
     if existing:
         return "exists"
-    db.add(Entitlement(
+    ent = Entitlement(
         user_id=user_id, kind="protocol", protocol_id=protocol_id,
         status="active", stripe_session_id=session_id,
-    ))
+    )
+    db.add(ent)
     p = db.query(Protocol).filter(Protocol.id == protocol_id, Protocol.user_id == user_id).first()
     if p:
         p.unlocked = True
     db.commit()
     print(f"[stripe] protocol {protocol_id} unlocked for user {user_id} (session {session_id})")
+    # ADMIN CONSOLE: ledger entry. Runs after the commit above so a bookkeeping
+    # failure can never roll back the unlock the customer just paid for.
+    _record_payment(
+        db, user_id=user_id, kind="protocol",
+        amount_cents=(amount_cents if amount_cents is not None else _fallback_cents("protocol")),
+        currency=currency, entitlement_id=ent.id, session_id=session_id,
+    )
     return "created"
 
 
-def _grant_monthly(db, user_id, session_id, subscription_id, expires_at) -> str:
+def _grant_monthly(db, user_id, session_id, subscription_id, expires_at,
+                   amount_cents=None, currency="usd") -> str:
     """Idempotent on session_id. Replaces any prior active monthly entitlement."""
     existing = db.query(Entitlement).filter(Entitlement.stripe_session_id == session_id).first()
     if existing:
@@ -119,13 +197,22 @@ def _grant_monthly(db, user_id, session_id, subscription_id, expires_at) -> str:
             .all())
     for o in olds:
         o.status = "replaced"
-    db.add(Entitlement(
+    ent = Entitlement(
         user_id=user_id, kind="monthly", status="active",
         stripe_session_id=session_id, stripe_subscription_id=subscription_id,
         expires_at=expires_at,
-    ))
+    )
+    db.add(ent)
     db.commit()
     print(f"[stripe] monthly membership active for user {user_id} (session {session_id})")
+    # ADMIN CONSOLE: ledger entry for the FIRST payment on this membership.
+    # Every subsequent one arrives as invoice.paid -- see the webhook below.
+    _record_payment(
+        db, user_id=user_id, kind="monthly",
+        amount_cents=(amount_cents if amount_cents is not None else _fallback_cents("monthly")),
+        currency=currency, entitlement_id=ent.id, session_id=session_id,
+        subscription_id=subscription_id,
+    )
     return "created"
 
 
@@ -228,6 +315,8 @@ def checkout(req: CheckoutReq, request: Request,
     if cfg.DEV_MODE:
         sid = f"dev_{kind}_{user.id}_{int(time.time())}"
         if kind == "protocol":
+            # No Stripe call in DEV_MODE, so the ledger falls back to the
+            # configured price.
             _grant_protocol(db, user.id, req.protocol_id, sid)
         else:
             _grant_monthly(db, user.id, sid, f"dev_sub_{user.id}",
@@ -321,18 +410,26 @@ def verify_session(req: VerifyReq, user: User = Depends(get_current_user_require
 
     kind = getattr(meta, "kind", "monthly") if meta else "monthly"
 
+    # Real amount actually charged, straight from Stripe -- never inferred from
+    # the current config price, so the ledger stays correct across price changes,
+    # promo codes and currency differences.
+    amt = getattr(session, "amount_total", None)
+    cur = getattr(session, "currency", None) or "usd"
+
     if kind == "protocol":
         if (getattr(session, "payment_status", "") or "") != "paid":
             return VerifyResp(status="pending", unlocked=False)
         pid = getattr(meta, "protocol_id", None)
-        _grant_protocol(db, user.id, int(pid) if pid else None, session_id)
+        _grant_protocol(db, user.id, int(pid) if pid else None, session_id,
+                        amount_cents=amt, currency=cur)
         return VerifyResp(status="ok", unlocked=True)
 
     # monthly
     sub_id = getattr(session, "subscription", None)
     if not sub_id:
         return VerifyResp(status="pending", unlocked=False)
-    _grant_monthly(db, user.id, session_id, str(sub_id), _sub_period_end(str(sub_id)))
+    _grant_monthly(db, user.id, session_id, str(sub_id), _sub_period_end(str(sub_id)),
+                   amount_cents=amt, currency=cur)
     return VerifyResp(status="ok", unlocked=True)
 
 
@@ -370,17 +467,73 @@ async def stripe_webhook(request: Request):
             return {"status": "ignored"}
         user_id = int(uid)
 
+        amt = getattr(session, "amount_total", None)
+        cur = getattr(session, "currency", None) or "usd"
+
         db = SessionLocal()
         try:
             if kind == "protocol":
                 pid = getattr(meta, "protocol_id", None)
-                _grant_protocol(db, user_id, int(pid) if pid else None, session_id)
+                _grant_protocol(db, user_id, int(pid) if pid else None, session_id,
+                                amount_cents=amt, currency=cur)
             else:
                 sub_id = getattr(session, "subscription", None)
                 if sub_id:
-                    _grant_monthly(db, user_id, session_id, str(sub_id), _sub_period_end(str(sub_id)))
+                    _grant_monthly(db, user_id, session_id, str(sub_id), _sub_period_end(str(sub_id)),
+                                   amount_cents=amt, currency=cur)
         except Exception as e:
             print(f"[stripe] webhook grant error: {e}")
+            db.rollback()
+        finally:
+            db.close()
+
+    elif etype == "invoice.paid":
+        # ADMIN CONSOLE: THE RENEWAL EVENT.
+        #
+        # This handler did not exist. Stripe has been sending it on every
+        # monthly renewal and the app has been ignoring it, so a subscriber's
+        # month 1 was recorded (via checkout.session.completed) and months
+        # 2, 3, 4... were invisible. Revenue built from that data counts each
+        # subscriber exactly once and then goes flat -- which on a chart looks
+        # identical to everybody churning.
+        #
+        # billing_reason tells the first invoice apart from the rest:
+        #   subscription_create -> the initial payment, ALREADY recorded by
+        #                          checkout.session.completed. Skipping it here
+        #                          is what stops every new membership being
+        #                          double-counted.
+        #   subscription_cycle  -> a genuine renewal. This is the row that was
+        #                          missing.
+        invoice = event["data"]["object"]
+        reason = getattr(invoice, "billing_reason", "") or ""
+        sub_id = getattr(invoice, "subscription", None)
+        invoice_id = getattr(invoice, "id", None)
+        amount = getattr(invoice, "amount_paid", None)
+        currency = getattr(invoice, "currency", None) or "usd"
+
+        if reason == "subscription_create":
+            return {"status": "ok"}
+        if not sub_id or amount in (None, 0):
+            return {"status": "ok"}
+
+        db = SessionLocal()
+        try:
+            # Resolve the payer from the entitlement this subscription created.
+            ent = (db.query(Entitlement)
+                   .filter(Entitlement.stripe_subscription_id == str(sub_id),
+                           Entitlement.kind == "monthly")
+                   .order_by(Entitlement.created_at.desc()).first())
+            if ent:
+                _record_payment(
+                    db, user_id=ent.user_id, kind="monthly_renewal",
+                    amount_cents=amount, currency=currency,
+                    entitlement_id=ent.id, invoice_id=invoice_id,
+                    subscription_id=str(sub_id),
+                )
+            else:
+                print(f"[stripe] invoice.paid for unknown subscription {sub_id}")
+        except Exception as ex:
+            print(f"[stripe] webhook invoice.paid error: {ex}")
             db.rollback()
         finally:
             db.close()
