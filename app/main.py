@@ -388,56 +388,62 @@ def push_unsubscribe(req: PushSubReq, db: Session = Depends(get_db), user=Depend
 FRONTEND = Path(__file__).resolve().parent.parent / "frontend" / "index.html"
 
 
-# >>> TEMPORARY ENDPOINT — DELETE AFTER DOWNLOADING PRIMER SAMPLES <<<
-@app.get("/api/admin/mix-primer")
-def mix_primer(offset: float = 0.0, duck: float = -4.0, voice: float = -12.5):
-    """One-shot: mix 11labs.mp3 over music_primer.mp3 with tunable params.
-    Usage: /api/admin/mix-primer?offset=-0.5&duck=-1.0&voice=-11.5
-      offset: added to base music_target_dbfs of -24.0  (negative = quieter music)
-      duck:   max_duck_db, how much music dips under voice (-4.0 = heavy, 0.0 = none)
-      voice:  voice_target_dbfs (-12.5 = default, -11.0 = louder)
+# >>> TEMPORARY ENDPOINT — DELETE AFTER DOWNLOADING JOLT SPEECH <<<
+@app.get("/api/admin/jolt-speech")
+def jolt_speech(
+    target: str = "Exercise every day",
+    charge: str = "I keep saying I'll start tomorrow and I'm tired of it",
+):
+    """Generate a day-1 jolt speech, TTS it, return raw voice MP3 (no mixing).
+    Usage: /api/admin/jolt-speech
+           /api/admin/jolt-speech?target=...&charge=...
     """
-    import tempfile
-    from app.services.mix import mix as do_mix
+    import tempfile, subprocess
+    from app.services import llm
+    from app.services.tts import synth
 
-    voice_path = cfg.ASSETS_DIR / "11labs.mp3"
-    music_path = cfg.ASSETS_DIR / "music_primer.mp3"
-    if not voice_path.exists() or not music_path.exists():
-        raise HTTPException(404, "primer source files not found in assets/")
+    # Generate speech text via Claude (same as production pipeline)
+    plan = {"days": [
+        {"day": 1, "action": "Take the first step today — no matter how small."},
+        {"day": 2, "action": "Build on yesterday's momentum."},
+        {"day": 3, "action": "Push through the middle."},
+        {"day": 4, "action": "Find your proof — look at what you've done."},
+        {"day": 5, "action": "Lock it in. This is who you are now."},
+    ]}
+    track = cfg.get_protocol_track("activate", 1)
 
-    music_db = -24.0 + offset
+    speech = llm.generate_protocol_speech(
+        "activate", 1, target, charge, plan,
+    )
 
-    with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
-        out_path = tmp.name
+    # TTS via ElevenLabs (same voice + settings as production)
+    wav_path = synth(speech, track["voice_id"], cfg.ELEVENLABS_API_KEY,
+                     voice_settings=track["voice_settings"])
 
+    # Convert WAV to MP3
+    mp3_tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
+    mp3_tmp.close()
     try:
-        do_mix(
-            voice_path=str(voice_path),
-            music_path=str(music_path),
-            out_path=out_path,
-            content_duration_sec=156,
-            voice_target_dbfs=voice,
-            music_target_dbfs=music_db,
-            duck_db=5.0,
-            duck_max_db=duck,
-            duck_floor_db=0.0,
-            ffmpeg_bin=cfg.FFMPEG_BIN,
+        subprocess.run(
+            [cfg.FFMPEG_BIN, "-y", "-i", wav_path, "-codec:a", "libmp3lame",
+             "-b:a", "256k", mp3_tmp.name],
+            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
-        data = Path(out_path).read_bytes()
-        fname = f"primer_off{offset:+.1f}_duck{duck:.1f}_voice{voice:.1f}.mp3"
+        data = Path(mp3_tmp.name).read_bytes()
         return Response(
             content=data,
             media_type="audio/mpeg",
             headers={
-                "Content-Disposition": f"attachment; filename={fname}",
+                "Content-Disposition": "attachment; filename=jolt_speech_raw.mp3",
                 "Content-Length": str(len(data)),
             },
         )
     finally:
-        try:
-            os.unlink(out_path)
-        except OSError:
-            pass
+        for f in [wav_path, mp3_tmp.name]:
+            try:
+                os.unlink(f)
+            except OSError:
+                pass
 # >>> END TEMPORARY ENDPOINT <<<
 
 
