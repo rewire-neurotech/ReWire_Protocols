@@ -482,67 +482,6 @@ def push_unsubscribe(req: PushSubReq, db: Session = Depends(get_db), user=Depend
 FRONTEND = Path(__file__).resolve().parent.parent / "frontend" / "index.html"
 ADMIN_FRONTEND = Path(__file__).resolve().parent.parent / "frontend" / "admin.html"
 
-
-# >>> TEMPORARY ENDPOINT — DELETE AFTER DOWNLOADING JOLT SPEECHES <<<
-@app.get("/api/admin/jolt-speech")
-def jolt_speech(
-    day: int = 1,
-    target: str = "Exercise every day",
-    charge: str = "I keep saying I'll start tomorrow and I'm tired of it",
-):
-    """Generate a jolt speech for a specific day, TTS it, return raw voice MP3.
-    Usage: /api/admin/jolt-speech?day=1
-           /api/admin/jolt-speech?day=3&target=...&charge=...
-    """
-    import tempfile, subprocess
-    from app.services import llm
-    from app.services.tts import synth
-
-    if day < 1 or day > 5:
-        raise HTTPException(400, "day must be 1-5")
-
-    plan = {"days": [
-        {"day": 1, "action": "Take the first step today — no matter how small.", "brief": "Begin. The hardest part is starting."},
-        {"day": 2, "action": "Build on yesterday's momentum.", "brief": "You proved you can do it. Now do it again."},
-        {"day": 3, "action": "Push through the middle.", "brief": "The middle is where most people quit. Not you."},
-        {"day": 4, "action": "Find your proof — look at what you've done.", "brief": "Three days in. The evidence is building."},
-        {"day": 5, "action": "Lock it in. This is who you are now.", "brief": "This is no longer a goal. It is who you are."},
-    ]}
-    track = cfg.get_protocol_track("activate", day)
-
-    speech = llm.generate_protocol_speech(
-        "activate", day, target, charge, plan,
-    )
-
-    wav_path = synth(speech, track["voice_id"], cfg.ELEVENLABS_API_KEY,
-                     voice_settings=track["voice_settings"])
-
-    mp3_tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
-    mp3_tmp.close()
-    try:
-        subprocess.run(
-            [cfg.FFMPEG_BIN, "-y", "-i", wav_path, "-codec:a", "libmp3lame",
-             "-b:a", "256k", mp3_tmp.name],
-            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-        )
-        data = Path(mp3_tmp.name).read_bytes()
-        fname = f"jolt_speech_day{day}.mp3"
-        return Response(
-            content=data,
-            media_type="audio/mpeg",
-            headers={
-                "Content-Disposition": f"attachment; filename={fname}",
-                "Content-Length": str(len(data)),
-            },
-        )
-    finally:
-        for f in [wav_path, mp3_tmp.name]:
-            try:
-                os.unlink(f)
-            except OSError:
-                pass
-# >>> END TEMPORARY ENDPOINT <<<
-
 @app.get("/")
 def serve_frontend():
     if FRONTEND.exists():
