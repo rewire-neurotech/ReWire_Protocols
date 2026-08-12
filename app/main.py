@@ -482,6 +482,56 @@ def push_unsubscribe(req: PushSubReq, db: Session = Depends(get_db), user=Depend
 FRONTEND = Path(__file__).resolve().parent.parent / "frontend" / "index.html"
 ADMIN_FRONTEND = Path(__file__).resolve().parent.parent / "frontend" / "admin.html"
 
+
+# >>> TEMPORARY ENDPOINT — DELETE AFTER DOWNLOADING SPEECH <<<
+@app.get("/api/admin/jolt-speech")
+def jolt_speech(
+    target: str = "Exercise every day",
+    charge: str = "I keep saying I'll start tomorrow and I'm tired of it",
+):
+    """Generate one speech using the OLD prompt.py (v4), TTS it, return raw voice MP3."""
+    import tempfile, subprocess
+    from app.services.llm import generate_speech
+    from app.services.prompt import build_user_prompt
+    from app.services.tts import synth
+
+    track = cfg.get_protocol_track("activate", 1)
+
+    prompt = build_user_prompt(
+        goal_title=target,
+        goal_why=charge,
+        target_words=track["target_words"],
+    )
+    speech = generate_speech(prompt)
+
+    wav_path = synth(speech, track["voice_id"], cfg.ELEVENLABS_API_KEY,
+                     voice_settings=track["voice_settings"])
+
+    mp3_tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
+    mp3_tmp.close()
+    try:
+        subprocess.run(
+            [cfg.FFMPEG_BIN, "-y", "-i", wav_path, "-codec:a", "libmp3lame",
+             "-b:a", "256k", mp3_tmp.name],
+            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        data = Path(mp3_tmp.name).read_bytes()
+        return Response(
+            content=data,
+            media_type="audio/mpeg",
+            headers={
+                "Content-Disposition": "attachment; filename=jolt_speech_old_prompt.mp3",
+                "Content-Length": str(len(data)),
+            },
+        )
+    finally:
+        for f in [wav_path, mp3_tmp.name]:
+            try:
+                os.unlink(f)
+            except OSError:
+                pass
+# >>> END TEMPORARY ENDPOINT <<<
+
 @app.get("/")
 def serve_frontend():
     if FRONTEND.exists():
