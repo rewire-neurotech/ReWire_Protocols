@@ -525,7 +525,8 @@ def generate_jolt(
     mp.CSV_PATH = cfg.ASSETS_DIR / "track_sections.csv"
 
     # Load tracks and pick for this family
-    tracks = mp.load_tracks()
+    csv_path = cfg.ASSETS_DIR / "track_sections.csv"
+    tracks = mp.load_tracks(path=csv_path)
     chosen = mp.pick_tracks(tracks, family)
     track_id = chosen[day]
     track = tracks[track_id]
