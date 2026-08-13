@@ -509,3 +509,154 @@ def serve_admin():
             headers={"Cache-Control": "no-store"},
         )
     return {"error": "admin console not found"}
+
+# --------------------------------------------------------------------------- #
+# TEMP: meditation test generation
+# --------------------------------------------------------------------------- #
+# Usage:
+#   /api/admin/generate-med?case=1               -> full pipeline, returns MP3
+#   /api/admin/generate-med?case=1&text_only=1   -> speech text only
+#
+# After downloading all test meditations, remove everything below this
+# comment and redeploy.
+
+_MED_CASES = {
+    1: {
+        "topic": "whether to leave my job. i have been circling it for over a year now and i still cannot tell if i am scared of leaving or just tired of staying, and i go round the same loop every sunday night",
+        "why": "because i am 34 and i have said next year three times now",
+        "technique": "Vipassana and noting",
+    },
+    2: {
+        "topic": "Forgiving my brother. We have not spoken properly since our mother sold the house, and I find that I rehearse arguments with him in my head while I am doing perfectly ordinary things.",
+        "why": "I would like to put it down before it takes up any more of the years I have left.",
+        "technique": "Metta and the brahmaviharas",
+    },
+    3: {
+        "topic": "what i actually want. everyone keeps asking me what i want to do after i graduate and i realised i have never once sat down and asked myself that without panicking",
+        "why": "i think i have been choosing things because they sound good when i say them out loud",
+        "technique": "",
+    },
+    4: {
+        "topic": "why im always in a hurry. even on days off im rushing. i eat standing up. i cant sit through a film without checking something. my body is always braced for the next thing",
+        "why": "my daughter said i seem like im always about to leave the room",
+        "technique": "Breath counting",
+    },
+    5: {
+        "topic": "a fear i have never looked at properly, which is that i am going to be the same kind of parent my mother was, and i notice it most when i am tired and i hear her voice come out of me",
+        "why": "i want to look at it while he is still too young to remember any of this",
+        "technique": "",
+    },
+    6: {
+        "topic": "A conversation I keep replaying. I let a co-founder go in March and I said all the right things in the room, but I have run the scene several hundred times since and every version ends with me deciding I handled it badly.",
+        "why": "Because I have another difficult conversation coming and I can feel myself already flinching from it.",
+        "technique": "",
+    },
+    7: {
+        "topic": "making peace with my father. he is still alive and we are polite and there is a whole life neither of us mentions",
+        "why": "i would like to visit him without rehearsing the drive",
+        "technique": "Tonglen",
+    },
+    8: {
+        "topic": "where i feel most at home. i have lived in three cities in six years and i am starting to think the restlessness is coming with me rather than being solved by the moving",
+        "why": "i keep almost signing longer leases and then not",
+        "technique": "Body scan",
+    },
+    9: {
+        "topic": "Gratitude for what is already here. My life is genuinely good and I move through most of it without noticing any of it, and I would like to actually feel some of it while it is happening.",
+        "why": "My friend said something about how the good years are hard to recognise from inside them.",
+        "technique": "",
+    },
+    10: {
+        "topic": "nothing in particular. i have been sitting daily for about ten years and i would like something that does not try to solve anything or hand me a topic to think about",
+        "why": "most guided meditations talk far too much and i want to see if this one can stay out of the way",
+        "technique": "Shikantaza",
+    },
+}
+
+
+@app.get("/api/admin/generate-med")
+def generate_med(case: int = 1, text_only: bool = False):
+    """Generate a meditation test from test cases."""
+    import re
+    import time
+    import anthropic
+    from fastapi.responses import FileResponse
+    from app.services.meditation_prompt import SYSTEM_PROMPT, build_user_prompt
+    from app.core.config import cfg as _cfg
+
+    if case not in _MED_CASES:
+        raise HTTPException(400, f"case must be 1-10, got {case}")
+
+    tc = _MED_CASES[case]
+    t0 = time.time()
+
+    # 1. Build prompt — 111s track, 2 min, 90 spoken words
+    user_prompt = build_user_prompt(
+        topic=tc["topic"],
+        why=tc["why"],
+        minutes=2,
+        technique=tc.get("technique", ""),
+    )
+
+    # 2. Call Claude
+    client = anthropic.Anthropic(api_key=_cfg.ANTHROPIC_API_KEY)
+    msg = client.messages.create(
+        model=_cfg.CLAUDE_MODEL,
+        max_tokens=2000,
+        temperature=1.0,
+        system=SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": user_prompt}],
+    )
+    speech = msg.content[0].text.strip()
+
+    # Count spoken words (exclude tags, silence markers, section breaks)
+    spoken = re.sub(r"\[\[[^\]]*\]\]", "", speech)
+    spoken = re.sub(r"\[[^\]]*\]", "", spoken).replace("---", " ")
+    wc = len(spoken.split())
+    print(f"[med] case {case}: {wc} spoken words, {time.time() - t0:.1f}s")
+    print(f"[med] speech:\n{speech}")
+
+    if "SAFETY_HALT" in speech:
+        return {"status": "unsafe", "case": case, "speech": speech}
+
+    if text_only:
+        return {"status": "ok", "case": case, "spoken_words": wc, "speech": speech}
+
+    # 3. Strip [[SILENCE:n]] -> [long pause] for TTS (no stitching)
+    tts_text = re.sub(r"\[\[SILENCE:\d+\]\]", "[long pause]", speech)
+
+    # 4. TTS — single call, no chunking
+    from app.services.tts import synth
+
+    voice_id = _cfg.PROTOCOL_VOICE["activate"]["voice_id"]
+    voice_settings = _cfg.PROTOCOL_VOICE["activate"]["voice_settings"]
+    wav_path = synth(tts_text, voice_id=voice_id, key=_cfg.ELEVENLABS_API_KEY,
+                     voice_settings=voice_settings)
+    print(f"[med] case {case}: TTS done {time.time() - t0:.1f}s")
+
+    # 5. Mix over sanctus
+    from app.services.mix_v45 import mix as mix_v45
+
+    music_path = Path(__file__).resolve().parent / "assets" / "sanctus.mpeg"
+    if not music_path.exists():
+        raise HTTPException(500, "sanctus.mpeg not found in app/assets/")
+
+    out_path = _cfg.out_dir_path / f"med_case_{case}.mp3"
+    mix_v45(
+        voice_path=wav_path,
+        music_path=str(music_path),
+        out_path=str(out_path),
+        mix_profile="jolt1",
+    )
+    print(f"[med] case {case}: mix done {time.time() - t0:.1f}s")
+
+    # 6. Cleanup
+    try:
+        import os
+        if wav_path and os.path.exists(wav_path):
+            os.remove(wav_path)
+    except Exception:
+        pass
+
+    return FileResponse(str(out_path), media_type="audio/mpeg",
+                        filename=f"med_case_{case}.mp3")
