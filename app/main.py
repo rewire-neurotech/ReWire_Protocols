@@ -585,7 +585,7 @@ def generate_med(case: int = 1, text_only: bool = False):
         topic=tc["topic"],
         why=tc["why"],
         minutes=2,
-        target_words=170,
+        target_words=250,
     )
 
     # 2. Call Claude
