@@ -211,9 +211,10 @@ TECHNIQUES = [
 
 
 def build_user_prompt(topic: str, why: str, minutes: int = 10,
-                      technique: str = "") -> str:
+                      technique: str = "",
+                      target_words: int = 0) -> str:
     """topic = what they want to meditate about. why = why it is important."""
-    words = int(minutes * 40)   # slow guided pace; silence carries the rest
+    words = target_words if target_words else int(minutes * 40)
     max_questions = max(3, int(minutes * 60 / 45))
 
     technique_line = (f"\nTechnique they chose: {technique}."
