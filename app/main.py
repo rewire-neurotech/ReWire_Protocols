@@ -590,12 +590,13 @@ def generate_med(case: int = 1, text_only: bool = False):
     tc = _MED_CASES[case]
     t0 = time.time()
 
-    # 1. Build prompt — 127s track, 2 min, ~80 spoken words
+    # 1. Build prompt — 127s track @ ~1.0 wps = 127 spoken words
     user_prompt = build_user_prompt(
         topic=tc["topic"],
         why=tc["why"],
         minutes=2,
         technique=tc.get("technique", ""),
+        target_words=127,
     )
 
     # 2. Call Claude
