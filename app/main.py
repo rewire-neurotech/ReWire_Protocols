@@ -590,13 +590,13 @@ def generate_med(case: int = 1, text_only: bool = False):
     tc = _MED_CASES[case]
     t0 = time.time()
 
-    # 1. Build prompt — 127s track @ ~1.0 wps = 127 spoken words
+    # 1. Build prompt — 127s track, ~170 spoken words
     user_prompt = build_user_prompt(
         topic=tc["topic"],
         why=tc["why"],
         minutes=2,
         technique=tc.get("technique", ""),
-        target_words=127,
+        target_words=170,
     )
 
     # 2. Call Claude
@@ -610,9 +610,8 @@ def generate_med(case: int = 1, text_only: bool = False):
     )
     speech = msg.content[0].text.strip()
 
-    # Count spoken words (exclude tags, silence markers, section breaks)
-    spoken = re.sub(r"\[\[[^\]]*\]\]", "", speech)
-    spoken = re.sub(r"\[[^\]]*\]", "", spoken).replace("---", " ")
+    # Count spoken words (exclude tags and section breaks)
+    spoken = re.sub(r"\[[^\]]*\]", "", speech).replace("---", " ")
     wc = len(spoken.split())
     print(f"[med] case {case}: {wc} spoken words, {time.time() - t0:.1f}s")
     print(f"[med] speech:\n{speech}")
@@ -623,22 +622,16 @@ def generate_med(case: int = 1, text_only: bool = False):
     if text_only:
         return {"status": "ok", "case": case, "spoken_words": wc, "speech": speech}
 
-    # 3. Expand [[SILENCE:n]] -> repeated [long pause] (no stitching)
-    def _expand_silence(m):
-        n = int(m.group(1))
-        return " ".join(["[long pause]"] * max(1, n // 5))
-    tts_text = re.sub(r"\[\[SILENCE:(\d+)\]\]", _expand_silence, speech)
-
-    # 4. TTS — single call, no chunking
+    # 3. TTS — single call, no chunking
     from app.services.tts import synth
 
     voice_id = _cfg.PROTOCOL_VOICE["activate"]["voice_id"]
     voice_settings = _cfg.PROTOCOL_VOICE["activate"]["voice_settings"]
-    wav_path = synth(tts_text, voice_id=voice_id, key=_cfg.ELEVENLABS_API_KEY,
+    wav_path = synth(speech, voice_id=voice_id, key=_cfg.ELEVENLABS_API_KEY,
                      voice_settings=voice_settings)
     print(f"[med] case {case}: TTS done {time.time() - t0:.1f}s")
 
-    # 5. Mix over a_thousand_hearts
+    # 4. Mix over a_thousand_hearts
     from app.services.mix_v45 import mix as mix_v45
 
     music_path = Path(__file__).resolve().parent / "assets" / "a_thousand_hearts.mpeg"
@@ -654,7 +647,7 @@ def generate_med(case: int = 1, text_only: bool = False):
     )
     print(f"[med] case {case}: mix done {time.time() - t0:.1f}s")
 
-    # 6. Cleanup
+    # 5. Cleanup
     try:
         import os
         if wav_path and os.path.exists(wav_path):
