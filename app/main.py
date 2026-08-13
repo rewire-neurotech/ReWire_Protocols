@@ -623,8 +623,11 @@ def generate_med(case: int = 1, text_only: bool = False):
     if text_only:
         return {"status": "ok", "case": case, "spoken_words": wc, "speech": speech}
 
-    # 3. Strip [[SILENCE:n]] -> [long pause] for TTS (no stitching)
-    tts_text = re.sub(r"\[\[SILENCE:\d+\]\]", "[long pause]", speech)
+    # 3. Expand [[SILENCE:n]] -> repeated [long pause] (no stitching)
+    def _expand_silence(m):
+        n = int(m.group(1))
+        return " ".join(["[long pause]"] * max(1, n // 5))
+    tts_text = re.sub(r"\[\[SILENCE:(\d+)\]\]", _expand_silence, speech)
 
     # 4. TTS — single call, no chunking
     from app.services.tts import synth
