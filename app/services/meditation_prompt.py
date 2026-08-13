@@ -230,8 +230,9 @@ Why it is important to them:
 Write the {minutes}-minute meditation that follows the primer.
 
 - The primer has just ended on "Breathe in. And open it." Your first line continues from there, inside the house, on the exhale. No greeting, no settling, no instruction they have already followed.
-- About {words} spoken words. The [[SILENCE:n]] markers carry the rest, and should add up to more than half of the {minutes} minutes.
-- At most {max_questions} questions in the whole piece. Each one short, open, and impossible to answer with yes or no. Each one followed by [[SILENCE:20]] or longer.
+- About {words} spoken words. This is the actual word target — hit it.
+- Do NOT use [[SILENCE:n]] markers. Use [long pause] and [pause] inline for all breathing room and silence. Let the natural pacing of ellipses, short sentences, and pause tags create the slowness.
+- At most {max_questions} questions in the whole piece. Each one short, open, and impossible to answer with yes or no. Each one followed by [long pause].
 - Never answer, hint at, rephrase, or comment on any question you ask.
 - Use their own words for the topic so they recognise it.
 - Breathe audibly throughout. Set the pace with [inhales deeply] and [exhales slowly].
