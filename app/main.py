@@ -613,7 +613,7 @@ def generate_v45(case: int = 1, text_only: bool = False):
 
     voice_id = _cfg.PROTOCOL_VOICE["activate"]["voice_id"]
     voice_settings = _cfg.PROTOCOL_VOICE["activate"]["voice_settings"]
-    wav_path = synth(speech, voice_id=voice_id, voice_settings=voice_settings)
+    wav_path = synth(speech, voice_id=voice_id, key=_cfg.ELEVENLABS_API_KEY, voice_settings=voice_settings)
     print(f"[v45] case {case}: TTS done {time.time() - t0:.1f}s")
 
     # 4. Mix
