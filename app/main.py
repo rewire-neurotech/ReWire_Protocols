@@ -590,7 +590,7 @@ def generate_med(case: int = 1, text_only: bool = False):
     tc = _MED_CASES[case]
     t0 = time.time()
 
-    # 1. Build prompt — 111s track, 2 min, 90 spoken words
+    # 1. Build prompt — 127s track, 2 min, ~80 spoken words
     user_prompt = build_user_prompt(
         topic=tc["topic"],
         why=tc["why"],
@@ -634,12 +634,12 @@ def generate_med(case: int = 1, text_only: bool = False):
                      voice_settings=voice_settings)
     print(f"[med] case {case}: TTS done {time.time() - t0:.1f}s")
 
-    # 5. Mix over sanctus
+    # 5. Mix over a_thousand_hearts
     from app.services.mix_v45 import mix as mix_v45
 
-    music_path = Path(__file__).resolve().parent / "assets" / "sanctus.mpeg"
+    music_path = Path(__file__).resolve().parent / "assets" / "a_thousand_hearts.mpeg"
     if not music_path.exists():
-        raise HTTPException(500, "sanctus.mpeg not found in app/assets/")
+        raise HTTPException(500, "a_thousand_hearts.mpeg not found in app/assets/")
 
     out_path = _cfg.out_dir_path / f"med_case_{case}.mp3"
     mix_v45(
