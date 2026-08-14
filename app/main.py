@@ -639,6 +639,7 @@ def generate_med(case: int = 1, text_only: bool = False):
         music_path=str(music_path),
         out_path=str(out_path),
         mix_profile="jolt1",
+        sync_mode="no_retime_trim_pad",
     )
     print(f"[med] case {case}: mix done {time.time() - t0:.1f}s")
 
