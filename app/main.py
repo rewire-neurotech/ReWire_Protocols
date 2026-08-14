@@ -585,7 +585,7 @@ def generate_med(case: int = 1, text_only: bool = False):
         topic=tc["topic"],
         why=tc["why"],
         minutes=2,
-        target_words=250,
+        target_words=300,
     )
 
     # 2. Call Claude
@@ -615,7 +615,13 @@ def generate_med(case: int = 1, text_only: bool = False):
     from app.services.tts import synth
 
     voice_id = _cfg.PROTOCOL_VOICE["activate"]["voice_id"]
-    voice_settings = _cfg.PROTOCOL_VOICE["activate"]["voice_settings"]
+    # Override: neutral delivery, not the dramatic jolt settings
+    voice_settings = {
+        "stability": 0.55,
+        "similarity_boost": 0.7,
+        "style": 0.35,
+        "use_speaker_boost": True,
+    }
     wav_path = synth(speech, voice_id=voice_id, key=_cfg.ELEVENLABS_API_KEY,
                      voice_settings=voice_settings)
     print(f"[med] case {case}: TTS done {time.time() - t0:.1f}s")
