@@ -42,9 +42,9 @@ _TLS = threading.local()
 
 # Transparent, fixed balances for each program.
 # Louder-music revision: +2 dB for every profile, with voice processing unchanged.
-DEFAULT_MUSIC_GAIN_DB = -8.0
-JOLT_MUSIC_GAIN_DB = -9.5
-JOLT1_MUSIC_GAIN_DB = -8.0
+DEFAULT_MUSIC_GAIN_DB = -10.0
+JOLT_MUSIC_GAIN_DB = -11.5
+JOLT1_MUSIC_GAIN_DB = -10.0
 JOLT1_MUSIC_BASS_DB = 4.0
 JOLT1_MUSIC_TARGET_LUFS = -16.0
 JOLT1_MUSIC_DELAY_MS = 5000
