@@ -2050,7 +2050,6 @@
         transform: none;
       }
       .cta {
-        width: 100%;
         min-height: 56px;
         border-radius: 999px;
         background: var(--ink);
@@ -2562,18 +2561,23 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: calc(var(--safe-top) + 50px) 38px 132px;
+        padding: calc(var(--safe-top) + 62px) 36px 132px;
         text-align: center;
       }
       .onb-sentence {
         flex-shrink: 0;
-        margin-top: 18px;
+        margin-top: 20px;
         font-size: 18px;
         line-height: 1.55;
         font-weight: 450;
         color: var(--ink-soft);
         letter-spacing: -0.01em;
-        max-width: 26ch;
+        max-width: 31ch;
+        text-wrap: balance;
+      }
+      .onb-line {
+        display: block;
+        text-wrap: balance;
       }
       .onb-visual {
         flex: 1;
@@ -2581,140 +2585,6 @@
         width: 100%;
         display: grid;
         place-items: center;
-      }
-      .il-once .mw-disc {
-        background: var(--screen);
-        border: 1.6px solid var(--faint);
-        color: transparent;
-      }
-      #l-intro.is-active .intro-step.is-active .il-once .mw-disc {
-        animation: dayCheck 560ms cubic-bezier(0.34, 1.4, 0.4, 1) forwards;
-        animation-delay: calc(var(--j, 0) * 340ms + 1150ms);
-      }
-      @keyframes dayCheck {
-        0% {
-          transform: scale(1);
-        }
-        45% {
-          transform: scale(1.22);
-        }
-        100% {
-          transform: scale(1);
-          background: var(--ink);
-          border-color: var(--ink);
-          color: var(--screen);
-        }
-      }
-      .ill-jolt {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-      }
-      .ill-jolt-btn {
-        position: relative;
-        flex-shrink: 0;
-        width: 52px;
-        height: 52px;
-        border-radius: 50%;
-        display: grid;
-        place-items: center;
-        color: var(--ink);
-        background: linear-gradient(170deg, #ffffff 0%, #f6f3ec 100%);
-        border: 1px solid rgba(28, 26, 22, 0.12);
-        box-shadow:
-          inset 0 1px 0 rgba(255, 255, 255, 0.95),
-          0 1px 2px rgba(28, 26, 22, 0.06),
-          0 6px 12px rgba(70, 64, 52, 0.1),
-          0 14px 24px -8px rgba(70, 64, 52, 0.22);
-        animation: illFloat 4.6s ease-in-out infinite;
-        will-change: transform;
-      }
-      .ill-jolt-btn svg {
-        margin-left: 2px;
-      }
-      .ill-jolt-btn::after {
-        content: "";
-        position: absolute;
-        inset: -1px;
-        border-radius: 50%;
-        border: 1.5px solid rgba(28, 26, 22, 0.28);
-        opacity: 0;
-        will-change: transform, opacity;
-        animation: illRing 3.6s ease-out 1s infinite;
-      }
-      @keyframes illFloat {
-        0%,
-        100% {
-          transform: translateY(0);
-        }
-        50% {
-          transform: translateY(-3px);
-        }
-      }
-      @keyframes illRing {
-        0% {
-          transform: scale(1);
-          opacity: 0.5;
-        }
-        70%,
-        100% {
-          transform: scale(1.7);
-          opacity: 0;
-        }
-      }
-      .ill-jolt-text {
-        font-size: 18px;
-        font-weight: 600;
-        color: var(--ink);
-        letter-spacing: -0.012em;
-      }
-      .ill-steps {
-        width: 268px;
-      }
-      .ill-act {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        padding: 13px 2px;
-      }
-      .ill-act + .ill-act {
-        border-top: 1px solid var(--hairline);
-      }
-      .ill-act-text {
-        flex: 1;
-        text-align: left;
-        font-size: 15px;
-        font-weight: 500;
-        color: var(--ink);
-        letter-spacing: -0.01em;
-      }
-      .ill-check {
-        flex-shrink: 0;
-        width: 26px;
-        height: 26px;
-        border-radius: 50%;
-        display: grid;
-        place-items: center;
-        border: 1.5px solid #a8a295;
-        background: var(--screen);
-        color: transparent;
-      }
-      .ill-check svg {
-        width: 12px;
-        height: 12px;
-      }
-      #l-intro.is-active .intro-step.is-active .ill-check {
-        animation: dayCheck 560ms cubic-bezier(0.34, 1.4, 0.4, 1) forwards;
-        animation-delay: calc(var(--k, 0) * 520ms + 950ms);
-      }
-      #l-intro.is-active .intro-step.is-active .ill-act-text {
-        animation: stepFade 420ms ease forwards;
-        animation-delay: calc(var(--k, 0) * 520ms + 1150ms);
-      }
-      @keyframes stepFade {
-        to {
-          color: var(--muted);
-        }
       }
       .intro-step {
         opacity: 0;
@@ -2758,89 +2628,282 @@
           transform: none;
         }
       }
-      .intro-step .mw-day {
+
+      /* slide 1: the things people bring */
+      .onb-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 9px;
+        justify-content: center;
+        max-width: 300px;
+      }
+      .onb-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 10px 14px 10px 12px;
+        border-radius: 999px;
+        background: var(--chip);
+        font-size: 14.5px;
+        font-weight: 500;
+        color: var(--ink);
+        letter-spacing: -0.01em;
         opacity: 0;
       }
-      #l-intro.is-active .intro-step.is-active .mw-day {
-        animation: popIn 480ms cubic-bezier(0.34, 1.4, 0.4, 1) both;
-        animation-delay: calc(300ms + var(--j, 0) * 90ms);
+      .onb-chip-e {
+        font-size: 15px;
+        line-height: 1;
       }
-      .intro-step .onb-kind {
-        opacity: 0;
-      }
-      #l-intro.is-active .intro-step.is-active .onb-kind {
-        animation: ob_riseIn 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+      #l-intro.is-active .intro-step.is-active .onb-chip {
+        animation: popIn 560ms cubic-bezier(0.34, 1.4, 0.4, 1) both;
         animation-delay: calc(280ms + var(--j, 0) * 130ms);
       }
-      .mini-week {
-        display: flex;
-        gap: 26px;
+
+      /* slide 2: what you type */
+      .mock-field {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        min-width: 230px;
+        padding: 16px 20px;
+        border-radius: 16px;
+        background: #fff;
+        border: 1px solid var(--hairline);
+        box-shadow: var(--shadow-soft);
+        font-size: 17px;
+        font-weight: 500;
+        color: var(--ink);
+        letter-spacing: -0.012em;
       }
-      .mw-day {
+      .mock-cur {
+        display: inline-block;
+        width: 1.5px;
+        height: 1.05em;
+        background: var(--ink);
+        margin-left: 3px;
+        animation: caret 1.05s step-end infinite;
+      }
+      @keyframes caret {
+        50% {
+          opacity: 0;
+        }
+      }
+
+      /* slide 3: the week and the unlock */
+      .ill-two {
+        width: 264px;
+        display: flex;
+        flex-direction: column;
+      }
+      .ill-row {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        padding: 11px 2px;
+      }
+      .ill-row + .ill-row {
+        border-top: 1px solid var(--hairline);
+      }
+      .ill-row-text {
+        flex: 1;
+        text-align: left;
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--ink);
+        letter-spacing: -0.01em;
+      }
+      .ill-mark {
+        flex-shrink: 0;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        border: 1.5px solid #a8a295;
+        background: var(--screen);
+        color: transparent;
+      }
+      .ill-mark svg {
+        width: 12px;
+        height: 12px;
+      }
+      .ill-mark {
+        border-style: dashed;
+        border-color: var(--faint);
+      }
+      .ill-locked .ill-row-text {
+        color: var(--faint);
+      }
+      .ill-locked .ill-play {
+        opacity: 0.45;
+      }
+      .ill-play {
+        display: inline-grid;
+        place-items: center;
+        flex-shrink: 0;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        color: var(--ink);
+        background: linear-gradient(170deg, #ffffff 0%, #f6f3ec 100%);
+        border: 1px solid rgba(28, 26, 22, 0.14);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.9),
+          0 2px 5px rgba(70, 64, 52, 0.14);
+      }
+
+      /* the first row lands done, then the second unlocks — the rest stays visible and waiting */
+      #l-intro.is-active .intro-step.is-active .m-done {
+        animation: markDone 620ms cubic-bezier(0.34, 1.4, 0.4, 1) 900ms
+          forwards;
+      }
+      #l-intro.is-active .intro-step.is-active .t-done {
+        animation: textFade 420ms ease 1200ms forwards;
+      }
+      #l-intro.is-active .intro-step.is-active .m-unlock {
+        animation: unlockMark 520ms ease 1750ms forwards;
+      }
+      @keyframes markDone {
+        0% {
+          transform: scale(1);
+        }
+        45% {
+          transform: scale(1.24);
+        }
+        100% {
+          transform: scale(1);
+          background: var(--ink);
+          border-color: var(--ink);
+          border-style: solid;
+          color: var(--screen);
+        }
+      }
+      @keyframes textFade {
+        to {
+          color: var(--muted);
+        }
+      }
+      @keyframes unlockMark {
+        0% {
+          transform: scale(1);
+          border-style: dashed;
+          border-color: var(--faint);
+        }
+        50% {
+          transform: scale(1.12);
+        }
+        100% {
+          transform: scale(1);
+          border-style: solid;
+          border-color: #8f887a;
+        }
+      }
+      .ill-pending .ill-row-text {
+        color: var(--faint);
+      }
+      .ill-pending .ill-play {
+        opacity: 0.45;
+      }
+      @keyframes playPulse {
+        0%,
+        100% {
+          transform: scale(1);
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.9),
+            0 2px 5px rgba(70, 64, 52, 0.14),
+            0 0 0 0 rgba(28, 26, 22, 0.09);
+        }
+        50% {
+          transform: scale(1.1);
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.9),
+            0 3px 7px rgba(70, 64, 52, 0.17),
+            0 0 0 6px rgba(28, 26, 22, 0.045);
+        }
+      }
+      @keyframes textWake {
+        to {
+          color: var(--ink);
+        }
+      }
+      @keyframes playWake {
+        to {
+          opacity: 1;
+        }
+      }
+      #l-intro.is-active .intro-step.is-active .p-mon {
+        animation: playPulse 760ms cubic-bezier(0.4, 0, 0.3, 1) 120ms 1 both;
+      }
+      #l-intro.is-active .intro-step.is-active .t-unlock {
+        animation: textWake 460ms ease 1750ms forwards;
+      }
+      #l-intro.is-active .intro-step.is-active .p-tue {
+        animation:
+          playWake 460ms ease 1750ms forwards,
+          playPulse 1900ms cubic-bezier(0.4, 0, 0.3, 1) 2260ms infinite;
+      }
+
+      /* slide 4: the number */
+      .stat {
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 8px;
       }
-      .mw-disc {
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        background: var(--ink);
-        color: var(--screen);
-        display: grid;
-        place-items: center;
+      .stat-num {
+        font-family: var(--display);
+        font-size: 74px;
+        line-height: 1;
+        font-weight: 400;
+        letter-spacing: -0.04em;
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
       }
-      .mw-dot {
-        width: 11px;
-        height: 11px;
-        margin: 6.5px 0;
-        border-radius: 50%;
-        border: 1.6px solid var(--faint);
-        background: var(--screen);
-      }
-      .mw-dot.on {
-        background: var(--ink);
-        border-color: var(--ink);
-        box-shadow: 0 0 0 4px rgba(28, 26, 22, 0.07);
-      }
-      .mw-label {
-        font-size: 10px;
+      .stat-cap {
+        font-size: 11px;
         font-weight: 600;
-        letter-spacing: 0.12em;
+        letter-spacing: 0.18em;
         text-transform: uppercase;
         color: var(--muted);
       }
-      .onb-kinds {
+      .stat-goals {
         display: flex;
-        align-items: center;
-        gap: 26px;
-      }
-      .onb-kind {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
+        flex-wrap: wrap;
         gap: 9px;
-        font-size: 13px;
-        font-weight: 600;
+        justify-content: center;
+        max-width: 300px;
+        margin-top: 24px;
+      }
+      .goal-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: var(--chip);
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--muted);
         letter-spacing: -0.01em;
+        opacity: 0;
+      }
+      .goal-chip svg {
         color: var(--ink);
       }
-      .onb-kind .type-sym {
-        width: 24px;
-        height: 24px;
+      #l-intro.is-active .intro-step.is-active .goal-chip {
+        animation: popIn 520ms cubic-bezier(0.34, 1.4, 0.4, 1) both;
+        animation-delay: calc(900ms + var(--j, 0) * 150ms);
       }
+
       .intro-foot {
         position: absolute;
         left: 0;
         right: 0;
         bottom: 0;
         z-index: 5;
-        padding: 0 34px calc(var(--safe-bottom) + 30px);
+        padding: 0 34px calc(var(--safe-bottom) + 34px);
         display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 18px;
+        justify-content: center;
       }
       .ob-dots {
         display: flex;
@@ -2894,7 +2957,7 @@
         color: var(--muted);
       }
       .q-head {
-        margin-top: 26px;
+        margin-top: 24px;
         font-family: var(--display);
         font-size: 27px;
         line-height: 1.22;
@@ -2908,7 +2971,7 @@
       .q-area {
         flex: 1;
         min-height: 0;
-        margin-top: 20px;
+        margin-top: 18px;
         font-size: 18px;
         line-height: 1.55;
         font-weight: 450;
@@ -2922,9 +2985,10 @@
       }
       .q-foot {
         display: flex;
+        align-items: center;
         justify-content: flex-end;
-        padding-top: 10px;
-        margin-bottom: 20px;
+        gap: 14px;
+        padding-top: 12px;
       }
       .q-enter {
         opacity: 0;
@@ -2936,6 +3000,144 @@
       .q-enter.in {
         opacity: 1;
         transform: none;
+      }
+      .q-count {
+        margin-right: auto;
+        font-size: 12.5px;
+        font-weight: 500;
+        color: var(--faint);
+        letter-spacing: -0.005em;
+        font-variant-numeric: tabular-nums;
+        transition: color 260ms ease;
+      }
+      .q-count.ok {
+        color: var(--ink-soft);
+      }
+      .adds {
+        flex-shrink: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding-bottom: 12px;
+      }
+      .adds:empty {
+        display: none;
+      }
+      .add-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px 8px 14px;
+        border-radius: 999px;
+        background: var(--ink);
+        color: var(--screen);
+        font-size: 13.5px;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+      }
+      .add-tag svg {
+        opacity: 0.6;
+      }
+      .openers {
+        flex-shrink: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding-bottom: 4px;
+      }
+      .opener {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 10px 15px;
+        border-radius: 999px;
+        border: 1px solid var(--hairline);
+        background: #fff;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--ink-soft);
+        letter-spacing: -0.01em;
+        box-shadow: 0 1px 2px rgba(28, 26, 22, 0.04);
+        transition:
+          transform 150ms ease,
+          background 160ms ease;
+      }
+      .opener:active {
+        transform: scale(0.95);
+        background: #faf8f2;
+      }
+      .opener svg {
+        color: var(--faint);
+      }
+      .backdrop {
+        position: absolute;
+        inset: 0;
+        z-index: 300;
+        background: rgba(20, 18, 14, 0.34);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 320ms ease;
+      }
+      .backdrop.open {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .idea-sheet {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 310;
+        max-height: 82%;
+        display: flex;
+        flex-direction: column;
+        background: var(--screen);
+        border-radius: 24px 24px 0 0;
+        box-shadow: 0 -18px 50px rgba(0, 0, 0, 0.18);
+        transform: translateY(101%);
+        transition: transform 460ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .idea-sheet.open {
+        transform: none;
+      }
+      .idea-sheet-top {
+        flex-shrink: 0;
+        padding: 20px 24px 12px;
+      }
+      .idea-sheet-title {
+        font-family: var(--display);
+        font-size: 22px;
+        font-weight: 400;
+        letter-spacing: -0.02em;
+      }
+      .idea-sheet-hint {
+        margin-top: 6px;
+        font-size: 13px;
+        line-height: 1.5;
+        font-weight: 450;
+        color: var(--muted);
+      }
+      .idea-sheet-list {
+        overflow-y: auto;
+        padding: 4px 24px calc(var(--safe-bottom) + 24px);
+        scrollbar-width: none;
+      }
+      .idea-sheet-list::-webkit-scrollbar {
+        display: none;
+      }
+      .idea-sheet-row {
+        width: 100%;
+        text-align: left;
+        padding: 15px 2px;
+        border-top: 1px solid var(--hairline);
+        font-size: 16px;
+        font-weight: 500;
+        color: var(--ink);
+        letter-spacing: -0.01em;
+        transition: opacity 160ms ease;
+      }
+      .idea-sheet-row:active {
+        opacity: 0.5;
       }
       .q-body {
         margin-top: 22px;
@@ -3815,118 +4017,68 @@
       <div class="layer" id="l-intro">
         <div class="intro-step onb is-active" data-step="0">
           <div class="onb-visual rise" style="--i: 0">
-            <div class="mini-week il-once">
-              <div class="mw-day" style="--j: 0">
-                <span class="mw-disc"
-                  ><svg
-                    width="11"
-                    height="11"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="3"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <polyline points="20 6 9 17 4 12" /></svg></span
-                ><span class="mw-label">Mon</span>
-              </div>
-              <div class="mw-day" style="--j: 1">
-                <span class="mw-disc"
-                  ><svg
-                    width="11"
-                    height="11"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="3"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <polyline points="20 6 9 17 4 12" /></svg></span
-                ><span class="mw-label">Tue</span>
-              </div>
-              <div class="mw-day" style="--j: 2">
-                <span class="mw-disc"
-                  ><svg
-                    width="11"
-                    height="11"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="3"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <polyline points="20 6 9 17 4 12" /></svg></span
-                ><span class="mw-label">Wed</span>
-              </div>
-              <div class="mw-day" style="--j: 3">
-                <span class="mw-disc"
-                  ><svg
-                    width="11"
-                    height="11"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="3"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <polyline points="20 6 9 17 4 12" /></svg></span
-                ><span class="mw-label">Thu</span>
-              </div>
-              <div class="mw-day" style="--j: 4">
-                <span class="mw-disc"
-                  ><svg
-                    width="11"
-                    height="11"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="3"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <polyline points="20 6 9 17 4 12" /></svg></span
-                ><span class="mw-label">Fri</span>
-              </div>
+            <div class="onb-chips">
+              <span class="onb-chip" style="--j: 0"
+                ><span class="onb-chip-e">&#129504;</span>A decision I keep
+                circling</span
+              >
+              <span class="onb-chip" style="--j: 1"
+                ><span class="onb-chip-e">&#129718;</span>Something I need to
+                forgive</span
+              >
+              <span class="onb-chip" style="--j: 2"
+                ><span class="onb-chip-e">&#127807;</span>Making peace with my
+                father</span
+              >
+              <span class="onb-chip" style="--j: 3"
+                ><span class="onb-chip-e">&#128336;</span>Why I am always in a
+                hurry</span
+              >
+              <span class="onb-chip" style="--j: 4"
+                ><span class="onb-chip-e">&#10024;</span>What I actually
+                want</span
+              >
             </div>
           </div>
           <p class="onb-sentence rise" style="--i: 1">
-            ReWire turns your goal<br />into a one-week protocol.
+            <span class="onb-line"
+              >ReWire builds you a jolt on whatever you are sitting
+              with.</span
+            >
           </p>
         </div>
 
         <div class="intro-step onb" data-step="1">
           <div class="onb-visual rise" style="--i: 0">
-            <div class="ill-jolt">
-              <span class="ill-jolt-btn"
-                ><svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <path
-                    d="M8 5.5v13a.6.6 0 0 0 .92.5l10-6.5a.6.6 0 0 0 0-1l-10-6.5A.6.6 0 0 0 8 5.5Z"
-                  /></svg
-              ></span>
-              <span class="ill-jolt-text">Start today&rsquo;s jolt</span>
+            <div class="mock-field">
+              <span id="mockType"></span><span class="mock-cur"></span>
             </div>
           </div>
           <p class="onb-sentence rise" style="--i: 1">
-            Every day, you get a short meditation that moves you.<br />We call
-            it a jolt.
+            <span class="onb-line">Tell us what you want to work on.</span
+            ><span class="onb-line"
+              >We build the protocol around it.</span
+            >
           </p>
         </div>
 
         <div class="intro-step onb" data-step="2">
           <div class="onb-visual rise" style="--i: 0">
-            <div class="ill-steps">
-              <div class="ill-act" style="--k: 0">
-                <span class="ill-act-text">Lay out your shoes tonight</span
-                ><span class="ill-check"
+            <div class="ill-two">
+              <div class="ill-row">
+                <span class="ill-play p-mon"
+                  ><svg
+                    width="10"
+                    height="10"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path
+                      d="M8 5.5v13a.6.6 0 0 0 .92.5l10-6.5a.6.6 0 0 0 0-1l-10-6.5A.6.6 0 0 0 8 5.5Z"
+                    /></svg
+                ></span>
+                <span class="ill-row-text t-done">Monday</span>
+                <span class="ill-mark m-done"
                   ><svg
                     viewBox="0 0 24 24"
                     fill="none"
@@ -3938,38 +4090,88 @@
                     <polyline points="20 6 9 17 4 12" /></svg
                 ></span>
               </div>
-              <div class="ill-act" style="--k: 1">
-                <span class="ill-act-text">Run for ten minutes</span
-                ><span class="ill-check"
+              <div class="ill-row ill-pending">
+                <span class="ill-play p-tue"
                   ><svg
+                    width="10"
+                    height="10"
                     viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="3"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
+                    fill="currentColor"
                   >
-                    <polyline points="20 6 9 17 4 12" /></svg
+                    <path
+                      d="M8 5.5v13a.6.6 0 0 0 .92.5l10-6.5a.6.6 0 0 0 0-1l-10-6.5A.6.6 0 0 0 8 5.5Z"
+                    /></svg
                 ></span>
+                <span class="ill-row-text t-unlock">Tuesday</span>
+                <span class="ill-mark m-unlock"></span>
               </div>
-              <div class="ill-act" style="--k: 2">
-                <span class="ill-act-text">Run your full route</span
-                ><span class="ill-check"
+              <div class="ill-row ill-locked">
+                <span class="ill-play"
                   ><svg
+                    width="10"
+                    height="10"
                     viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="3"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
+                    fill="currentColor"
                   >
-                    <polyline points="20 6 9 17 4 12" /></svg
+                    <path
+                      d="M8 5.5v13a.6.6 0 0 0 .92.5l10-6.5a.6.6 0 0 0 0-1l-10-6.5A.6.6 0 0 0 8 5.5Z"
+                    /></svg
                 ></span>
+                <span class="ill-row-text">Wednesday</span>
+                <span class="ill-mark"></span>
+              </div>
+              <div class="ill-row ill-locked">
+                <span class="ill-play"
+                  ><svg
+                    width="10"
+                    height="10"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path
+                      d="M8 5.5v13a.6.6 0 0 0 .92.5l10-6.5a.6.6 0 0 0 0-1l-10-6.5A.6.6 0 0 0 8 5.5Z"
+                    /></svg
+                ></span>
+                <span class="ill-row-text">Thursday</span>
+                <span class="ill-mark"></span>
+              </div>
+              <div class="ill-row ill-locked">
+                <span class="ill-play"
+                  ><svg
+                    width="10"
+                    height="10"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path
+                      d="M8 5.5v13a.6.6 0 0 0 .92.5l10-6.5a.6.6 0 0 0 0-1l-10-6.5A.6.6 0 0 0 8 5.5Z"
+                    /></svg
+                ></span>
+                <span class="ill-row-text">Friday</span>
+                <span class="ill-mark"></span>
               </div>
             </div>
           </div>
           <p class="onb-sentence rise" style="--i: 1">
-            Mark each step done and watch your progress build.
+            <span class="onb-line"
+              >A new jolt each day, on the same goal.</span
+            ><span class="onb-line">Slow, and made for you.</span>
+          </p>
+        </div>
+
+        <div class="intro-step onb" data-step="3">
+          <div class="onb-visual rise" style="--i: 0">
+            <div class="stat">
+              <span class="stat-num" id="statNum">0%</span>
+              <span class="stat-cap">see it differently</span>
+              <div class="stat-goals" id="statGoals"></div>
+            </div>
+          </div>
+          <p class="onb-sentence rise" style="--i: 1">
+            <span class="onb-line"
+              >People who sit all five days arrive somewhere they could not
+              think their way to.</span
+            >
           </p>
         </div>
 
@@ -3984,10 +4186,10 @@
         </div>
       </div>
 
-      <div class="layer" id="l-questions">
+      <div class="layer" id="l-ask">
         <div class="q-inner">
           <div class="topbar">
-            <button class="icon-btn" id="qBack" aria-label="Back">
+            <button class="icon-btn" id="aBack" aria-label="Back">
               <svg
                 width="22"
                 height="22"
@@ -4002,33 +4204,64 @@
                 <polyline points="12 19 5 12 12 5" />
               </svg>
             </button>
-            <span class="q-step" id="qStep">1 of 2</span>
+            <span class="q-step">1 of 2</span>
             <span style="width: 38px"></span>
           </div>
-          <h1 class="q-head q-enter" id="qHead"></h1>
-          <div class="q-body q-enter" id="qBody"></div>
-          <textarea
-            class="q-area q-enter"
-            id="qArea"
-            placeholder="Take your time&hellip;"
-          ></textarea>
-          <div class="q-ideas" id="qIdeas" hidden>
-            <button class="q-ideas-btn" data-openlist>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="16.2" y1="16.2" x2="21" y2="21"/></svg>
-              Show me some ideas
-            </button>
-          </div>
+          <h1 class="q-head q-enter" id="aHead">
+            What do you want to work on?
+          </h1>
+          <textarea class="q-area q-enter" id="aArea"></textarea>
+          <div class="adds" id="aAdds"></div>
+          <div class="openers" id="aOpeners"></div>
           <div class="q-foot">
-            <button
-              class="cta"
-              id="qCta"
-              style="width: auto; padding: 0 28px"
-              disabled
-            >
+            <span class="q-count" id="aCount">0 / 15 words</span>
+            <button class="cta" id="aCta" style="padding: 0 28px" disabled>
               Continue
             </button>
           </div>
         </div>
+      </div>
+
+      <div class="layer" id="l-why">
+        <div class="q-inner">
+          <div class="topbar">
+            <button class="icon-btn" id="wBack" aria-label="Back">
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <line x1="19" y1="12" x2="5" y2="12" />
+                <polyline points="12 19 5 12 12 5" />
+              </svg>
+            </button>
+            <span class="q-step">2 of 2</span>
+            <span style="width: 38px"></span>
+          </div>
+          <h1 class="q-head q-enter" id="wHead">Why is this important?</h1>
+          <textarea class="q-area q-enter" id="wArea"></textarea>
+          <div class="q-foot">
+            <button class="cta" id="wCta" style="padding: 0 28px">
+              Build my meditation
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="backdrop" id="ideaBackdrop"></div>
+      <div class="idea-sheet" id="ideaSheet">
+        <div class="idea-sheet-top">
+          <div class="idea-sheet-title">Ideas</div>
+          <p class="idea-sheet-hint">
+            Tap one to drop it in, then make it yours.
+          </p>
+        </div>
+        <div class="idea-sheet-list" id="ideaSheetList"></div>
       </div>
 
       <!-- ============ SAFETY (clarify / block / crisis) ============ -->
@@ -6137,6 +6370,64 @@
         /* intro pager */
         const introSteps = $$(".intro-step");
         let introIdx = 0;
+
+        /* slide 2: types a sample goal into the mock field */
+        const introMock = "Whether to leave my job";
+        let introTypeTimer = null;
+        function introTypeStart() {
+          const el = $("#mockType");
+          if (!el) return;
+          clearTimeout(introTypeTimer);
+          let i = 0;
+          el.textContent = "";
+          (function tick() {
+            if (i <= introMock.length) {
+              el.textContent = introMock.slice(0, i);
+              i++;
+              introTypeTimer = setTimeout(
+                tick,
+                i === 1 ? 620 : 74 + Math.random() * 52,
+              );
+            }
+          })();
+        }
+        function introTypeStop() {
+          clearTimeout(introTypeTimer);
+        }
+
+        /* slide 4: the closing stat and the goal chips beneath it */
+        const introTick =
+          '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+        const introDoneGoals = [
+          "A decision I keep circling",
+          "Something to forgive",
+          "My father",
+          "Why I hurry",
+          "What I want",
+        ];
+        if ($("#statGoals")) {
+          $("#statGoals").innerHTML = introDoneGoals
+            .map(
+              (g, i) =>
+                `<span class="goal-chip" style="--j:${i}">${introTick}${g}</span>`,
+            )
+            .join("");
+        }
+        let introStatTimer = null;
+        function introRunStat() {
+          const el = $("#statNum");
+          if (!el) return;
+          clearInterval(introStatTimer);
+          const target = 85,
+            dur = 1400,
+            t0 = performance.now();
+          introStatTimer = setInterval(() => {
+            const p = Math.min(1, (performance.now() - t0) / dur);
+            el.textContent = Math.round((1 - Math.pow(1 - p, 3)) * target) + "%";
+            if (p >= 1) clearInterval(introStatTimer);
+          }, 30);
+        }
+
         function introSet(i) {
           introIdx = i;
           introSteps.forEach((el, k) => {
@@ -6144,7 +6435,15 @@
             el.classList.toggle("is-left", k < i);
           });
           $("#introCta").textContent =
-            i === introSteps.length - 1 ? "Start" : "Next";
+            i === introSteps.length - 1 ? "Build my first meditation" : "Next";
+          if (i === 1) introTypeStart();
+          else introTypeStop();
+          if (i === introSteps.length - 1) {
+            setTimeout(introRunStat, 420);
+          } else {
+            clearInterval(introStatTimer);
+            if ($("#statNum")) $("#statNum").textContent = "0%";
+          }
         }
         $("#introCta").addEventListener("click", () => {
           if (introIdx < introSteps.length - 1) {
@@ -6152,14 +6451,7 @@
             return;
           }
           obProtocol = "activate";
-          obAnswers[0] = "";
-          obAnswers[1] = "";
-          obPhase = "q1";
-          qView = "text";
-          obSub = "";
-          obGoal = "";
-          showLayer("l-questions");
-          renderQ();
+          startAsk();
         });
 
         /* terms sheet (onboarding) */
@@ -6178,250 +6470,146 @@
           }
         });
 
-        /* questions: pick -> refine -> why  (verbatim renderQ) */
-        const qHead = $("#qHead"),
-          qArea = $("#qArea"),
-          qCta = $("#qCta"),
-          qStep = $("#qStep"),
-          qBody = $("#qBody"),
-          qInner = $(".q-inner"),
-          qIdeas = $("#qIdeas");
-        let obPhase = "q1",
-          qView = "text",
-          qCat = "",
-          obSub = "",
+        const aHead = $("#aHead"),
+          aArea = $("#aArea"),
+          aCta = $("#aCta"),
+          aAdds = $("#aAdds"),
+          aOpeners = $("#aOpeners"),
+          aCount = $("#aCount");
+        const wHead = $("#wHead"),
+          wArea = $("#wArea"),
+          wCta = $("#wCta");
+        let obGoal = "",
+          obWhy = "";
+
+        const IDEAS = [
+          "A decision I keep circling",
+          "Something I need to forgive",
+          "Making peace with a parent",
+          "Why I am always in a hurry",
+          "What I actually want",
+          "A fear I have never looked at",
+          "A conversation I keep replaying",
+          "Where my life is going",
+          "Gratitude for what is already here",
+          "Where I feel most at home",
+        ];
+
+        function renderAOpeners() {
+          aOpeners.innerHTML =
+            '<button class="opener" data-openideas><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="16.2" y1="16.2" x2="21" y2="21"/></svg> Ideas</button>';
+        }
+
+        const MIN_WORDS = 15;
+        function wordCount(v) {
+          return (v.trim().match(/\S+/g) || []).length;
+        }
+        function syncACta() {
+          const n = wordCount(aArea.value);
+          const ok = n >= MIN_WORDS;
+          aCount.textContent = ok ? n + " words" : n + " / " + MIN_WORDS + " words";
+          aCount.classList.toggle("ok", ok);
+          aCta.toggleAttribute("disabled", !ok);
+        }
+
+        function startAsk() {
           obGoal = "";
-        function qSetTextarea(visible) {
-          qArea.classList.toggle("hidden", !visible);
-          qCta.style.display = visible ? "" : "none";
-          qInner.classList.toggle("list-mode", !visible);
-        }
-        function qAnswerIdx() {
-          return obPhase === "q2" ? 1 : 0;
-        }
-        function renderQ() {
-          const P = PROTOCOLS[obProtocol];
-          qStep.textContent = { q1: "1 of 3", refine: "2 of 3", q2: "3 of 3" }[
-            obPhase
-          ];
-          if (obPhase === "q1") {
-            qHead.textContent = P.questions[0].text;
-            if (qView === "list") {
-              qBody.innerHTML =
-                `<div class="qp-backrow"><button class="qp-back" data-backtext><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Write my own</button></div><div class="qp-list">` +
-                Object.keys(P.picker)
-                  .map(
-                    (c) =>
-                      `<button class="qp-opt" data-cat="${esc(c)}">${esc(c)}</button>`,
-                  )
-                  .join("") +
-                `<button class="qp-opt other" data-other>Other</button></div>`;
-              qSetTextarea(false);
-              qIdeas.hidden = true;
-            } else if (qView === "subs") {
-              qBody.innerHTML =
-                `<div class="qp-backrow"><button class="qp-back" data-backlist><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>${esc(qCat)}</button></div><div class="qp-list">` +
-                P.picker[qCat]
-                  .map(
-                    (x) =>
-                      `<button class="qp-opt" data-sub="${esc(x)}">${esc(x)}</button>`,
-                  )
-                  .join("") +
-                `<button class="qp-opt other" data-other>Other</button></div>`;
-              qSetTextarea(false);
-              qIdeas.hidden = true;
-            } else {
-              qBody.innerHTML = "";
-              qSetTextarea(true);
-              qIdeas.hidden = false;
-              qArea.value = obGoal || "";
-              qArea.placeholder = "The thing you had in mind\u2026";
-              qCta.textContent = "Continue";
-              qCta.toggleAttribute("disabled", !qArea.value.trim());
-              setTimeout(() => qArea.focus(), 380);
-            }
-          }
-          if (obPhase === "refine") {
-            qIdeas.hidden = true;
-            const r = REFINE[obSub] || REFINE._generic;
-            qHead.textContent = r.q;
-            qBody.innerHTML =
-              `<div class="qp-hint">Tap to add, then finish it in your words.</div>` +
-              `<div class="qp-chips-row">` +
-              `<button class="qp-chip-nav" data-chip-nav="left" aria-label="Scroll left"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>` +
-              `<div class="qp-chips">` +
-              r.chips
-                .map(
-                  (c) =>
-                    `<button class="qp-chipx" data-chip="${esc(c)}">${esc(c)}</button>`,
-                )
-                .join("") +
-              `</div>` +
-              `<button class="qp-chip-nav" data-chip-nav="right" aria-label="Scroll right"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>` +
-              `</div>`;
-            qSetTextarea(true);
-            if (!obAnswers[0]) {
-              const base = (r.sentence || obGoal).trim();
-              obAnswers[0] = base ? base + "." : "";
-            }
-            qArea.value = obAnswers[0];
-            qArea.placeholder = "The more we know, the better the jolt\u2026";
-            qCta.textContent = "Continue";
-            qCta.toggleAttribute("disabled", !qArea.value.trim());
-          }
-          if (obPhase === "q2") {
-            qIdeas.hidden = true;
-            qHead.textContent = P.questions[1].text;
-            qBody.innerHTML = "";
-            qSetTextarea(true);
-            qArea.value = obAnswers[1] || "";
-            qArea.placeholder = "A sentence or two, in your own words\u2026";
-            qCta.textContent = "Create my protocol";
-            qCta.toggleAttribute("disabled", !qArea.value.trim());
-            setTimeout(() => qArea.focus(), 380);
-          }
-          [qHead, qBody, qArea].forEach((el) => {
+          obWhy = "";
+          aArea.value = "";
+          renderAOpeners();
+          aAdds.innerHTML = "";
+          syncACta();
+          showLayer("l-ask");
+          [aHead, aArea].forEach((el) => {
             el.classList.remove("in");
             void el.offsetWidth;
           });
           setTimeout(() => {
-            qHead.classList.add("in");
-            setTimeout(() => {
-              qBody.classList.add("in");
-              qArea.classList.add("in");
-            }, 130);
+            aHead.classList.add("in");
+            setTimeout(() => aArea.classList.add("in"), 130);
           }, 30);
+          setTimeout(() => aArea.focus(), 520);
         }
-        qIdeas.addEventListener("click", (e) => {
-          if (e.target.closest("[data-openlist]")) {
-            qView = "list";
-            qCat = "";
-            renderQ();
-          }
+
+        aArea.addEventListener("input", syncACta);
+        aCta.addEventListener("click", () => {
+          obGoal = aArea.value.trim();
+          goWhy();
         });
-        qBody.addEventListener("click", (e) => {
-          const chipNav = e.target.closest("[data-chip-nav]");
-          if (chipNav) {
-            const track = qBody.querySelector(".qp-chips");
-            if (track) {
-              const amt = Math.max(120, track.clientWidth * 0.7);
-              track.scrollBy({
-                left: chipNav.dataset.chipNav === "left" ? -amt : amt,
-                behavior: "smooth",
-              });
-            }
-            return;
-          }
-          const toText = e.target.closest("[data-backtext]");
-          if (toText) {
-            qView = "text";
-            renderQ();
-            return;
-          }
-          const back = e.target.closest("[data-backlist]");
-          if (back) {
-            qView = "list";
-            renderQ();
-            return;
-          }
-          const cat = e.target.closest("[data-cat]");
-          if (cat) {
-            qCat = cat.dataset.cat;
-            qView = "subs";
-            renderQ();
-            return;
-          }
-          const sub = e.target.closest("[data-sub]");
-          if (sub) {
-            obSub = sub.dataset.sub;
-            obGoal = (REFINE[obSub] && REFINE[obSub].sentence) || obSub;
-            obAnswers[0] = "";
-            obPhase = "refine";
-            qView = "list";
-            renderQ();
-            return;
-          }
-          const other = e.target.closest("[data-other]");
-          if (other) {
-            obAnswers[qAnswerIdx()] = "";
-            qView = "text";
-            renderQ();
-            return;
-          }
-          const chip = e.target.closest("[data-chip]");
-          if (chip && !chip.classList.contains("on")) {
-            const raw = chip.dataset.chip;
-            const isStem = raw.endsWith("\u2026");
-            const frag = isStem ? raw.slice(0, -1) + " " : raw;
-            let t = qArea.value.replace(/\s+$/, "");
-            if (t && !/[.!?\u2026]$/.test(t)) t += ".";
-            qArea.value = (t ? t + " " : "") + frag + (isStem ? "" : ".");
-            obAnswers[0] = qArea.value;
-            chip.classList.add("on");
-            qCta.toggleAttribute("disabled", !qArea.value.trim());
-            qArea.focus();
+        $("#aBack").addEventListener("click", () => {
+          showLayer("l-intro");
+        });
+
+        const ideaBackdrop = $("#ideaBackdrop"),
+          ideaSheet = $("#ideaSheet"),
+          ideaSheetList = $("#ideaSheetList");
+        ideaSheetList.innerHTML = IDEAS.map(
+          (t) => `<button class="idea-sheet-row" data-idea="${esc(t)}">${esc(t)}</button>`,
+        ).join("");
+        function openIdeaSheet() {
+          ideaSheet.classList.add("open");
+          ideaBackdrop.classList.add("open");
+          ideaSheetList.scrollTop = 0;
+        }
+        function closeIdeaSheet() {
+          ideaSheet.classList.remove("open");
+          ideaBackdrop.classList.remove("open");
+        }
+        ideaBackdrop.addEventListener("click", closeIdeaSheet);
+        aOpeners.addEventListener("click", (e) => {
+          if (e.target.closest("[data-openideas]")) openIdeaSheet();
+        });
+        ideaSheetList.addEventListener("click", (e) => {
+          const row = e.target.closest("[data-idea]");
+          if (!row) return;
+          aArea.value = row.dataset.idea;
+          syncACta();
+          closeIdeaSheet();
+          setTimeout(() => {
+            aArea.focus();
             try {
-              qArea.setSelectionRange(qArea.value.length, qArea.value.length);
+              aArea.setSelectionRange(aArea.value.length, aArea.value.length);
             } catch (err) {}
-            return;
-          }
+          }, 300);
         });
-        qArea.addEventListener("input", () => {
-          obAnswers[qAnswerIdx()] = qArea.value;
-          qCta.toggleAttribute("disabled", !qArea.value.trim());
+
+        function goWhy() {
+          wArea.value = obWhy;
+          showLayer("l-why");
+          [wHead, wArea].forEach((el) => {
+            el.classList.remove("in");
+            void el.offsetWidth;
+          });
+          setTimeout(() => {
+            wHead.classList.add("in");
+            setTimeout(() => wArea.classList.add("in"), 130);
+          }, 30);
+          setTimeout(() => wArea.focus(), 520);
+        }
+        wArea.addEventListener("input", () => {
+          obWhy = wArea.value;
         });
-        qCta.addEventListener("click", () => {
-          obAnswers[qAnswerIdx()] = qArea.value;
-          if (obPhase === "q1") {
-            obSub = "";
-            obGoal = qArea.value.trim();
-            obAnswers[0] = "";
-            obPhase = "refine";
-            qView = "text";
-            renderQ();
-            return;
-          }
-          if (obPhase === "refine") {
-            obPhase = "q2";
-            qView = "text";
-            renderQ();
-            return;
-          }
+        wCta.addEventListener("click", () => {
+          obWhy = wArea.value.trim();
           createProtocolFromOnboarding();
         });
-        $("#qBack").addEventListener("click", () => {
-          if (obPhase === "q1") {
-            if (qView === "subs") {
-              qView = "list";
-              renderQ();
-            } else if (qView === "list") {
-              qView = "text";
-              renderQ();
-            } else {
-              showLayer("l-intro");
-            }
-            return;
-          }
-          if (obPhase === "refine") {
-            obAnswers[0] = "";
-            obPhase = "q1";
-            qView = "text";
-            renderQ();
-            return;
-          }
-          obPhase = "refine";
-          qView = "text";
-          renderQ();
+        $("#wBack").addEventListener("click", () => {
+          obWhy = wArea.value.trim();
+          const savedGoal = obGoal,
+            savedWhy = obWhy;
+          startAsk();
+          obGoal = savedGoal;
+          obWhy = savedWhy;
+          aArea.value = savedGoal;
+          syncACta();
         });
+
 
         /* build the target + charge from the onboarding answers, then create */
         async function createProtocolFromOnboarding() {
           const type = obProtocol;
-          const target = (obGoal || obAnswers[0] || "").trim();
-          let charge = (obAnswers[1] || "").trim();
-          const ctx = (obAnswers[0] || "").trim();
-          if (ctx && ctx !== (obGoal || "").trim())
-            charge = (charge ? charge + "\n\n" : "") + ctx;
+          const target = (obGoal || "").trim();
+          const charge = (obWhy || "").trim();
           showScreen("s-building");
           const _buildStart = Date.now();
           try {
@@ -7770,10 +7958,7 @@
           $("#safetyCta").addEventListener("click", () => {
             const onboarding = state.me && !state.me.onboarding_complete;
             if (onboarding) {
-              obPhase = "q1";
-              qView = "list";
-              showLayer("l-questions");
-              renderQ();
+              startAsk();
             } else {
               const kind = $("#safetyCta").dataset.kind;
               if (kind === "clarify" || kind === "error") show("s-create");
