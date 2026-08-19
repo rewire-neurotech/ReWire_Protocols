@@ -219,6 +219,120 @@ class Config:
             "voice_settings": voice["voice_settings"],
         }
 
+    # ================================================================== #
+    # MEDITATION (V5 pivot, Aug 2026)
+    # ------------------------------------------------------------------ #
+    # Meditation protocols. The regular meditation lives in the integrate
+    # type. Place meditations (forest, ocean, fire) live in the expand type
+    # with a place field on the protocol. Activate is untouched.
+    #
+    # No durations or word targets here. The prompts fix their own word
+    # counts and the mixer plays voice and music at natural length,
+    # whichever is longer wins. Config only maps theme + day to a file.
+    #
+    # All meditation music sits in assets/music/5. Humming/ exactly as
+    # uploaded. Ocean and fire have 4 tracks, day 5 repeats day 1.
+    # ================================================================== #
+    MEDITATION_MUSIC_DIR: str = "music/5. Humming"
+
+    MEDITATION_TRACKS = {
+        "regular": [
+            "1 Humming.mpeg",
+            "2 Humming.mp3",
+            "3 Humming.mp3",
+            "4 Humming.mp3",
+            "5 Humming.mp3",
+        ],
+        "forest": [
+            "forest 1.mp3",
+            "forest 2.mp3",
+            "forest 3.mp3",
+            "forest 4.mp3",
+            "forest 5.mp3",
+        ],
+        "ocean": [
+            "ocean 1.mp3",
+            "ocean 2.mp3",
+            "ocean 3.mp3",
+            "ocean 4.mp3",
+            "ocean 1.mp3",
+        ],
+        "fire": [
+            "fire 1.mp3",
+            "fire 2.mp3",
+            "fire 3.mp3",
+            "fire 4.mp3",
+            "fire 1.mp3",
+        ],
+    }
+
+    # Generation models. Day 1 prompts were built and validated on Opus.
+    # Days 2-5 run the recursive prompt on the default model (Sonnet).
+    MEDITATION_MODEL_DAY1: str = os.getenv("MEDITATION_MODEL_DAY1", "claude-opus-4-8")
+    MEDITATION_MODEL_LATER: str = os.getenv("MEDITATION_MODEL_LATER", "claude-sonnet-4-6")
+
+    # One voice for all meditation. Day 1 uses creative settings
+    # (stability 0.5), days 2-5 use stable settings (stability 1.0).
+    # Style stays 0.0 everywhere, no emotion tags in meditation prompts.
+    MEDITATION_VOICE_ID: str = os.getenv("MEDITATION_VOICE_ID", "lMILJ9d29MrRXy9BIgcz")
+    MEDITATION_VOICE_DAY1 = {
+        "stability": 0.5,
+        "similarity_boost": 0.75,
+        "style": 0.0,
+        "use_speaker_boost": True,
+    }
+    MEDITATION_VOICE_LATER = {
+        "stability": 1.0,
+        "similarity_boost": 0.75,
+        "style": 0.0,
+        "use_speaker_boost": True,
+    }
+
+    # Pause markers in generated scripts. Replaced with real inserted
+    # silence after synthesis, ElevenLabs never sees the markers.
+    MEDITATION_PAUSE_MS: int = int(os.getenv("MEDITATION_PAUSE_MS", "3000"))
+    MEDITATION_LONG_PAUSE_MS: int = int(os.getenv("MEDITATION_LONG_PAUSE_MS", "6000"))
+
+    # Context attachments per theme, appended to the day 1 prompt the same
+    # way stimgen does, truncated to the cap. Paths relative to ASSETS_DIR.
+    MEDITATION_CONTEXT_CAP: int = int(os.getenv("MEDITATION_CONTEXT_CAP", "80000"))
+    MEDITATION_CONTEXT = {
+        "regular": [],
+        "forest": [],
+        "ocean": [
+            "music/5. Humming/guided-imagery-corpus.txt",
+            "music/5. Humming/wisdom-corpus.txt",
+        ],
+        "fire": [
+            "music/5. Humming/A THOUGHT A DAY (Simple).docx",
+        ],
+    }
+
+    # Frontend place ids map straight onto themes. A protocol with no
+    # place is the regular meditation.
+    def meditation_theme(self, place: str = "") -> str:
+        p = (place or "").strip().lower()
+        return p if p in ("forest", "ocean", "fire") else "regular"
+
+    def get_meditation_track(self, theme: str, day: int) -> dict:
+        t = self.meditation_theme(theme)
+        files = self.MEDITATION_TRACKS[t]
+        if not 1 <= day <= len(files):
+            raise ValueError(f"No meditation track for theme '{t}' day {day}")
+        return {
+            "theme": t,
+            "day": day,
+            "file": self.ASSETS_DIR / self.MEDITATION_MUSIC_DIR / files[day - 1],
+            "voice_id": self.MEDITATION_VOICE_ID,
+            "voice_settings": (
+                self.MEDITATION_VOICE_DAY1 if day == 1 else self.MEDITATION_VOICE_LATER
+            ),
+        }
+
+    def meditation_context_paths(self, theme: str) -> list:
+        t = self.meditation_theme(theme)
+        return [self.ASSETS_DIR / p for p in self.MEDITATION_CONTEXT.get(t, [])]
+
     # ------------------------------------------------------------------ #
     # Database
     # ------------------------------------------------------------------ #
