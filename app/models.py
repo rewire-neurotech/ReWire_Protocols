@@ -183,7 +183,13 @@ class Protocol(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     # activate | integrate | expand
+    # Meditation build (Aug 2026): integrate = the regular meditation,
+    # expand = place meditations, activate untouched.
     type = Column(String(20), nullable=False, default="activate")
+    # Place for expand meditations: forest | ocean | fire. Null = regular.
+    # NEW column on an EXISTING table -- the ALTER TABLE migration in main.py
+    # adds it to live databases; create_all alone will not.
+    place = Column(String(20), nullable=True)
     target = Column(Text, nullable=False)        # the goal they typed
     charge = Column(Text, nullable=True)         # why it matters (private fuel; never surfaced raw)
     title = Column(String(200), nullable=True)   # optional display title
