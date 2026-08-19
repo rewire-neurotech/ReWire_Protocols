@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#EDF1F3">
+<title>Veil — shore</title>
+<style>
+/* ==========================================================
+   VEIL / SHORE
+   Drop-in animated background. No assets, seamless 120s loop.
+   Markup needed:
+     <div class="veil" id="veil">
+       <canvas></canvas><div class="scrim"></div>
+       <div class="vignette"></div><div class="grain"></div>
+     </div>
+   Sits at z-index 0; put your content above it.
+   ========================================================== */
+.veil{
+  --paper:#EDF1F3;
+  --veil:.32;
+  --grain:.05;
+  --depth:.85;
+  --swell:1;
+  position:fixed;inset:0;z-index:0;
+  background:var(--paper);overflow:hidden;isolation:isolate;
+}
+.veil canvas{
+  position:absolute;inset:-8%;width:116%;height:116%;display:block;
+  animation:veil-breathe 24s ease-in-out infinite;will-change:transform;
+}
+@keyframes veil-breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
+.veil .scrim{position:absolute;inset:0;background:var(--paper);opacity:var(--veil)}
+.veil .vignette{
+  position:absolute;inset:0;
+  background:radial-gradient(125% 85% at 50% 42%, transparent 34%, var(--paper) 100%);
+  opacity:calc(var(--veil) * 1.25);
+}
+.veil .grain{
+  position:absolute;inset:0;opacity:var(--grain);mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/></filter><rect width='140' height='140' filter='url(%23n)'/></svg>");
+}
+.veil .scrim,.veil .vignette,.veil .grain{pointer-events:none}
+@media (prefers-reduced-motion:reduce){.veil canvas{animation:none}}
+
+html,body{margin:0;height:100%;background:#EDF1F3}
+</style>
+</head>
+<body>
+
+<div class="veil" id="veil">
+  <canvas></canvas>
+  <div class="scrim"></div>
+  <div class="vignette"></div>
+  <div class="grain"></div>
+</div>
+
+<script>
+/* VeilShore.mount(el) -> {stop, start}. Auto-mounts #veil if present. */
+window.VeilShore = (function(){
+  var TAU = Math.PI*2;
+  var CFG = {
+    loop:  120,   // seconds, seamless
+    blur:  5,     // px inside a 110px canvas, ~18px on a phone screen
+    speed: 2,     // integer only — non-integers break the loop join
+    lines: 15,
+    width: 110    // canvas backing store width
+  };
+
+  function mount(root){
+    var cv = root.querySelector('canvas');
+    var ctx = cv.getContext('2d');
+    var SW = CFG.width, SH = 220, raf = 0, running = false;
+
+    function resize(){
+      var w = cv.clientWidth || innerWidth, h = cv.clientHeight || innerHeight;
+      SH = Math.round(SW * h / w);
+      cv.width = SW; cv.height = SH;
+    }
+    function num(p){ return parseFloat(getComputedStyle(root).getPropertyValue('--'+p)) || 0; }
+
+    function draw(p){
+      var depth = num('depth'), swell = num('swell'), s = CFG.speed;
+      var W = SW, H = SH, horizon = H*.30, shore = H*1.10;   // shore sits below the frame
+      var i, x, y, g, k;
+      var fA = 24*s, fB = 45*s, fC = 8*s, fD = 60*s;
+
+      ctx.filter = 'none';
+      ctx.clearRect(0,0,W,H);
+
+      g = ctx.createLinearGradient(0,0,0,H);
+      g.addColorStop(0,'#E9EFF2'); g.addColorStop(.28,'#C0D2DC');
+      g.addColorStop(.72,'#89A5B8'); g.addColorStop(1,'#6F8EA4');
+      ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+
+      var lift = .5 + .5*Math.sin(TAU*p - Math.PI/2);
+      var gx = W*.5 + Math.sin(TAU*2*p)*W*.12;
+      g = ctx.createRadialGradient(gx,horizon,0,gx,horizon,W*.9);
+      g.addColorStop(0,'rgba(255,253,246,'+(.35+.6*lift)+')');
+      g.addColorStop(.45,'rgba(255,252,244,'+(.14+.24*lift)+')');
+      g.addColorStop(1,'rgba(255,252,244,0)');
+      ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+
+      if (CFG.blur > 0 && 'filter' in ctx) ctx.filter = 'blur('+CFG.blur+'px)';
+      ctx.lineCap = 'round';
+
+      for (i=0;i<CFG.lines;i++){
+        var u = i/(CFG.lines-1);
+        var e = Math.pow(u,2.1);
+        var y0 = horizon + (shore-horizon)*e;
+        var amp = (.5 + e*6.5) * swell;
+        var tilt = Math.sin(TAU*fC*p*.25 + u*3.2)*H*.016
+                 + Math.sin(TAU*fC*p + u*1.7)*H*.006;
+
+        ctx.lineWidth = .8 + e*3.2;
+        ctx.beginPath();
+        for (x=0;x<=W;x+=2){
+          k = x/W;
+          y = y0 + tilt
+            + Math.sin(k*(5+u*4)  + TAU*fA*p + i*.55)*amp
+            + Math.sin(k*(11-u*5) - TAU*fB*p + i*1.27)*amp*.42
+            + Math.sin(k*(19+u*6) + TAU*fD*p + i*2.1)*amp*.16;
+          x ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
+        }
+        ctx.strokeStyle = 'rgba(28,60,84,'+((.05+e*.20)*depth)+')';
+        ctx.stroke();
+
+        ctx.lineWidth = .6 + e*2.2;
+        ctx.beginPath();
+        for (x=0;x<=W;x+=2){
+          k = x/W;
+          y = y0 + tilt - .6 - e*1.6
+            + Math.sin(k*(5+u*4)  + TAU*fA*p + i*.55)*amp
+            + Math.sin(k*(11-u*5) - TAU*fB*p + i*1.27)*amp*.42
+            + Math.sin(k*(19+u*6) + TAU*fD*p + i*2.1)*amp*.16;
+          x ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
+        }
+        ctx.strokeStyle = 'rgba(250,254,255,'+((.10+e*.28)*depth)+')';
+        ctx.stroke();
+      }
+
+      ctx.filter = 'none';
+    }
+
+    var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function frame(){
+      raf = requestAnimationFrame(frame);
+      draw(((performance.now()/1000) % CFG.loop) / CFG.loop);
+    }
+    function start(){
+      if (running) return;
+      running = true;
+      if (reduce) { draw(.15); return; }
+      raf = requestAnimationFrame(frame);
+    }
+    function stop(){ running = false; cancelAnimationFrame(raf); }
+
+    addEventListener('resize', function(){ resize(); if (!running || reduce) draw(.15); });
+    document.addEventListener('visibilitychange', function(){
+      document.hidden ? stop() : start();          // idle in the background
+    });
+
+    resize(); start();
+    return { start:start, stop:stop, cfg:CFG };
+  }
+
+  var el = document.getElementById('veil');
+  return { mount:mount, instance: el ? mount(el) : null };
+})();
+</script>
+</body>
+</html>
