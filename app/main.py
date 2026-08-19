@@ -175,6 +175,23 @@ if Base is not None and engine is not None:
         except Exception:
             pass  # column already exists
 
+        # migrate: add place to protocols (meditation build, Aug 2026)
+        #
+        # SAME SEVERITY AS last_active_at BELOW: place is declared on the
+        # Protocol model, so SQLAlchemy includes it in every select and insert
+        # against `protocols`. On a database where this ALTER has not run,
+        # protocol listing and creation fail outright. VARCHAR(20) is accepted
+        # by both Postgres and SQLite. Silent no-op once the column exists.
+        try:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE protocols ADD COLUMN place VARCHAR(20)"
+                ))
+                conn.commit()
+                print("[migrate] added place column to protocols")
+        except Exception:
+            pass  # column already exists
+
         # ------------------------------------------------------------------ #
         # ADMIN CONSOLE MIGRATION
         # ------------------------------------------------------------------ #
