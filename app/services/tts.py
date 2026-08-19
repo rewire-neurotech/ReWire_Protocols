@@ -15,6 +15,16 @@ _SENTENCE_SPLIT_RE = re.compile(r'(?<=[\.\!\?])\s+')
 _PAUSE_TOKEN = "[pause]"
 _PAUSE_SENTINEL = "<<<PAUSE>>>"
 
+# Meditation pause markers. [long pause] must be handled before [pause].
+_LONG_PAUSE_TOKEN = "[long pause]"
+_LONG_PAUSE_SENTINEL = "<<<LONGPAUSE>>>"
+# ElevenLabs break tags like <break time="3.0s"/>. v3 drops them, so we
+# convert them to real inserted silence instead.
+_BREAK_TAG_RE = re.compile(r'<break\s+time="([0-9]*\.?[0-9]+)s?"\s*/?>', re.IGNORECASE)
+# Any other bracket tag left in a meditation script (audio tags are not
+# used in meditation, style is 0.0) gets removed so it is never spoken.
+_BRACKET_TAG_RE = re.compile(r"\[[^\[\]]{1,40}\]")
+
 # ElevenLabs sometimes gets unstable with huge chunks.
 # 4600 is near the upper limit - we can be a bit more conservative.
 DEFAULT_MAX_CHARS = 3200
@@ -268,6 +278,114 @@ def synth(
         full += s
 
     # Noise reduction to remove ElevenLabs synthesis artifacts
+    samples = np.array(full.get_array_of_samples(), dtype=np.float32)
+    reduced = nr.reduce_noise(
+        y=samples,
+        sr=full.frame_rate,
+        stationary=True,
+        prop_decrease=0.75,
+    )
+    reduced_int = np.int16(np.clip(reduced, -32768, 32767))
+    full = AudioSegment(
+        data=reduced_int.tobytes(),
+        sample_width=full.sample_width,
+        frame_rate=full.frame_rate,
+        channels=full.channels,
+    )
+    print("[TTS] Noise reduction applied")
+
+    outf = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+    outf.close()
+    full.export(outf.name, format="wav")
+    return outf.name
+
+def synth_meditation(
+    text: str,
+    voice_id: str,
+    key: str,
+    max_chars: int = DEFAULT_MAX_CHARS,
+    voice_settings: Optional[Dict] = None,
+    pause_ms: int = 3000,
+    long_pause_ms: int = 6000,
+) -> str:
+    """
+    Meditation synthesis. Same chunking, retries and noise reduction as
+    synth(), different pause handling:
+
+    [pause]       -> pause_ms of real silence (default 3s)
+    [long pause]  -> long_pause_ms of real silence (default 6s)
+    <break time="X s"/> -> X seconds of real silence
+    any other [tag]     -> removed, never spoken
+
+    ElevenLabs never sees any marker. Silence is inserted in the audio
+    after synthesis, so there are no dropped tags and no spoken brackets.
+    Day 1 meditation scripts have no markers and fit in one chunk, so they
+    go out as a single API call with no stitching.
+    """
+    raw = (text or "").strip()
+
+    def _silent_wav() -> str:
+        silent = AudioSegment.silent(duration=1000, frame_rate=44100)
+        f = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+        f.close()
+        silent.export(f.name, format="wav")
+        return f.name
+
+    if not raw:
+        return _silent_wav()
+
+    # Break tags become pause sentinels carrying their duration in ms.
+    def _break_to_sentinel(m):
+        try:
+            ms = int(float(m.group(1)) * 1000)
+        except ValueError:
+            ms = pause_ms
+        return f" <<<SIL:{ms}>>> "
+
+    raw = _BREAK_TAG_RE.sub(_break_to_sentinel, raw)
+    raw = raw.replace(_LONG_PAUSE_TOKEN, f" <<<SIL:{long_pause_ms}>>> ")
+    raw = raw.replace(_PAUSE_TOKEN, f" <<<SIL:{pause_ms}>>> ")
+    # Anything bracketed that is still left is a stray tag. Remove it.
+    raw = _BRACKET_TAG_RE.sub(" ", raw)
+
+    # Split into speech blocks and silence markers, in order.
+    pieces = re.split(r"(<<<SIL:\d+>>>)", raw)
+    plan = []
+    for piece in pieces:
+        piece = piece.strip()
+        if not piece:
+            continue
+        m = re.fullmatch(r"<<<SIL:(\d+)>>>", piece)
+        if m:
+            plan.append(("silence", int(m.group(1))))
+        else:
+            plan.append(("speech", piece))
+
+    if not any(kind == "speech" for kind, _ in plan):
+        return _silent_wav()
+
+    segs: List[AudioSegment] = []
+    CHUNK_GAP_MS = 350
+
+    for kind, value in plan:
+        if kind == "silence":
+            segs.append(AudioSegment.silent(duration=value, frame_rate=44100))
+            continue
+        parts = _split_text_into_chunks(value, max_chars=max_chars)
+        for j, p in enumerate(parts):
+            print(
+                f"[TTS] Meditation chunk {j + 1}/{len(parts)}, len={len(p)} chars"
+            )
+            segs.append(_synth_chunk(p, voice_id, key, voice_settings=voice_settings))
+            if j < len(parts) - 1:
+                segs.append(
+                    AudioSegment.silent(duration=CHUNK_GAP_MS, frame_rate=44100)
+                )
+
+    full = segs[0]
+    for s in segs[1:]:
+        full += s
+
     samples = np.array(full.get_array_of_samples(), dtype=np.float32)
     reduced = nr.reduce_noise(
         y=samples,
