@@ -601,3 +601,161 @@ def generate_journal_speech(entry_text: str, target_words: int,
         category=(last_fail or {}).get("category", "other"),
         detail="journal output screen failed after retries",
     )
+
+# ===========================================================================
+# MEDITATION GENERATION (V5 meditation build, Aug 2026)
+# ---------------------------------------------------------------------------
+# Day 1 uses the theme's own prompt (regular / forest / ocean / fire) on the
+# day 1 model. Days 2-5 and journal jolts use the recursive prompt from
+# experiment 75 on the later model, fed with the full history so far.
+# Every script passes the output screen before it is returned. The prompt
+# validators are advisory: Felix's own shipped takes trip them, so a
+# violation triggers one fresh take and the cleanest take wins.
+# ===========================================================================
+
+from app.services import meditation_prompts
+
+
+_DEV_MEDITATION_D1 = (
+    "You are settled where you sit, and the weight of the day rests on the "
+    "chair under you. This session stays with one small idea about time. "
+    "A river cuts stone by moving one grain at a time. The stone keeps the "
+    "shape of everything the water did. A person keeps the shape of their "
+    "days the same way. Now ask yourself: which small thing shaped today?"
+)
+
+_DEV_MEDITATION_LATER = (
+    "Settle into the chair and let the sounds in the room stay where they "
+    "are. [long pause] The thing you wrote about is still here, the same "
+    "size you left it. It fits inside one plain sentence, and the sentence "
+    "is enough. [pause] Stay with that sentence while the music runs, and "
+    "let the answers come after the searching stops."
+)
+
+
+def _generate_meditation(model: str, system: str, user: str, validate_fn,
+                         label: str, max_takes: int = 3) -> str:
+    """Generate, validate, screen. Return the cleanest take that passes the
+    output screen. Raises ProtocolUnsafe when no take passes the screen."""
+    best_script = None
+    best_hits = None
+    hits = []
+
+    for take in range(1, max_takes + 1):
+        u = user
+        if hits:
+            u = (
+                f"{user}\n\nThe previous take broke these rules: "
+                f"{', '.join(str(h) for h in hits)}. "
+                f"Write a completely fresh take that breaks none of them."
+            )
+
+        script = _claude_text(model, system, u, max_tokens=4096, temperature=1.0)
+        hits = validate_fn(script)
+
+        verdict = _screen_output(script)
+        if verdict.get("verdict") != "pass":
+            print(f"[LLM] {label} output screen FAIL take {take}/{max_takes}: {verdict.get('category')}")
+            continue
+
+        if not hits:
+            return script
+        print(f"[LLM] {label} take {take}/{max_takes} has {len(hits)} validator hits")
+        if best_hits is None or len(hits) < len(best_hits):
+            best_script, best_hits = script, hits
+
+    if best_script is not None:
+        print(f"[LLM] {label}: returning best take with {len(best_hits)} validator hits")
+        return best_script
+
+    raise ProtocolUnsafe(
+        "output_screen",
+        verdict="fail",
+        category="other",
+        detail=f"{label}: no take passed the output screen",
+    )
+
+
+def generate_meditation_day1(theme: str, topic: str, why: str) -> str:
+    """Day 1 meditation script for a theme (regular / forest / ocean / fire).
+
+    Ocean and fire prompts carry their context corpora, loaded from assets
+    and truncated to the config cap, inserted before the LISTENER INPUT
+    heading exactly the way stimgen did.
+    """
+    theme = cfg.meditation_theme(theme)
+    if cfg.DEV_MODE:
+        return _DEV_MEDITATION_D1
+
+    context_text = meditation_prompts.load_context(
+        cfg.meditation_context_paths(theme), cfg.MEDITATION_CONTEXT_CAP
+    )
+    system = meditation_prompts.compose_day1_prompt(theme, context_text)
+    user = meditation_prompts.build_day1_input(topic, why)
+
+    return _generate_meditation(
+        cfg.MEDITATION_MODEL_DAY1,
+        system,
+        user,
+        lambda s: meditation_prompts.validate_day1(theme, s),
+        f"meditation d1 {theme}",
+    )
+
+
+def generate_meditation_later(topic: str, why: str, history: list) -> str:
+    """Days 2-5 meditation script, and journal jolts.
+
+    history: list of dicts in day order, each {day, script, chills,
+    reflection}, so the prompt reads everything that came before and can
+    never repeat it. Journal jolts call this with the entry text as topic
+    and an empty history.
+    """
+    if cfg.DEV_MODE:
+        return _DEV_MEDITATION_LATER
+
+    system = meditation_prompts.LATER_DAYS_PROMPT
+    user = meditation_prompts.build_later_input(topic, why, history)
+
+    return _generate_meditation(
+        cfg.MEDITATION_MODEL_LATER,
+        system,
+        user,
+        meditation_prompts.validate_later,
+        "meditation later",
+    )
+
+
+_MEDITATION_TITLE_SYSTEM = """You title a finished meditation session for a mental health app.
+You get what the listener wrote before the session and, when present, their reflection after it.
+If the reflection contains an insight, the title is that insight, distilled.
+Otherwise the title is a plain sentence about what the session was about.
+Rules:
+- 6 words maximum
+- Simple words a child could read
+- Sentence case, no quotes, no trailing punctuation
+- Return ONLY the title"""
+
+
+def generate_meditation_title(topic: str, reflection: str = "") -> str:
+    """Six-word child-readable title: the listener's insight when they had
+    one, otherwise a plain sentence about the topic. Haiku, cheap, safe
+    fallback to the topic's first words on any error."""
+    fallback = " ".join((topic or "meditation").strip().split()[:6]) or "A quiet meditation"
+    if cfg.DEV_MODE:
+        return fallback
+    try:
+        user = f"They wrote: {topic}"
+        if reflection and reflection.strip():
+            user += f"\nTheir reflection after: {reflection.strip()}"
+        raw = _claude_text(cfg.HAIKU_MODEL, _MEDITATION_TITLE_SYSTEM, user,
+                           max_tokens=30, temperature=0.7, max_retries=2)
+        title = raw.strip().strip('"').strip("'")
+        if title:
+            words = title.split()
+            if len(words) > 6:
+                title = " ".join(words[:6])
+            return title[:200]
+        return fallback
+    except Exception as e:
+        print(f"[LLM] meditation title failed: {e}")
+        return fallback
