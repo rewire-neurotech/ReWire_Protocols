@@ -192,6 +192,23 @@ if Base is not None and engine is not None:
         except Exception:
             pass  # column already exists
 
+        # migrate: add summary to protocols (home card summary, Aug 2026)
+        #
+        # SAME SEVERITY AS place ABOVE: summary is declared on the Protocol
+        # model, so SQLAlchemy includes it in every select and insert against
+        # `protocols`. On a database where this ALTER has not run, protocol
+        # listing and creation fail outright. TEXT is accepted by both
+        # Postgres and SQLite. Silent no-op once the column exists.
+        try:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE protocols ADD COLUMN summary TEXT"
+                ))
+                conn.commit()
+                print("[migrate] added summary column to protocols")
+        except Exception:
+            pass  # column already exists
+
         # ------------------------------------------------------------------ #
         # ADMIN CONSOLE MIGRATION
         # ------------------------------------------------------------------ #
