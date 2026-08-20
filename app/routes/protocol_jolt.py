@@ -147,12 +147,15 @@ def start_jolt(pid: int, req: StartReq,
     if day > cfg.PROTOCOL_FREE_DAYS and not _protocol_unlocked(p, u.id, db):
         raise HTTPException(402, "unlock required for this protocol")
 
-    # 5) Prior-day + daily-cadence gating (only reached once the day is
-    #    unlocked): yesterday's action must be marked done, and the calendar
-    #    must have moved past the day it was completed (judged in UTC, matching
-    #    the client's own check). The None guard fails open on any legacy row
-    #    missing the timestamp.
-    if day > 1:
+    # 5) Prior-day + daily-cadence gating. Meditation build (Aug 2026):
+    #    integrate and expand protocols have no done-marking and no daily
+    #    wait; once paid, the next jolt starts whenever the person wants.
+    #    The sequence gate above already guarantees every earlier day has a
+    #    finished jolt. Activate keeps the original behaviour: yesterday's
+    #    action marked done, and the calendar moved past the day it was
+    #    completed (judged in UTC, matching the client's own check). The
+    #    None guard fails open on any legacy row missing the timestamp.
+    if day > 1 and (p.type or "activate") == "activate":
         prev = (db.query(ProtocolDay)
                 .filter(ProtocolDay.protocol_id == pid, ProtocolDay.day == day - 1).first())
         if not (prev and prev.done):
@@ -261,15 +264,42 @@ def save_reflection(jid: int, req: ReflectReq,
     j = db.query(ProtocolJolt).filter(ProtocolJolt.id == jid, ProtocolJolt.user_id == u.id).first()
     if not j:
         raise HTTPException(404, "jolt not found")
+    p = db.query(Protocol).filter(Protocol.id == j.protocol_id).first()
+    is_meditation = bool(p) and (p.type or "") in ("integrate", "expand")
+
+    chills = (req.chills or "").strip().lower() or None
+    answer = (req.answer or "").strip()
+
+    # Meditation build (Aug 2026): the post-jolt questionnaire branches on
+    # chills. The no branch ("What came up during this session?") carries a
+    # 10 word minimum so the next day's prompt has something real to read.
+    if is_meditation and chills == "no" and len(answer.split()) < 10:
+        raise HTTPException(400, "please write at least 10 words")
+
     # Saved into the journal, tagged to this protocol + day.
     db.add(JournalEntry(
         user_id=u.id,
         protocol_id=j.protocol_id,
         day=j.day,
         question=req.question or None,
-        answer=encrypt_field(req.answer) if req.answer else None,
-        chills=req.chills.strip() or None,
+        answer=encrypt_field(answer) if answer else None,
+        chills=chills,
     ))
+
+    if is_meditation:
+        # Title: the listener's insight when they had one, otherwise a plain
+        # 6-word sentence about the topic. Set once, never overwritten, and
+        # never allowed to fail the save.
+        if not p.title:
+            try:
+                p.title = llm.generate_meditation_title(p.target or "", answer)[:200]
+            except Exception as e:
+                print(f"[reflect] title generation failed: {e}")
+        # The last day's reflection completes the protocol (meditation has no
+        # done-marking, so the old all-days-done path never fires for it).
+        if j.day >= cfg.PROTOCOL_DAYS:
+            p.status = "complete"
+
     db.commit()
     return Ok(status="ok")
 
