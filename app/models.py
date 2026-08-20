@@ -193,6 +193,11 @@ class Protocol(Base):
     target = Column(Text, nullable=False)        # the goal they typed
     charge = Column(Text, nullable=True)         # why it matters (private fuel; never surfaced raw)
     title = Column(String(200), nullable=True)   # optional display title
+    # LLM summary shown on the home card. Written in third person, never
+    # quotes the user's own words back at them.
+    # NEW column on an EXISTING table -- the ALTER TABLE migration in main.py
+    # adds it to live databases; create_all alone will not.
+    summary = Column(Text, nullable=True)
 
     # input safety screen result (run on target + charge, before the plan)
     input_verdict = Column(String(20), nullable=True)    # safe | clarify | block | crisis
