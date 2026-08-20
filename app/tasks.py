@@ -31,8 +31,9 @@ from app.core.config import cfg
 from app.db import SessionLocal
 from app.models import Protocol, ProtocolDay, ProtocolJolt, JournalEntry, JournalJolt, PushSubscription
 from app.services import llm
-from app.services.tts import synth
+from app.services.tts import synth, synth_meditation
 from app.services.mix import mix as mix_audio
+from app.services.mix_v45 import mix as mix_meditation_audio
 from app.services.safety_log import log_safety_event_bg, compose_said
 from app.utils.encryption import encrypt_field, decrypt_field, encrypt_file
 
@@ -223,16 +224,50 @@ def _load_job(jolt_id):
             if last_ref and last_ref.answer:
                 yref = decrypt_field(last_ref.answer) or ""
 
+        # Meditation history for days 2-5: every previous day's script with its
+        # reflection, in day order, so the recursive prompt can read everything
+        # that came before and never repeat it.
+        history = []
+        if (p.type or "") in ("integrate", "expand") and j.day > 1:
+            prev_jolts = (db.query(ProtocolJolt)
+                          .filter(ProtocolJolt.protocol_id == p.id,
+                                  ProtocolJolt.day < j.day,
+                                  ProtocolJolt.stage == "done")
+                          .order_by(ProtocolJolt.day).all())
+            for pj in prev_jolts:
+                script = (decrypt_field(pj.speech_text) or "") if pj.speech_text else ""
+                refl_row = (db.query(JournalEntry)
+                            .filter(JournalEntry.protocol_id == p.id,
+                                    JournalEntry.day == pj.day)
+                            .order_by(JournalEntry.created_at.desc()).first())
+                reflection = ""
+                chills = None
+                if refl_row:
+                    if refl_row.answer:
+                        reflection = decrypt_field(refl_row.answer) or ""
+                    if refl_row.chills == "yes":
+                        chills = True
+                    elif refl_row.chills == "no":
+                        chills = False
+                history.append({
+                    "day": pj.day,
+                    "script": script,
+                    "chills": chills,
+                    "reflection": reflection,
+                })
+
         return {
             "user_id": j.user_id,
             "protocol_id": p.id,
             "protocol_type": p.type or "activate",
+            "place": p.place or "",
             "day": j.day,
             "target": p.target or "",
             "charge": (decrypt_field(p.charge) or "") if p.charge else "",
             "plan": plan,
             "completed_actions": completed,
             "yesterday_reflection": yref,
+            "history": history,
         }
     finally:
         db.close()
@@ -249,6 +284,14 @@ def _run_protocol_gen(jolt_id):
 
     ptype = ctx["protocol_type"]
     day = ctx["day"]
+
+    # Meditation build (Aug 2026): integrate = regular meditation, expand =
+    # place meditations. Both take the meditation pipeline. Activate keeps
+    # the original path below, untouched.
+    if ptype in ("integrate", "expand"):
+        _run_meditation_gen(jolt_id, ctx)
+        return
+
     track = cfg.get_protocol_track(ptype, day)
     track_name = track["file"].name
 
@@ -378,6 +421,138 @@ def _run_protocol_gen(jolt_id):
 
 
 # ===========================================================================
+# MEDITATION PIPELINE (integrate + expand protocols, Aug 2026)
+# ---------------------------------------------------------------------------
+# Day 1: the theme's own prompt (regular / forest / ocean / fire) on the day 1
+# model. Days 2-5: the recursive prompt fed with every previous day's script
+# and reflection. No word-count drift correction: the prompts fix their own
+# word counts. TTS inserts real silence for [pause] / [long pause]. The mix is
+# mix_v45 with no retiming: the voice is padded with silence to the music
+# length first, so the voice plays at natural pace, ends, and the music
+# continues to the end of the track.
+# ===========================================================================
+
+def _pad_voice_to_music(wav_path: str, music_path: str) -> str:
+    """Append silence to the voice WAV so it matches the music length.
+
+    Rewrites wav_path in place and returns it. When the voice is already the
+    longer of the two, nothing changes and the mixer trims the music instead.
+    """
+    try:
+        from pydub import AudioSegment
+        voice = AudioSegment.from_file(wav_path)
+        music = AudioSegment.from_file(music_path)
+        gap = len(music) - len(voice)
+        if gap > 0:
+            padded = voice + AudioSegment.silent(duration=gap, frame_rate=voice.frame_rate)
+            padded.export(wav_path, format="wav")
+            print(f"[meditation] voice padded by {gap}ms to match music")
+        return wav_path
+    except Exception as e:
+        print(f"[meditation] voice pad failed, mixing unpadded: {e}")
+        return wav_path
+
+
+def _run_meditation_gen(jolt_id, ctx):
+    theme = cfg.meditation_theme(ctx.get("place", ""))
+    day = ctx["day"]
+    track = cfg.get_meditation_track(theme, day)
+    track_name = track["file"].name
+
+    t0 = time.time()
+    try:
+        # ---- DEV_MODE: silent 10s WAV, skip all API + mixing ----
+        if cfg.DEV_MODE:
+            _update(jolt_id, stage="generating", progress=20,
+                    track_name=track_name, voice_id=track["voice_id"])
+            af = f"{_PREFIX}{jolt_id}.wav"
+            out_path = str(cfg.out_dir_path / af)
+            with wave.open(out_path, "w") as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(44100)
+                wf.writeframes(struct.pack("<" + "h" * 441000, *([0] * 441000)))
+            _update(jolt_id, stage="mixing", progress=70)
+            _update(jolt_id, audio_filename=af, stage="done", progress=100,
+                    gen_time_sec=round(time.time() - t0, 1))
+            print(f"[meditation] {jolt_id} DEV_MODE done (silent audio)")
+            return
+
+        # ---- 1. Script (validated + output screened inside llm) ----
+        _update(jolt_id, stage="generating", progress=20,
+                track_name=track_name, voice_id=track["voice_id"])
+
+        if day == 1:
+            speech = llm.generate_meditation_day1(theme, ctx["target"], ctx["charge"])
+        else:
+            speech = llm.generate_meditation_later(
+                ctx["target"], ctx["charge"], ctx.get("history") or []
+            )
+
+        print(f"[meditation] {jolt_id} script done: {len(speech.split())} words, theme {theme}, day {day}")
+        _update(jolt_id, speech_text=encrypt_field(speech), screen_verdict="pass",
+                stage="synthesizing", progress=40)
+
+        # ---- 2. TTS with real inserted pauses ----
+        wav = synth_meditation(
+            speech, track["voice_id"], cfg.ELEVENLABS_API_KEY,
+            voice_settings=track["voice_settings"],
+            pause_ms=cfg.MEDITATION_PAUSE_MS,
+            long_pause_ms=cfg.MEDITATION_LONG_PAUSE_MS,
+        )
+        _update(jolt_id, stage="mixing", progress=70)
+
+        # ---- 3. Pad voice to music, mix with mix_v45, no retiming ----
+        try:
+            _pad_voice_to_music(wav, str(track["file"]))
+            af = f"{_PREFIX}{jolt_id}.mp3"
+            mix_meditation_audio(
+                voice_path=wav, music_path=str(track["file"]),
+                out_path=str(cfg.out_dir_path / af),
+                ffmpeg_bin=cfg.FFMPEG_BIN,
+                sync_mode="no_retime_trim_pad",
+            )
+            encrypt_file(str(cfg.out_dir_path / af))
+        finally:
+            try:
+                if wav and os.path.exists(wav):
+                    os.remove(wav)
+            except Exception as e:
+                print(f"[meditation] {jolt_id} voice temp cleanup failed: {e}")
+
+        elapsed = round(time.time() - t0, 1)
+        _update(jolt_id, audio_filename=af,
+                gen_time_sec=elapsed, stage="done", progress=100)
+        print(f"[meditation] {jolt_id} done in {elapsed}s")
+        _notify_user(ctx["user_id"], "Your meditation is ready", "Put on headphones and press play.")
+
+    except llm.ProtocolUnsafe as e:
+        print(f"[meditation] {jolt_id} unsafe at {e.stage}: {e.verdict} {e.category}")
+        _update(
+            jolt_id,
+            stage="blocked",
+            gen_error=f"unsafe:{e.stage}:{e.verdict}",
+            screen_verdict=(e.verdict if e.stage == "output_screen" else None),
+            screen_category=(e.category or None),
+        )
+        log_safety_event_bg(
+            user_id=ctx.get("user_id"),
+            layer=_layer_for_stage(e.stage),
+            source="protocol_jolt",
+            verdict=(e.verdict or "unsafe"),
+            category=(e.category or "other"),
+            said=compose_said(ctx.get("target", ""), ctx.get("charge", "")),
+            rationale=(e.detail or ""),
+            protocol_id=ctx.get("protocol_id"),
+            jolt_id=jolt_id,
+        )
+
+    except Exception as e:
+        print(f"[meditation] {jolt_id} error: {e}")
+        _update(jolt_id, stage="error", gen_error=str(e))
+
+
+# ===========================================================================
 # JOURNAL JOLTS: a standalone jolt generated from a single journal entry.
 # Same pipeline as a protocol jolt (speech -> tts -> mix -> encrypt), but seeded
 # by the entry text and rendered over one fixed 2-minute track. Rows live in the
@@ -438,11 +613,11 @@ def _run_journal_gen(jj_id):
         _update_journal(jj_id, stage="error", gen_error="empty journal entry")
         return
 
-    # Journal jolts pick a random one of the 5 Sacred protocol tracks, so the
-    # music varies between entries.
-    track = cfg.get_protocol_track("activate", random.randint(1, cfg.PROTOCOL_DAYS))
+    # Meditation build (Aug 2026): journal jolts run the recursive meditation
+    # prompt (a dedicated journal prompt comes later) over a random track from
+    # the regular meditation set, so the music varies between entries.
+    track = cfg.get_meditation_track("regular", random.randint(1, cfg.PROTOCOL_DAYS))
     track_name = track["file"].name
-    target_words = track["target_words"]
 
     t0 = time.time()
     try:
@@ -463,44 +638,34 @@ def _run_journal_gen(jj_id):
             print(f"[journaljolt] {jj_id} DEV_MODE done (silent audio)")
             return
 
-        # ---- 1. Speech (screened inside generate_journal_speech) ----
+        # ---- 1. Script (validated + output screened inside llm) ----
         _update_journal(jj_id, stage="generating", progress=20,
                         track_name=track_name, voice_id=track["voice_id"])
 
-        speech = llm.generate_journal_speech(entry_text, target_words)
+        speech = llm.generate_meditation_later(entry_text, "", [])
 
-        # ---- Word-count drift correction (keeps the voice from sounding
-        # stretched; the mix locks the ending regardless) ----
-        spoken = _count_spoken_words(speech)
-        drift = abs(spoken - target_words) / target_words
-        if drift > 0.12:
-            try:
-                speech2 = llm.generate_journal_speech(entry_text, target_words)
-                spoken2 = _count_spoken_words(speech2)
-                drift2 = abs(spoken2 - target_words) / target_words
-                if drift2 < drift:
-                    speech, spoken, drift = speech2, spoken2, drift2
-            except llm.ProtocolUnsafe:
-                print(f"[journaljolt] {jj_id} drift retry came back unsafe, keeping first speech")
-
-        print(f"[journaljolt] {jj_id} speech done: {spoken} spoken words (target {target_words}, drift {drift:.0%})")
+        print(f"[journaljolt] {jj_id} script done: {len(speech.split())} words")
         _update_journal(jj_id, speech_text=encrypt_field(speech), screen_verdict="pass",
                         stage="synthesizing", progress=40)
 
-        # ---- 2. TTS ----
-        wav = synth(speech, track["voice_id"], cfg.ELEVENLABS_API_KEY,
-                    voice_settings=track["voice_settings"])
+        # ---- 2. TTS with real inserted pauses ----
+        wav = synth_meditation(
+            speech, track["voice_id"], cfg.ELEVENLABS_API_KEY,
+            voice_settings=track["voice_settings"],
+            pause_ms=cfg.MEDITATION_PAUSE_MS,
+            long_pause_ms=cfg.MEDITATION_LONG_PAUSE_MS,
+        )
         _update_journal(jj_id, stage="mixing", progress=70)
 
-        # ---- 3. Mix + encrypt (identical tuning to protocol jolts) ----
+        # ---- 3. Pad voice to music, mix with mix_v45, no retiming ----
         try:
+            _pad_voice_to_music(wav, str(track["file"]))
             af = f"{_PREFIX_JOURNAL}{jj_id}.mp3"
-            mix_audio(
+            mix_meditation_audio(
                 voice_path=wav, music_path=str(track["file"]),
                 out_path=str(cfg.out_dir_path / af),
                 ffmpeg_bin=cfg.FFMPEG_BIN,
-                voice_target_dbfs=-12.5, music_target_dbfs=-24.0,
-                duck_db=5.0, content_duration_sec=track["content_duration_sec"],
+                sync_mode="no_retime_trim_pad",
             )
             encrypt_file(str(cfg.out_dir_path / af))
         finally:
@@ -514,7 +679,7 @@ def _run_journal_gen(jj_id):
         _update_journal(jj_id, audio_filename=af,
                         gen_time_sec=elapsed, stage="done", progress=100)
         print(f"[journaljolt] {jj_id} done in {elapsed}s")
-        _notify_user(ctx["user_id"], "Your journal jolt is ready", "Put on headphones and press play.")
+        _notify_user(ctx["user_id"], "Your meditation is ready", "Put on headphones and press play.")
 
     except llm.ProtocolUnsafe as e:
         print(f"[journaljolt] {jj_id} unsafe at {e.stage}: {e.verdict} {e.category}")
