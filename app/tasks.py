@@ -20,6 +20,7 @@ import os
 import re
 import time
 import shutil
+import subprocess
 import wave
 import struct
 import json
@@ -432,25 +433,81 @@ def _run_protocol_gen(jolt_id):
 # continues to the end of the track.
 # ===========================================================================
 
+def _music_duration_ms(music_path: str) -> int:
+    """Music length in ms via ffprobe (cheap, no full decode). Falls back to
+    a pydub decode if ffprobe is missing or fails."""
+    try:
+        ffprobe = "ffprobe"
+        if "ffmpeg" in (cfg.FFMPEG_BIN or ""):
+            ffprobe = cfg.FFMPEG_BIN.replace("ffmpeg", "ffprobe")
+        out = subprocess.check_output(
+            [ffprobe, "-v", "error", "-show_entries", "format=duration",
+             "-of", "csv=p=0", music_path],
+            text=True, timeout=30,
+        )
+        return int(float(out.strip()) * 1000)
+    except Exception:
+        from pydub import AudioSegment
+        return len(AudioSegment.from_file(music_path))
+
+
 def _pad_voice_to_music(wav_path: str, music_path: str) -> str:
     """Append silence to the voice WAV so it matches the music length.
 
     Rewrites wav_path in place and returns it. When the voice is already the
     longer of the two, nothing changes and the mixer trims the music instead.
+
+    WHY THIS MUST NOT FAIL SILENTLY (Felix's ocean cutoff, Aug 2026): the
+    meditation mix runs mix_v45 in no_retime_trim_pad mode, where the final
+    mix is exactly as long as the voice. If this pad fails, the mix is
+    trimmed to the bare speech length and the meditation stops dead the
+    moment the speech ends (ocean stopped at 1:47 instead of running the
+    full 4:00 track). So: two independent pad routes, and a verification
+    that logs the final voice length against the music length every run.
     """
+    try:
+        music_ms = _music_duration_ms(music_path)
+    except Exception as e:
+        print(f"[meditation] cannot read music duration, mixing unpadded: {e}")
+        return wav_path
+
+    # Route 1: pydub. Decodes the voice, appends silence, re-exports.
     try:
         from pydub import AudioSegment
         voice = AudioSegment.from_file(wav_path)
-        music = AudioSegment.from_file(music_path)
-        gap = len(music) - len(voice)
+        gap = music_ms - len(voice)
         if gap > 0:
             padded = voice + AudioSegment.silent(duration=gap, frame_rate=voice.frame_rate)
             padded.export(wav_path, format="wav")
             print(f"[meditation] voice padded by {gap}ms to match music")
-        return wav_path
     except Exception as e:
-        print(f"[meditation] voice pad failed, mixing unpadded: {e}")
-        return wav_path
+        print(f"[meditation] pydub pad failed, trying raw wave pad: {e}")
+
+    # Route 2 + verification: read the WAV with the stdlib wave module. If it
+    # is still shorter than the music (route 1 failed or fell short), append
+    # raw zero frames directly. No decode of the music, no pydub.
+    try:
+        with wave.open(wav_path, "rb") as r:
+            p = r.getparams()
+            voice_ms = int(1000 * p.nframes / p.framerate)
+            frames = r.readframes(p.nframes) if voice_ms + 50 < music_ms else None
+        if frames is not None:
+            need_ms = music_ms - voice_ms
+            extra = bytes(int(p.framerate * need_ms / 1000) * p.nchannels * p.sampwidth)
+            with wave.open(wav_path, "wb") as w:
+                w.setnchannels(p.nchannels)
+                w.setsampwidth(p.sampwidth)
+                w.setframerate(p.framerate)
+                w.writeframes(frames + extra)
+            print(f"[meditation] raw wave pad added {need_ms}ms")
+        with wave.open(wav_path, "rb") as r2:
+            final_ms = int(1000 * r2.getnframes() / r2.getframerate())
+        print(f"[meditation] pad check: voice {final_ms}ms, music {music_ms}ms")
+        if final_ms + 50 < music_ms:
+            print("[meditation] WARNING voice still shorter than music, mix will end early")
+    except Exception as e:
+        print(f"[meditation] raw wave pad failed: {e}")
+    return wav_path
 
 
 def _run_meditation_gen(jolt_id, ctx):
