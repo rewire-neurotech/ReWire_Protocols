@@ -759,3 +759,77 @@ def generate_meditation_title(topic: str, reflection: str = "") -> str:
     except Exception as e:
         print(f"[LLM] meditation title failed: {e}")
         return fallback
+
+
+# --------------------------------------------------------------------------- #
+# Create-time title and summary (home card, Aug 2026)
+# --------------------------------------------------------------------------- #
+# Felix: the protocol title must fit between the two arrows on the home
+# screen, so 5 words max, generated the moment the protocol is created
+# instead of after the first reflect. generate_meditation_title above stays
+# as the reflect-time fallback for protocols that still have no title.
+
+_PROTOCOL_TITLE_SYSTEM = """You title a new meditation protocol for a mental health app.
+You get what the listener wrote about what they want to meditate on.
+The title is a plain, warm name for that theme.
+Rules:
+- 5 words maximum
+- Simple words a child could read
+- Sentence case, no quotes, no trailing punctuation
+- Never repeat their sentence back; name the theme
+- Return ONLY the title"""
+
+
+def generate_protocol_title(topic: str) -> str:
+    """Five-word display title generated at protocol create time. Haiku,
+    cheap, safe fallback to the topic's first words on any error."""
+    fallback = " ".join((topic or "meditation").strip().split()[:5]) or "A quiet meditation"
+    if cfg.DEV_MODE:
+        return fallback
+    try:
+        raw = _claude_text(cfg.HAIKU_MODEL, _PROTOCOL_TITLE_SYSTEM,
+                           f"They wrote: {topic}",
+                           max_tokens=30, temperature=0.7, max_retries=2)
+        title = raw.strip().strip('"').strip("'")
+        if title:
+            words = title.split()
+            if len(words) > 5:
+                title = " ".join(words[:5])
+            return title[:200]
+        return fallback
+    except Exception as e:
+        print(f"[LLM] protocol title failed: {e}")
+        return fallback
+
+
+_PROTOCOL_SUMMARY_SYSTEM = """You summarise a new meditation protocol for the card on a mental health app's home screen.
+You get what the listener wrote about what they want to meditate on.
+Write what this five-day protocol is about, in the third person, addressed to no one.
+Rules:
+- 2 sentences, 30 words maximum in total
+- Never quote or repeat their words back; describe the theme in fresh words
+- No "you", no "I", no advice, no hype
+- Plain warm language a child could read
+- Return ONLY the summary, no quotes"""
+
+
+def generate_protocol_summary(topic: str, charge: str = "") -> str:
+    """Short third-person summary for the home card, generated at protocol
+    create time. Never cites the user's own words back at them (Felix).
+    Haiku, cheap, safe fallback to a generic line on any error."""
+    fallback = "A five day meditation protocol. Each experience takes about three minutes."
+    if cfg.DEV_MODE:
+        return fallback
+    try:
+        user = f"They wrote: {topic}"
+        if charge and charge.strip():
+            user += f"\nWhy it matters to them: {charge.strip()}"
+        raw = _claude_text(cfg.HAIKU_MODEL, _PROTOCOL_SUMMARY_SYSTEM, user,
+                           max_tokens=90, temperature=0.7, max_retries=2)
+        summary = raw.strip().strip('"').strip("'")
+        if summary:
+            return summary[:500]
+        return fallback
+    except Exception as e:
+        print(f"[LLM] protocol summary failed: {e}")
+        return fallback
