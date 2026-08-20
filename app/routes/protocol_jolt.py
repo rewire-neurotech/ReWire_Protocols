@@ -287,9 +287,12 @@ def save_reflection(jid: int, req: ReflectReq,
     ))
 
     if is_meditation:
-        # Title: the listener's insight when they had one, otherwise a plain
-        # 6-word sentence about the topic. Set once, never overwritten, and
-        # never allowed to fail the save.
+        # Title fallback only (Aug 2026): the title is now generated at
+        # protocol create time (5 words, protocols.py), so p.title is always
+        # set for new protocols and this branch never fires for them. It
+        # remains for protocols created before that change, which still have
+        # no title. Set once, never overwritten, never allowed to fail the
+        # save.
         if not p.title:
             try:
                 p.title = llm.generate_meditation_title(p.target or "", answer)[:200]
