@@ -34,6 +34,7 @@ class DayOut(BaseModel):
 class ProtocolOut(BaseModel):
     id: int
     type: str
+    place: Optional[str] = None       # forest | ocean | fire (expand meditations)
     target: str
     title: Optional[str] = None
     unlocked: bool
@@ -52,6 +53,7 @@ class ProtocolsList(BaseModel):
 
 class CreateProtocolReq(BaseModel):
     type: str = "activate"
+    place: Optional[str] = None       # forest | ocean | fire, required for expand
     target: str
     charge: str = ""
     title: Optional[str] = None
@@ -215,6 +217,7 @@ def _protocol_out(p, db, uid) -> ProtocolOut:
     return ProtocolOut(
         id=p.id,
         type=p.type or "activate",
+        place=(p.place or None),
         target=p.target or "",
         title=p.title,
         unlocked=_protocol_unlocked(p, uid, db),
@@ -334,9 +337,16 @@ def create_protocol(req: CreateProtocolReq, u: User = Depends(get_current_user_r
     ptype = (req.type or "activate").strip().lower()
     if ptype not in cfg.PROTOCOL_TYPES:
         raise HTTPException(400, "unknown protocol type")
-    # Only types that have music tracks configured are available. Activate is the
-    # only live type today; integrate / expand enable once their tracks land.
-    if not cfg.PROTOCOL_TRACKS.get(ptype):
+    # Meditation build (Aug 2026): integrate (regular meditation) and expand
+    # (place meditations) are live and use the meditation track registry.
+    # Activate still requires its own tracks.
+    place = (req.place or "").strip().lower() or None
+    if ptype == "expand":
+        if place not in ("forest", "ocean", "fire"):
+            raise HTTPException(400, "place must be forest, ocean or fire")
+    else:
+        place = None
+    if ptype == "activate" and not cfg.PROTOCOL_TRACKS.get(ptype):
         raise HTTPException(400, "protocol type not available yet")
     if not req.target or not req.target.strip():
         raise HTTPException(400, "target required")
@@ -366,25 +376,30 @@ def create_protocol(req: CreateProtocolReq, u: User = Depends(get_current_user_r
         )
         return CreateProtocolResp(status=v, category=verdict.get("category", "other"), protocol=None)
 
-    # 2) Plan the 5-day arc
-    try:
-        plan = llm.generate_plan(target, charge)
-    except llm.ProtocolUnsafe as e:
-        # Plan judged the goal unsafe -> treat like a soft block.
-        # ADMIN CONSOLE: this is a second-layer catch -- the input screen passed
-        # it and the plan prompt refused it. Those are the most interesting rows
-        # in the whole queue, because they are exactly where L1 was too lenient.
-        log_safety_event(
-            db,
-            user_id=u.id,
-            layer="L2",
-            source="protocol_plan",
-            verdict=(e.verdict or "unsafe"),
-            category=(e.category or "other"),
-            said=compose_said(target, charge),
-            rationale=(e.detail or ""),
-        )
-        return CreateProtocolResp(status="block", category="other", protocol=None)
+    # 2) Plan the 5-day arc. Meditation protocols carry no per-day actions:
+    # each day's script is generated fresh from the growing history, so the
+    # plan step is skipped and the day rows are bare placeholders.
+    plan = None
+    if ptype == "activate":
+        try:
+            plan = llm.generate_plan(target, charge)
+        except llm.ProtocolUnsafe as e:
+            # Plan judged the goal unsafe -> treat like a soft block.
+            # ADMIN CONSOLE: this is a second-layer catch -- the input screen
+            # passed it and the plan prompt refused it. Those are the most
+            # interesting rows in the whole queue, because they are exactly
+            # where L1 was too lenient.
+            log_safety_event(
+                db,
+                user_id=u.id,
+                layer="L2",
+                source="protocol_plan",
+                verdict=(e.verdict or "unsafe"),
+                category=(e.category or "other"),
+                said=compose_said(target, charge),
+                rationale=(e.detail or ""),
+            )
+            return CreateProtocolResp(status="block", category="other", protocol=None)
 
     # 3) Store: deactivate previous active protocols, then create this one active.
     db.query(Protocol).filter(
@@ -394,6 +409,7 @@ def create_protocol(req: CreateProtocolReq, u: User = Depends(get_current_user_r
     p = Protocol(
         user_id=u.id,
         type=ptype,
+        place=place,
         target=target[:2000],
         charge=encrypt_field(charge) if charge else None,
         title=(req.title.strip()[:200] if req.title and req.title.strip() else None),
@@ -407,14 +423,18 @@ def create_protocol(req: CreateProtocolReq, u: User = Depends(get_current_user_r
     db.commit()
     db.refresh(p)
 
-    for d in plan["days"]:
-        db.add(ProtocolDay(
-            protocol_id=p.id,
-            day=d["day"],
-            stage=d.get("stage"),
-            action=d.get("action"),
-            brief=d.get("brief"),
-        ))
+    if plan:
+        for d in plan["days"]:
+            db.add(ProtocolDay(
+                protocol_id=p.id,
+                day=d["day"],
+                stage=d.get("stage"),
+                action=d.get("action"),
+                brief=d.get("brief"),
+            ))
+    else:
+        for n in range(1, cfg.PROTOCOL_DAYS + 1):
+            db.add(ProtocolDay(protocol_id=p.id, day=n))
     db.commit()
 
     return CreateProtocolResp(status="created", protocol=_protocol_out(p, db, u.id))
