@@ -37,6 +37,9 @@ class ProtocolOut(BaseModel):
     place: Optional[str] = None       # forest | ocean | fire (expand meditations)
     target: str
     title: Optional[str] = None
+    # LLM home-card summary, generated at create time. Third person, never
+    # quotes the user's words back.
+    summary: Optional[str] = None
     unlocked: bool
     status: str
     is_active: bool
@@ -220,6 +223,7 @@ def _protocol_out(p, db, uid) -> ProtocolOut:
         place=(p.place or None),
         target=p.target or "",
         title=p.title,
+        summary=(p.summary or None),
         unlocked=_protocol_unlocked(p, uid, db),
         status=p.status or "active",
         is_active=bool(p.is_active),
@@ -313,6 +317,7 @@ def export_data(u: User = Depends(get_current_user_required), db: Session = Depe
             "type": p.type or "activate",
             "target": p.target or "",
             "title": p.title or "",
+            "summary": p.summary or "",
             "status": p.status or "active",
             "created_at": _ts(p.created_at),
             "days": [
@@ -401,7 +406,17 @@ def create_protocol(req: CreateProtocolReq, u: User = Depends(get_current_user_r
             )
             return CreateProtocolResp(status="block", category="other", protocol=None)
 
-    # 3) Store: deactivate previous active protocols, then create this one active.
+    # 3) Home card title and summary (Aug 2026). Felix: the title must fit
+    # between the two arrows, so 5 words max, made NOW instead of after the
+    # first reflect. The summary is third person and never quotes the user's
+    # words back. Both are cheap Haiku calls with safe fallbacks inside, so
+    # this cannot fail the create.
+    title = req.title.strip()[:200] if req.title and req.title.strip() else None
+    if not title:
+        title = llm.generate_protocol_title(target)
+    summary = llm.generate_protocol_summary(target, charge)
+
+    # 4) Store: deactivate previous active protocols, then create this one active.
     db.query(Protocol).filter(
         Protocol.user_id == u.id, Protocol.is_active == True  # noqa: E712
     ).update({"is_active": False})
@@ -412,7 +427,8 @@ def create_protocol(req: CreateProtocolReq, u: User = Depends(get_current_user_r
         place=place,
         target=target[:2000],
         charge=encrypt_field(charge) if charge else None,
-        title=(req.title.strip()[:200] if req.title and req.title.strip() else None),
+        title=title,
+        summary=summary,
         input_verdict="safe",
         input_category="none",
         unlocked=False,
