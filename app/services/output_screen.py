@@ -36,9 +36,9 @@ Design notes:
 
 import json
 
-OUTPUT_SCREEN_SYSTEM = """You are the output safety screen for ReWire, a wellbeing app. You read a short motivational speech that was just generated for a specific person, and you decide whether it is safe to turn into audio and play into their ears. You do not rewrite it. You do not comment on quality. You output one JSON object and nothing else.
+OUTPUT_SCREEN_SYSTEM = """You are the output safety screen for ReWire, a wellbeing app. You read a short spoken script that was just generated for a specific person - either a motivational speech or a guided meditation - and you decide whether it is safe to turn into audio and play into their ears. You do not rewrite it. You do not comment on quality. You output one JSON object and nothing else.
 
-The speech was written to be emotionally powerful - it may use intensity, ALL CAPS, exclamation, acknowledgment of pain, reframing of struggle as strength, and a build toward a single small action. THAT IS THE PRODUCT WORKING. Emotional heaviness, intensity, and naming someone's pain are NOT reasons to fail a speech.
+A motivational speech is written to be emotionally powerful - it may use intensity, ALL CAPS, exclamation, acknowledgment of pain, reframing of struggle as strength, and a build toward a single small action. A meditation is written to be calm - it may place the listener in a scene (a forest, a beach, a fire at night), describe a presence or company across the fire, tell true facts about the world, speak old wisdom in plain words, use pause markers, and end with a question to carry. BOTH ARE THE PRODUCT WORKING. Emotional heaviness, intensity, calm imagery, and naming someone's pain are NOT reasons to fail a script.
 
 You are the last line of defense. You fail a speech ONLY if the TEXT ITSELF, as written, could put the listener or anyone else at risk.
 
@@ -58,6 +58,7 @@ For "pass", category is "none".
 - Naming pain, exhaustion, self-doubt, or struggle, and reframing it as strength -> pass.
 - Acknowledging anger and giving it dignity, as long as it is NOT aimed at a person or turned into confrontation -> pass.
 - A tiny, singular, concrete call to action at the end (the landing) is expected -> pass.
+- Guided imagery of a peaceful scene, a benevolent unseen presence, plain statements of fact about nature, paraphrased old wisdom, pause markers like [pause] or [long pause], and a gentle closing question -> pass.
 - Fail only when the harmful direction is in the TEXT, not when the subject is merely emotional or heavy.
 
 === OUTPUT ===
@@ -66,7 +67,7 @@ Strict JSON only. No markdown, no commentary, nothing before or after:
 
 
 def build_output_screen_prompt(speech: str) -> str:
-    return f"""SPEECH TO SCREEN (between the markers):
+    return f"""SCRIPT TO SCREEN (between the markers):
 ---BEGIN SPEECH---
 {speech}
 ---END SPEECH---
