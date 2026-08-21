@@ -447,7 +447,7 @@
   }
   .hv-card3d.current:not(.flipped) .hv-flip { animation: hvTease 1.5s cubic-bezier(0.34,1,0.4,1) 1.1s 1; }
   .hv-card3d.flipped .hv-flip, .hv-track.dragging .hv-flip { animation: none; }
-  .hv-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 26px; overflow: hidden; }
+  .hv-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; -webkit-transform: rotateY(0deg); transform: rotateY(0deg); border-radius: 26px; overflow: hidden; }
   .hv-card3d .hv-back { pointer-events: none; }
   .hv-card3d.flipped .hv-back { pointer-events: auto; }
   .hv-card3d.flipped .hv-card { pointer-events: none; }
@@ -5405,7 +5405,7 @@
       const meta = PROTO_META[draft.type];
       closeCompose();
       setTimeout(() => openCompose({ mode:"q2", heading: (draft.q2Heading || meta.chargeQ),
-        placeholder:"A sentence or two, in your own words", cta:"Create my protocol" }), 380);
+        placeholder:"A sentence or two, in your own words", value: draft.chargePrefill || "", cta:"Create my protocol" }), 380);
       return;
     }
     if(m === "q2"){
@@ -5870,9 +5870,11 @@
         /* create a protocol against the real API, cover with the building
            screen, then start the first jolt (or route to safety/paywall) */
         let creating = false;
+        let lastCreateBody = null;
         async function createProtocol(body, isOnboarding) {
           if (creating) return;
           creating = true;
+          if (!isOnboarding) lastCreateBody = body;
           showScreen("s-building");
           const _buildStart = Date.now();
           try {
@@ -6045,11 +6047,30 @@
           $("#safetyCta").dataset.kind = kind;
           showScreen("s-safety");
         }
+        function reopenCreateQuestions() {
+          const b = lastCreateBody;
+          composeExtras = {};
+          draft = { type: b.type, q2Heading: "Why does this matter to you?" };
+          let heading = "What do you want to meditate about?";
+          if (b.place) {
+            draft.place = b.place;
+            const pl = PLACES.find(x => x.id === b.place);
+            if (pl) { heading = pl.heading; composeExtras = { place: pl.name }; }
+          }
+          draft.chargePrefill = b.charge || "";
+          renderHome(true);
+          show("s-home");
+          openCompose({ mode:"q1", heading: heading, placeholder:"Your own words",
+            value: b.target || "", chips: MEDITATE_IDEAS, pickerLabel:"Or start from one of these.", cta:"Continue" });
+        }
         $("#safetyCta") &&
           $("#safetyCta").addEventListener("click", () => {
             const onboarding = state.me && !state.me.onboarding_complete;
+            const kind = $("#safetyCta").dataset.kind;
             if (onboarding) {
               startAsk();
+            } else if ((kind === "clarify" || kind === "error") && lastCreateBody) {
+              reopenCreateQuestions();
             } else {
               renderHome(true);
               show("s-home");
