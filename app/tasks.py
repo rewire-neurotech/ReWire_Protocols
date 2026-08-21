@@ -21,6 +21,7 @@ import re
 import time
 import shutil
 import subprocess
+import tempfile
 import wave
 import struct
 import json
@@ -35,6 +36,7 @@ from app.services import llm
 from app.services.tts import synth, synth_meditation
 from app.services.mix import mix as mix_audio
 from app.services.mix_v45 import mix as mix_meditation_audio
+from app.services.transition import attach_primer
 from app.services.safety_log import log_safety_event_bg, compose_said
 from app.utils.encryption import encrypt_field, decrypt_field, encrypt_file
 
@@ -559,18 +561,29 @@ def _run_meditation_gen(jolt_id, ctx):
         )
         _update(jolt_id, stage="mixing", progress=70)
 
-        # ---- 3. Pad voice to music, mix with mix_v45, no retiming ----
+        # ---- 3. Pad voice to music, mix with mix_v45, then attach the
+        # theme primer (Felix's transition) into one complete session ----
+        bare_fd, bare_mix = tempfile.mkstemp(prefix="rewire_bare_", suffix=".mp3")
+        os.close(bare_fd)
         try:
             _pad_voice_to_music(wav, str(track["file"]))
             af = f"{_PREFIX}{jolt_id}.mp3"
             mix_meditation_audio(
                 voice_path=wav, music_path=str(track["file"]),
-                out_path=str(cfg.out_dir_path / af),
+                out_path=bare_mix,
                 ffmpeg_bin=cfg.FFMPEG_BIN,
                 sync_mode="no_retime_trim_pad",
             )
+            # Join primer + meditation the way Felix's 2_transition.py does.
+            # Never raises: on any failure the bare mix is delivered as is.
+            attach_primer(theme, bare_mix, str(cfg.out_dir_path / af))
             encrypt_file(str(cfg.out_dir_path / af))
         finally:
+            try:
+                if os.path.exists(bare_mix):
+                    os.remove(bare_mix)
+            except Exception as e:
+                print(f"[meditation] {jolt_id} bare mix cleanup failed: {e}")
             try:
                 if wav and os.path.exists(wav):
                     os.remove(wav)
@@ -714,18 +727,29 @@ def _run_journal_gen(jj_id):
         )
         _update_journal(jj_id, stage="mixing", progress=70)
 
-        # ---- 3. Pad voice to music, mix with mix_v45, no retiming ----
+        # ---- 3. Pad voice to music, mix with mix_v45, then attach the
+        # regular primer (journal jolts always use the regular theme) ----
+        bare_fd, bare_mix = tempfile.mkstemp(prefix="rewire_bare_", suffix=".mp3")
+        os.close(bare_fd)
         try:
             _pad_voice_to_music(wav, str(track["file"]))
             af = f"{_PREFIX_JOURNAL}{jj_id}.mp3"
             mix_meditation_audio(
                 voice_path=wav, music_path=str(track["file"]),
-                out_path=str(cfg.out_dir_path / af),
+                out_path=bare_mix,
                 ffmpeg_bin=cfg.FFMPEG_BIN,
                 sync_mode="no_retime_trim_pad",
             )
+            # Join primer + meditation the way Felix's 2_transition.py does.
+            # Never raises: on any failure the bare mix is delivered as is.
+            attach_primer("regular", bare_mix, str(cfg.out_dir_path / af))
             encrypt_file(str(cfg.out_dir_path / af))
         finally:
+            try:
+                if os.path.exists(bare_mix):
+                    os.remove(bare_mix)
+            except Exception as e:
+                print(f"[journaljolt] {jj_id} bare mix cleanup failed: {e}")
             try:
                 if wav and os.path.exists(wav):
                     os.remove(wav)
