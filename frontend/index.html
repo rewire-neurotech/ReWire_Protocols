@@ -4647,7 +4647,25 @@
   $("#sheetBackdrop").addEventListener("click", closeSheet);
 
   /* ---------- jolt ---------- */
-  const MEDITATION_URL = "/assets/primer3_mix_with_sfx_v6.mp3.mpeg";
+  /* Felix's per theme primers (Aug 2026). The server bakes the primer into
+     the finished session file via his transition recipe, so `start` is where
+     the meditation begins inside that file: regular is fixed at 189.5 (the
+     bird bridge overlay), forest is primer length minus 5 (ambience overlay),
+     ocean and fire are the primer's end (direct concatenation). The client
+     plays the primer live while generating, then swaps to the session file
+     at the same timestamp, so the join is Felix's, not a hard cut. */
+  const PRIMERS = {
+    regular: { url: "/assets/main_primer.mp3",   start: 189.5 },
+    forest:  { url: "/assets/forest_primer.mp3", start: 194.5 },
+    ocean:   { url: "/assets/ocean_primer.mp3",  start: 194.0 },
+    fire:    { url: "/assets/fire_primer.mp3",   start: 188.3 },
+  };
+  function joltTheme(){
+    const p = joltProto;
+    if(p && p.type === "expand" && p.place && PRIMERS[p.place]) return p.place;
+    return "regular";
+  }
+  function primerFor(theme){ return PRIMERS[theme] || PRIMERS.regular; }
   const WAIT_LABEL = "···";
   let joltTimer = null, paused = false, hideCtrlTimer = null;
   let joltKind = "protocol", joltDay = 1, joltJid = null, joltMixUrl = null;
@@ -4989,7 +5007,7 @@
     core.classList.remove("paused");
     controls.classList.remove("show");
     show("s-jolt");
-    if(joltMixUrl) playMix(joltMixUrl);
+    if(joltMixUrl) playMix(joltMixUrl, primerFor(joltTheme()).start);
     else { playMeditationBed(); startPolling(); }
     runTimer();
   }
@@ -5002,7 +5020,7 @@
     stopMix();
     bedEndedWaiting = false;
     try {
-      medAudio = new Audio(MEDITATION_URL);
+      medAudio = new Audio(primerFor(joltTheme()).url);
       medAudio.loop = false;
       medAudio.volume = 1;
       curAudio = medAudio;
@@ -5018,7 +5036,7 @@
     if(medAudio && curAudio && curAudio !== medAudio) return;
     stopMed();
     curAudio = null;
-    if(joltMixUrl){ playMix(joltMixUrl); return; }
+    if(joltMixUrl){ playMix(joltMixUrl, primerFor(joltTheme()).start); return; }
     bedEndedWaiting = true;
     setWaiting(true);
   }
@@ -5033,7 +5051,11 @@
       if(s.stage === "done" && s.audio_url){
         clearInterval(joltPollTimer);
         joltMixUrl = s.audio_url;
-        if(bedEndedWaiting || !curAudio){ bedEndedWaiting = false; playMix(joltMixUrl); }
+        /* The session file's first minutes are the same primer audio the
+           bed is playing, so swap to it at the live timestamp. If the
+           primer already finished, skip straight to the meditation. */
+        if(bedEndedWaiting || !curAudio) playMix(joltMixUrl, primerFor(joltTheme()).start);
+        else if(curAudio === medAudio) playMix(joltMixUrl, "live");
       } else if(s.stage === "error" || s.stage === "blocked"){
         clearInterval(joltPollTimer);
         joltVeil.stop();
@@ -5047,17 +5069,48 @@
       }
     }, 2500);
   }
-  function playMix(url){
-    stopMed();
+  function playMix(url, at){
+    /* at: null plays from the top, a number seeks there, "live" seeks to
+       wherever the primer currently is (the invisible swap). The primer
+       keeps playing until the session audio actually produces sound, so
+       the handover has no gap. Old files generated before the primer was
+       baked in are detected by length and simply play from the top. */
+    stopMix();
     try {
       mixAudio = new Audio(url);
       mixAudio.volume = 1;
-      curAudio = mixAudio;
-      bedEndedWaiting = false;
-      setWaiting(false);
       mixAudio.addEventListener("ended", endJolt);
-      const started = mixAudio.play();
-      if(started && started.catch) started.catch(() => {});
+      const a = mixAudio;
+      const begin = () => {
+        if(mixAudio !== a) return;
+        let seek = at;
+        if(seek === "live"){
+          seek = (medAudio && isFinite(medAudio.currentTime))
+            ? medAudio.currentTime
+            : primerFor(joltTheme()).start;
+        }
+        if(typeof seek === "number" && seek > 0){
+          const d = a.duration;
+          /* a real session file is the primer plus a whole meditation, so
+             it runs well past the seek point; anything shorter is an old
+             bare mix from before the primer was baked in */
+          if(isFinite(d) && d > seek + 90){
+            try { a.currentTime = seek; } catch(e){}
+          }
+        }
+        const started = a.play();
+        if(started && started.catch) started.catch(() => {});
+      };
+      a.addEventListener("playing", () => {
+        if(mixAudio !== a) return;
+        stopMed();
+        curAudio = a;
+        bedEndedWaiting = false;
+        setWaiting(false);
+        if(paused){ try { a.pause(); } catch(e){} }
+      }, { once: true });
+      if(at != null) a.addEventListener("loadedmetadata", begin, { once: true });
+      else begin();
     } catch(e){}
   }
   function stopMed(){
