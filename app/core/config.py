@@ -334,6 +334,42 @@ class Config:
         return [self.ASSETS_DIR / p for p in self.MEDITATION_CONTEXT.get(t, [])]
 
     # ------------------------------------------------------------------ #
+    # PRIMERS (Felix's per theme primers, Aug 2026)
+    # ------------------------------------------------------------------ #
+    # One primer per meditation theme, replacing the single shared bed.
+    # After the meditation mix is done, services/transition.py joins the
+    # primer and the mix into one complete session file using Felix's
+    # 2_transition.py recipe. Two join modes:
+    #
+    #   concat  - the meditation starts the moment the primer ends. Ocean
+    #             and fire primers carry their own 7 second ending space.
+    #   overlay - the meditation is mixed on top of the primer starting at
+    #             an offset, so the primer's tail (birds, ambience) plays
+    #             under the first words and fades away naturally.
+    #
+    # offset_sec is the fixed overlay start (regular starts at 189.5).
+    # tail_sec derives the start from the primer length instead (forest
+    # starts at primer duration minus 5). Exactly one of the two is set
+    # for overlay mode, both are None for concat.
+    PRIMER_TRACKS = {
+        "regular": {"file": "main_primer.mp3",   "mode": "overlay", "offset_sec": 189.5, "tail_sec": None},
+        "forest":  {"file": "forest_primer.mp3", "mode": "overlay", "offset_sec": None,  "tail_sec": 5.0},
+        "ocean":   {"file": "ocean_primer.mp3",  "mode": "concat",  "offset_sec": None,  "tail_sec": None},
+        "fire":    {"file": "fire_primer.mp3",   "mode": "concat",  "offset_sec": None,  "tail_sec": None},
+    }
+
+    def get_primer(self, theme: str) -> dict:
+        t = self.meditation_theme(theme)
+        p = self.PRIMER_TRACKS[t]
+        return {
+            "theme": t,
+            "file": self.ASSETS_DIR / p["file"],
+            "mode": p["mode"],
+            "offset_sec": p["offset_sec"],
+            "tail_sec": p["tail_sec"],
+        }
+
+    # ------------------------------------------------------------------ #
     # Database
     # ------------------------------------------------------------------ #
     DB_URL: str = os.getenv("DB_URL", "sqlite:///./rewire.db")
