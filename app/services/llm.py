@@ -340,6 +340,14 @@ class ProtocolUnsafe(Exception):
         super().__init__(f"protocol unsafe at {stage}: {verdict} {category} {detail}".strip())
 
 
+# Whether the installed anthropic SDK accepts the temperature keyword on
+# Messages.create(). Some SDK releases dropped it, and passing it raises
+# TypeError before any request is sent. Detected once at runtime: the first
+# call that trips it flips this flag and every later call skips the keyword,
+# so the failed attempt is paid at most once per process, not per call.
+_SDK_ACCEPTS_TEMPERATURE = True
+
+
 def _claude_text(model: str, system: str, user: str, max_tokens: int,
                  temperature: float = 1.0, max_retries: int = 4,
                  backoff_base: float = 2.0) -> str:
@@ -348,19 +356,35 @@ def _claude_text(model: str, system: str, user: str, max_tokens: int,
     Shares the retry policy of generate_speech() but is parameterized by model,
     temperature, and token budget so it serves speeches (Sonnet, hot) and the
     cheap classifier/plan calls (Haiku/Sonnet, cold) alike.
+
+    Tolerates SDKs that reject the temperature keyword: on that specific
+    TypeError the call is retried immediately without temperature and the
+    keyword is dropped for the rest of the process.
     """
+    global _SDK_ACCEPTS_TEMPERATURE
     client = anthropic.Anthropic(api_key=cfg.ANTHROPIC_API_KEY)
     last_exc = None
 
     for attempt in range(1, max_retries + 1):
         try:
-            msg = client.messages.create(
+            kwargs = dict(
                 model=model,
                 max_tokens=max_tokens,
-                temperature=temperature,
                 system=system,
                 messages=[{"role": "user", "content": user}],
             )
+            if _SDK_ACCEPTS_TEMPERATURE:
+                kwargs["temperature"] = temperature
+            try:
+                msg = client.messages.create(**kwargs)
+            except TypeError as te:
+                if "temperature" in str(te) and "temperature" in kwargs:
+                    _SDK_ACCEPTS_TEMPERATURE = False
+                    print("[LLM] SDK rejects temperature keyword, retrying without it")
+                    kwargs.pop("temperature", None)
+                    msg = client.messages.create(**kwargs)
+                else:
+                    raise
             text = ""
             for block in msg.content:
                 if block.type == "text":
