@@ -298,6 +298,34 @@ def save_reflection(jid: int, req: ReflectReq,
                 p.title = llm.generate_meditation_title(p.target or "", answer)[:200]
             except Exception as e:
                 print(f"[reflect] title generation failed: {e}")
+
+        # Per-day experience title (Felix, Aug 2026). Meditation day rows are
+        # created bare, so the protocol card was falling back to the same
+        # generic line for every day of every protocol. Distilled here from
+        # this day's script and the listener's reflection, written into the
+        # day row's action field, which the card already displays for jolted
+        # days. Set once, never overwritten, never allowed to fail the save.
+        script = (decrypt_field(j.speech_text) or "") if j.speech_text else ""
+        d = (db.query(ProtocolDay)
+             .filter(ProtocolDay.protocol_id == j.protocol_id,
+                     ProtocolDay.day == j.day).first())
+        if d and not d.action:
+            try:
+                d.action = llm.generate_day_title(script, answer)[:200]
+            except Exception as e:
+                print(f"[reflect] day title generation failed: {e}")
+
+        # Growing summary (Felix, Aug 2026): the create-time summary is one
+        # sentence, and each finished day appends one more saying what that
+        # day added. An empty return (the function's own error fallback)
+        # leaves the summary unchanged. Never allowed to fail the save.
+        try:
+            sentence = llm.generate_summary_sentence(p.summary or "", script, answer)
+            if sentence:
+                p.summary = f"{(p.summary or '').strip()} {sentence}".strip()[:2000]
+        except Exception as e:
+            print(f"[reflect] summary sentence failed: {e}")
+
         # The last day's reflection completes the protocol (meditation has no
         # done-marking, so the old all-days-done path never fires for it).
         if j.day >= cfg.PROTOCOL_DAYS:
