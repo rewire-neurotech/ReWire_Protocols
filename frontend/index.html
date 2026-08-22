@@ -5051,11 +5051,13 @@
       if(s.stage === "done" && s.audio_url){
         clearInterval(joltPollTimer);
         joltMixUrl = s.audio_url;
-        /* The session file's first minutes are the same primer audio the
-           bed is playing, so swap to it at the live timestamp. If the
-           primer already finished, skip straight to the meditation. */
+        /* Never interrupt the primer (Felix, Aug 2026): the live-timestamp
+           swap cut the primer mid-play because the seek into the session
+           file is not sample accurate. If the bed is still playing, only
+           store the URL; onBedEnded hands over to the meditation the
+           moment the primer finishes. Only start the mix now when the
+           primer already ended (or never started). */
         if(bedEndedWaiting || !curAudio) playMix(joltMixUrl, primerFor(joltTheme()).start);
-        else if(curAudio === medAudio) playMix(joltMixUrl, "live");
       } else if(s.stage === "error" || s.stage === "blocked"){
         clearInterval(joltPollTimer);
         joltVeil.stop();
