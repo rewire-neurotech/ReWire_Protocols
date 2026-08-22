@@ -60,6 +60,13 @@ _TERMINAL_STAGES = ("done", "error", "blocked")
 _PREFIX = "pj"
 _PREFIX_JOURNAL = "jj"   # standalone journal jolt: JournalJolt id 5 -> "jj5.mp3"
 
+# Day 1 meditation music gain (Felix, Aug 2026): "voice could be less loud, or
+# music louder, in jolt 1". mix_v45's default profile puts the music at
+# DEFAULT_MUSIC_GAIN_DB (-10.0 dB). Passing this value on day 1 only makes the
+# music 3 dB louder there; days 2-5 and journal jolts keep the default. Tune
+# by ear: less negative = louder music.
+DAY1_MUSIC_GAIN_DB = -7.0
+
 
 def _count_spoken_words(text: str) -> int:
     """Count only the words a voice will speak, excluding audio tags and breaks."""
@@ -573,6 +580,9 @@ def _run_meditation_gen(jolt_id, ctx):
                 out_path=bare_mix,
                 ffmpeg_bin=cfg.FFMPEG_BIN,
                 sync_mode="no_retime_trim_pad",
+                # Day 1 only: louder music under the voice (Felix). None on
+                # days 2-5 lets mix_v45 resolve its own profile default.
+                music_premix_gain_db=(DAY1_MUSIC_GAIN_DB if day == 1 else None),
             )
             # Join primer + meditation the way Felix's 2_transition.py does.
             # Never raises: on any failure the bare mix is delivered as is.
