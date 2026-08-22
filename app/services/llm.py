@@ -927,10 +927,17 @@ You get the summary so far, the script from the day's session, and what the list
 Write ONE new sentence saying what this day added: the insight if they had one, otherwise what the session was about.
 Rules:
 - EXACTLY ONE sentence, 15 words maximum
+- NEVER mention day numbers, session numbers, or any counting ("day six", "the third session"). The card shows no numbering and you do not know which day this is
+- State the insight plainly. Do not narrate what the session did ("examined how", "explored the") and do not write like an essay
 - Sober and plain, third person, no "you", no "I", no hype
 - Do not repeat anything already in the summary so far
 - Never quote the listener's words back
-- Return ONLY the new sentence, no quotes"""
+- Return ONLY the new sentence, no quotes
+Examples:
+Reflection: "I realised I have been angry at myself, not at her"
+Sentence: The anger turned out to be aimed inward.
+Reflection: "" and the script was about the pull between rushing and slowing down
+Sentence: The pull between rushing and slowing down."""
 
 
 def generate_summary_sentence(summary_so_far: str, script: str,
