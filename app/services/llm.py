@@ -795,13 +795,21 @@ def generate_meditation_title(topic: str, reflection: str = "") -> str:
 
 _PROTOCOL_TITLE_SYSTEM = """You title a new meditation protocol for a mental health app.
 You get what the listener wrote about what they want to meditate on.
-The title is a plain, warm name for that theme.
+The title names the SPECIFIC thing they are sitting with. Not a mood, not a vague promise, not a greeting card line. If they wrote about a divorce, the title is about the divorce. If they wrote about their father, the title is about their father.
 Rules:
 - 5 words maximum
-- Simple words a child could read
+- Concrete over abstract: name the subject, the person, or the situation
+- Never write vague filler like "A bright future ahead" or "Finding your inner peace"
 - Sentence case, no quotes, no trailing punctuation
-- Never repeat their sentence back; name the theme
-- Return ONLY the title"""
+- Never repeat their sentence back word for word
+- Return ONLY the title
+Examples:
+They wrote: "I keep replaying my divorce and blaming myself"
+Title: The divorce and the blame
+They wrote: "My dad died last spring and I never said goodbye"
+Title: Saying goodbye to dad
+They wrote: "I feel like a fraud at work"
+Title: The fraud feeling at work"""
 
 
 def generate_protocol_title(topic: str) -> str:
@@ -830,18 +838,23 @@ _PROTOCOL_SUMMARY_SYSTEM = """You summarise a new meditation protocol for the ca
 You get what the listener wrote about what they want to meditate on.
 Write what this five-day protocol is about, in the third person, addressed to no one.
 Rules:
-- 2 sentences, 30 words maximum in total
+- EXACTLY ONE sentence, 15 words maximum
+- Sober and plain. State the subject, nothing more. No imagery, no "journey", no "exploring", no "beauty"
 - Never quote or repeat their words back; describe the theme in fresh words
 - No "you", no "I", no advice, no hype
-- Plain warm language a child could read
-- Return ONLY the summary, no quotes"""
+- Return ONLY the sentence, no quotes
+Examples:
+They wrote: "I keep replaying my divorce and blaming myself"
+Summary: Five days sitting with the end of a marriage and the self-blame around it.
+They wrote: "I feel like a fraud at work"
+Summary: Five days with the feeling of being a fraud at work."""
 
 
 def generate_protocol_summary(topic: str, charge: str = "") -> str:
-    """Short third-person summary for the home card, generated at protocol
-    create time. Never cites the user's own words back at them (Felix).
-    Haiku, cheap, safe fallback to a generic line on any error."""
-    fallback = "A five day meditation protocol. Each experience takes about three minutes."
+    """One sober third-person sentence for the home card, generated at
+    protocol create time. Never cites the user's own words back at them
+    (Felix). Haiku, cheap, safe fallback to a generic line on any error."""
+    fallback = "A five day meditation protocol."
     if cfg.DEV_MODE:
         return fallback
     try:
@@ -849,7 +862,7 @@ def generate_protocol_summary(topic: str, charge: str = "") -> str:
         if charge and charge.strip():
             user += f"\nWhy it matters to them: {charge.strip()}"
         raw = _claude_text(cfg.HAIKU_MODEL, _PROTOCOL_SUMMARY_SYSTEM, user,
-                           max_tokens=90, temperature=0.7, max_retries=2)
+                           max_tokens=60, temperature=0.7, max_retries=2)
         summary = raw.strip().strip('"').strip("'")
         if summary:
             return summary[:500]
@@ -857,3 +870,85 @@ def generate_protocol_summary(topic: str, charge: str = "") -> str:
     except Exception as e:
         print(f"[LLM] protocol summary failed: {e}")
         return fallback
+
+
+# --------------------------------------------------------------------------- #
+# Reflect-time day title and summary sentence (Felix, Aug 2026)
+# --------------------------------------------------------------------------- #
+# The experience title on the protocol card was the same generic line for
+# every day of every protocol (a frontend placeholder array). Each day now
+# gets its own title at reflect time, distilled from that day's script and
+# the listener's reflection. The home card summary also grows: each finished
+# day appends one sentence. Both are Haiku with safe fallbacks and are
+# written by routes/protocol_jolt.py inside the reflect handler.
+
+_DAY_TITLE_SYSTEM = """You title one finished meditation session for a mental health app.
+You get the script that was read to the listener and, when present, what they wrote afterwards.
+If their reflection contains an insight, the title IS that insight, distilled. Otherwise the title names the specific thing this session was about.
+Rules:
+- 6 words maximum
+- Concrete over abstract: name the actual subject or the actual insight
+- Never write vague filler like "A moment of peace" or "Sitting with it"
+- Sentence case, no quotes, no trailing punctuation
+- Return ONLY the title
+Examples:
+Reflection: "I realised I have been angry at myself, not at her"
+Title: The anger was at myself
+Reflection: "" and the script was about watching thoughts pass like clouds
+Title: Watching thoughts pass without chasing"""
+
+
+def generate_day_title(script: str, reflection: str = "") -> str:
+    """Six-word title for one day's experience, from that day's script and
+    the listener's reflection. Haiku, cheap, safe fallback on any error."""
+    fallback = "A quiet session"
+    if cfg.DEV_MODE:
+        return fallback
+    try:
+        user = f"The script read to them:\n{(script or '').strip()[:2000]}"
+        if reflection and reflection.strip():
+            user += f"\n\nTheir reflection after:\n{reflection.strip()[:1000]}"
+        raw = _claude_text(cfg.HAIKU_MODEL, _DAY_TITLE_SYSTEM, user,
+                           max_tokens=30, temperature=0.7, max_retries=2)
+        title = raw.strip().strip('"').strip("'")
+        if title:
+            words = title.split()
+            if len(words) > 6:
+                title = " ".join(words[:6])
+            return title[:200]
+        return fallback
+    except Exception as e:
+        print(f"[LLM] day title failed: {e}")
+        return fallback
+
+
+_SUMMARY_SENTENCE_SYSTEM = """You add one sentence to the summary on a meditation protocol's home card.
+You get the summary so far, the script from the day's session, and what the listener wrote afterwards.
+Write ONE new sentence saying what this day added: the insight if they had one, otherwise what the session was about.
+Rules:
+- EXACTLY ONE sentence, 15 words maximum
+- Sober and plain, third person, no "you", no "I", no hype
+- Do not repeat anything already in the summary so far
+- Never quote the listener's words back
+- Return ONLY the new sentence, no quotes"""
+
+
+def generate_summary_sentence(summary_so_far: str, script: str,
+                              reflection: str = "") -> str:
+    """One sentence saying what a finished day added, appended to the home
+    card summary by the reflect handler. Haiku, safe fallback to empty
+    string on any error so the summary is simply left unchanged."""
+    if cfg.DEV_MODE:
+        return ""
+    try:
+        user = f"Summary so far:\n{(summary_so_far or '').strip()[:1000]}"
+        user += f"\n\nThe script read to them:\n{(script or '').strip()[:2000]}"
+        if reflection and reflection.strip():
+            user += f"\n\nTheir reflection after:\n{reflection.strip()[:1000]}"
+        raw = _claude_text(cfg.HAIKU_MODEL, _SUMMARY_SENTENCE_SYSTEM, user,
+                           max_tokens=60, temperature=0.7, max_retries=2)
+        sentence = raw.strip().strip('"').strip("'")
+        return sentence[:300]
+    except Exception as e:
+        print(f"[LLM] summary sentence failed: {e}")
+        return ""
