@@ -4669,8 +4669,10 @@
   const WAIT_LABEL = "···";
   let joltTimer = null, paused = false, hideCtrlTimer = null;
   let joltKind = "protocol", joltDay = 1, joltJid = null, joltMixUrl = null;
-  let medAudio = null, mixAudio = null, curAudio = null;
+  let sessionAudio = null, sessionPhase = "idle", curAudio = null;
   let bedEndedWaiting = false, waiting = false, joltPollTimer = null;
+  let joltPlayed = false, joltPollBusy = false, lastPollAt = 0;
+  let mixBlobUrl = null, mixFetchStarted = false;
   const stage = $("#joltStage"), controls = $("#joltControls"), core = $("#joltCore"),
         playBtn = $("#playBtn"), timeRemain = $("#timeRemain");
   let joltReturn = "s-home";
@@ -4998,6 +5000,12 @@
   $("#primerStart").addEventListener("click", beginStimulus);
   function beginStimulus(){
     primerVeil.stop();
+    joltPlayed = false;
+    joltPollBusy = false;
+    lastPollAt = 0;
+    if(mixBlobUrl){ try { URL.revokeObjectURL(mixBlobUrl); } catch(e){} }
+    mixBlobUrl = null;
+    mixFetchStarted = false;
     const place = joltProto && joltProto.place;
     stage.classList.toggle("in-place", !!place);
     place ? joltVeil.start(place) : joltVeil.stop();
@@ -5016,86 +5024,143 @@
     waiting = !!on;
     if(waiting) timeRemain.textContent = WAIT_LABEL;
   }
+  /* One persistent element carries the whole session (Aug 2026). The tap on
+     Start blesses this element; the primer and the mix both play on it. The
+     handover is a src swap inside the primer's own ended event, which is the
+     only pattern phones allow when the app is backgrounded or the screen is
+     locked. A brand new Audio element at that moment gets blocked. */
+  function ensureSessionAudio(){
+    if(sessionAudio) return sessionAudio;
+    const a = new Audio();
+    a.preload = "auto";
+    if("playsInline" in a) a.playsInline = true;
+    a.addEventListener("ended", onSessionEnded);
+    a.addEventListener("error", onSessionError);
+    a.addEventListener("playing", onSessionPlaying);
+    a.addEventListener("timeupdate", onSessionTick);
+    sessionAudio = a;
+    return a;
+  }
+  function onSessionEnded(){
+    if(sessionPhase === "primer"){ onBedEnded(); return; }
+    if(sessionPhase === "mix") endJolt();
+  }
+  function onSessionError(){
+    if(sessionPhase === "primer") onBedEnded();
+  }
+  function onSessionPlaying(){
+    if(sessionPhase === "mix"){
+      joltPlayed = true;
+      bedEndedWaiting = false;
+      setWaiting(false);
+      if(paused){ try { sessionAudio.pause(); } catch(e){} }
+    }
+    setLockScreenInfo();
+  }
+  /* Polling rides on the primer's own playback clock: timeupdate keeps firing
+     while audio plays with the screen locked, when setInterval is frozen. */
+  function onSessionTick(){
+    if(sessionPhase !== "primer") return;
+    const now = Date.now();
+    if(now - lastPollAt < 2500) return;
+    lastPollAt = now;
+    pollJoltStatus();
+  }
+  function setLockScreenInfo(){
+    if(!("mediaSession" in navigator)) return;
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: (joltProto && joltProto.title) || "Your session",
+        artist: "ReWire"
+      });
+      navigator.mediaSession.setActionHandler("play", () => setPaused(false));
+      navigator.mediaSession.setActionHandler("pause", () => setPaused(true));
+    } catch(e){}
+  }
   function playMeditationBed(){
-    stopMix();
     bedEndedWaiting = false;
     try {
-      medAudio = new Audio(primerFor(joltTheme()).url);
-      medAudio.loop = false;
-      medAudio.volume = 1;
-      curAudio = medAudio;
+      const a = ensureSessionAudio();
+      sessionPhase = "primer";
+      a.src = primerFor(joltTheme()).url;
+      a.loop = false;
+      a.volume = 1;
+      curAudio = a;
       setWaiting(false);
-      medAudio.addEventListener("ended", onBedEnded);
-      medAudio.addEventListener("error", onBedEnded);
-      const started = medAudio.play();
+      const started = a.play();
       if(started && started.catch) started.catch(() => onBedEnded());
     } catch(e){ onBedEnded(); }
   }
   /* the bed handing over: if the mix is not ready the screen waits and keeps polling */
   function onBedEnded(){
-    if(medAudio && curAudio && curAudio !== medAudio) return;
-    stopMed();
+    if(sessionPhase !== "primer") return;
+    sessionPhase = "waiting";
     curAudio = null;
     if(joltMixUrl){ playMix(joltMixUrl, primerFor(joltTheme()).start); return; }
     bedEndedWaiting = true;
     setWaiting(true);
   }
+  /* The mix downloads in full while the primer plays, so the handover reads
+     from memory instead of the network and has no gap. */
+  function prefetchMix(url){
+    if(mixFetchStarted) return;
+    mixFetchStarted = true;
+    fetch(url)
+      .then(r => { if(!r.ok) throw new Error("prefetch " + r.status); return r.blob(); })
+      .then(b => { if(sessionPhase !== "mix") mixBlobUrl = URL.createObjectURL(b); })
+      .catch(() => {});
+  }
+  async function pollJoltStatus(){
+    if(!joltJid || joltMixUrl || joltPollBusy) return;
+    joltPollBusy = true;
+    let s;
+    try {
+      s = await GET((joltKind === "journal" ? "/protocol-jolt/journal/" : "/protocol-jolt/") + joltJid + "/status");
+    } catch(e){ joltPollBusy = false; return; }
+    joltPollBusy = false;
+    if(joltMixUrl) return;
+    if(s.stage === "done" && s.audio_url){
+      clearInterval(joltPollTimer);
+      joltMixUrl = s.audio_url;
+      prefetchMix(s.audio_url);
+      /* Never interrupt the primer (Felix, Aug 2026): while the primer is
+         playing only the URL is stored; onBedEnded hands over the moment
+         the primer finishes. Start now only when nothing is playing. */
+      if(bedEndedWaiting || !curAudio) playMix(joltMixUrl, primerFor(joltTheme()).start);
+    } else if(s.stage === "error" || s.stage === "blocked"){
+      clearInterval(joltPollTimer);
+      joltVeil.stop();
+      stopAllAudio();
+      clearInterval(joltTimer);
+      if(s.stage === "blocked") showSafety("block", (s.error || "").split(":").pop());
+      else {
+        if(joltKind === "journal") renderJournal(); else renderHome();
+        show(joltReturn);
+      }
+    }
+  }
   function startPolling(){
     clearInterval(joltPollTimer);
-    joltPollTimer = setInterval(async () => {
-      if(!joltJid) return;
-      let s;
-      try {
-        s = await GET((joltKind === "journal" ? "/protocol-jolt/journal/" : "/protocol-jolt/") + joltJid + "/status");
-      } catch(e){ return; }
-      if(s.stage === "done" && s.audio_url){
-        clearInterval(joltPollTimer);
-        joltMixUrl = s.audio_url;
-        /* Never interrupt the primer (Felix, Aug 2026): the live-timestamp
-           swap cut the primer mid-play because the seek into the session
-           file is not sample accurate. If the bed is still playing, only
-           store the URL; onBedEnded hands over to the meditation the
-           moment the primer finishes. Only start the mix now when the
-           primer already ended (or never started). */
-        if(bedEndedWaiting || !curAudio) playMix(joltMixUrl, primerFor(joltTheme()).start);
-      } else if(s.stage === "error" || s.stage === "blocked"){
-        clearInterval(joltPollTimer);
-        joltVeil.stop();
-        stopAllAudio();
-        clearInterval(joltTimer);
-        if(s.stage === "blocked") showSafety("block", (s.error || "").split(":").pop());
-        else {
-          if(joltKind === "journal") renderJournal(); else renderHome();
-          show(joltReturn);
-        }
-      }
-    }, 2500);
+    lastPollAt = 0;
+    joltPollTimer = setInterval(pollJoltStatus, 2500);
   }
   function playMix(url, at){
-    /* at: null plays from the top, a number seeks there, "live" seeks to
-       wherever the primer currently is (the invisible swap). The primer
-       keeps playing until the session audio actually produces sound, so
-       the handover has no gap. Old files generated before the primer was
-       baked in are detected by length and simply play from the top. */
-    stopMix();
+    /* at: null plays from the top, a number seeks there. A real session
+       file is the primer plus a whole meditation, so it runs well past the
+       seek point; anything shorter is an old bare mix from before the
+       primer was baked in and simply plays from the top. */
     try {
-      mixAudio = new Audio(url);
-      mixAudio.volume = 1;
-      mixAudio.addEventListener("ended", endJolt);
-      const a = mixAudio;
+      const a = ensureSessionAudio();
+      sessionPhase = "mix";
+      a.src = mixBlobUrl || url;
+      a.loop = false;
+      a.volume = 1;
+      curAudio = a;
       const begin = () => {
-        if(mixAudio !== a) return;
+        if(sessionPhase !== "mix") return;
         let seek = at;
-        if(seek === "live"){
-          seek = (medAudio && isFinite(medAudio.currentTime))
-            ? medAudio.currentTime
-            : primerFor(joltTheme()).start;
-        }
         if(typeof seek === "number" && seek > 0){
           const d = a.duration;
-          /* a real session file is the primer plus a whole meditation, so
-             it runs well past the seek point; anything shorter is an old
-             bare mix from before the primer was baked in */
           if(isFinite(d) && d > seek + 90){
             try { a.currentTime = seek; } catch(e){}
           }
@@ -5103,31 +5168,30 @@
         const started = a.play();
         if(started && started.catch) started.catch(() => {});
       };
-      a.addEventListener("playing", () => {
-        if(mixAudio !== a) return;
-        stopMed();
-        curAudio = a;
-        bedEndedWaiting = false;
-        setWaiting(false);
-        if(paused){ try { a.pause(); } catch(e){} }
-      }, { once: true });
-      if(at != null) a.addEventListener("loadedmetadata", begin, { once: true });
-      else begin();
+      if(at != null){
+        if(a.readyState >= 1) begin();
+        else a.addEventListener("loadedmetadata", begin, { once: true });
+      } else begin();
     } catch(e){}
   }
-  function stopMed(){
-    try { if(medAudio){ medAudio.pause(); medAudio.src = ""; } } catch(e){}
-    medAudio = null;
-  }
-  function stopMix(){
-    try { if(mixAudio){ mixAudio.pause(); mixAudio.src = ""; } } catch(e){}
-    mixAudio = null;
+  function stopSessionAudio(){
+    sessionPhase = "idle";
+    try {
+      if(sessionAudio){
+        sessionAudio.pause();
+        sessionAudio.removeAttribute("src");
+        sessionAudio.load();
+      }
+    } catch(e){}
+    curAudio = null;
   }
   function stopAllAudio(){
     clearInterval(joltPollTimer);
-    stopMed();
-    stopMix();
-    curAudio = null;
+    stopSessionAudio();
+    if(mixBlobUrl){ try { URL.revokeObjectURL(mixBlobUrl); } catch(e){} }
+    mixBlobUrl = null;
+    mixFetchStarted = false;
+    joltPollBusy = false;
     bedEndedWaiting = false;
     waiting = false;
   }
@@ -5169,8 +5233,11 @@
     joltVeil.stop();
     clearInterval(joltTimer);
     stopAllAudio();
-    /* leaving a live jolt still owes a reflection, so it routes there instead of home */
-    if(!joltReplay){ openReflect(joltProto); return; }
+    /* leaving a live jolt owes a reflection, but only if the jolt actually
+       played. Closing during the primer or a failed generation goes home,
+       otherwise the day gets reflected and marked done without the jolt
+       ever being heard (Felix, Aug 2026). */
+    if(!joltReplay && joltPlayed){ openReflect(joltProto); return; }
     if(joltKind === "journal") renderJournal(); else renderHome();
     show(joltReturn);
   });
@@ -5309,8 +5376,8 @@
         onboardingFirstRun = false;
         try { await POST("/auth/complete-onboarding", {}); } catch(e){}
         if(state.me) state.me.onboarding_complete = true;
-        const p = active();
-        if(p && !p.unlocked && !state.monthlyActive){ showScreen("s-pay"); return; }
+        /* No paywall here (Felix, Aug 2026): it appears when the user tries
+           to play the next jolt, via the 402 path in startJolt. */
       }
       renderHome(true);
       show("s-home");
