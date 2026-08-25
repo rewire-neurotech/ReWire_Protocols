@@ -128,6 +128,7 @@ AVOID_BLOCK = """WHAT TO AVOID:
 - Overusing tags. If you used more than 15, you used too many.
 - The word "journey" (product name)
 - Flat crescendos. If your crescendo doesn't feel like it's BUILDING and EXPLODING, rewrite it.
+- Announcing a truth instead of stating it ("Here is something true about...", "Let me tell you something..."). Anywhere in the speech, not just the opening.
 - Guilt or shame about anything not yet done -- the mechanism is reward, never punishment
 - Claiming to see, know, feel, or be present with the listener (see HONESTY RULES)
 - Quoting or closely paraphrasing the charge (see TARGET AND CHARGE)
@@ -144,6 +145,9 @@ Rules for the opening:
 - Use ellipses (...) for weight and pause.
 - Broad and universal.
 - Emotionally heavy. The listener should feel it in the chest.
+- MAKE the statement, never announce it. Banned shapes: "Here is something true about...", "Here's the thing about...", "Let me tell you something...", "There's something you should know...", or any line that introduces a truth instead of stating it. If your line points at the statement instead of being the statement, delete it and write the statement.
+  BAD: "Here is something true about beginnings... they only happen once."
+  GOOD: "A beginning only happens once."
 - No audio tags on these lines. Let the raw text land in silence.
 - After the 2 statements, place a --- section break. The main speech begins after that."""
 
