@@ -264,6 +264,12 @@ def save_reflection(jid: int, req: ReflectReq,
     j = db.query(ProtocolJolt).filter(ProtocolJolt.id == jid, ProtocolJolt.user_id == u.id).first()
     if not j:
         raise HTTPException(404, "jolt not found")
+    # A reflection is only valid on a jolt that was actually delivered. Without
+    # this, closing a failed or still generating jolt could save a reflection
+    # and mark the day done even though the jolt was never heard (Felix's
+    # missing question after jolt 1, Aug 2026).
+    if j.stage != "done":
+        raise HTTPException(409, "jolt has not played yet")
     p = db.query(Protocol).filter(Protocol.id == j.protocol_id).first()
     is_meditation = bool(p) and (p.type or "") in ("integrate", "expand")
 
@@ -445,6 +451,8 @@ def save_journal_reflection(jj_id: int, req: ReflectReq,
     jj = db.query(JournalJolt).filter(JournalJolt.id == jj_id, JournalJolt.user_id == u.id).first()
     if not jj:
         raise HTTPException(404, "journal jolt not found")
+    if jj.stage != "done":
+        raise HTTPException(409, "jolt has not played yet")
     entry = db.query(JournalEntry).filter(JournalEntry.id == jj.journal_entry_id).first()
     if entry:
         entry.chills = req.chills.strip() or None
