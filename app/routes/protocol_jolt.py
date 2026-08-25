@@ -321,14 +321,15 @@ def save_reflection(jid: int, req: ReflectReq,
             except Exception as e:
                 print(f"[reflect] day title generation failed: {e}")
 
-        # Growing summary (Felix, Aug 2026): the create-time summary is one
-        # sentence, and each finished day appends one more saying what that
-        # day added. An empty return (the function's own error fallback)
-        # leaves the summary unchanged. Never allowed to fail the save.
+        # One-sentence summary (Felix, Aug 2026): generate_summary_sentence
+        # returns the FULL replacement sentence carrying the theme plus the
+        # sharpest insight so far, so it is ASSIGNED, never appended. An empty
+        # return (the function's own error fallback) leaves the previous
+        # summary unchanged. Never allowed to fail the save.
         try:
             sentence = llm.generate_summary_sentence(p.summary or "", script, answer)
             if sentence:
-                p.summary = f"{(p.summary or '').strip()} {sentence}".strip()[:2000]
+                p.summary = sentence.strip()[:2000]
         except Exception as e:
             print(f"[reflect] summary sentence failed: {e}")
 
