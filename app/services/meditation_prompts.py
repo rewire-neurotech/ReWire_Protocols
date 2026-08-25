@@ -81,6 +81,7 @@ NEVER
 - Inflating their situation beyond the weight they gave it.
 - References to time of day.
 - Sentence fragments, poetic inversions, stacked clauses.
+- Announcing a truth before saying it: "here is something true", "here's something", "let me tell you". The thing is said, never introduced.
 - These images: sailors, navigation, the North Star, lighthouses, leaves on a stream, passing clouds, waves, thermostats, creeks, hands, apple trees, muscles tearing and growing back.
 - The words: delve, journey, unlock, harness, profound.
 
@@ -132,6 +133,7 @@ About 400 words of plain spoken text. No pause markers, no bracket tags, no stag
 NEVER
 - The words imagine, picture, visualize, envision, or "see if you can": the scene is stated as real.
 - Naming sounds, describing anything as heard, or asking the listener to listen: no birdsong, no wind you can hear, no rustling, no silence, no quiet. The real forest sounds are already there. The piece stays in the eyes.
+- Announcing a truth before saying it: "here is something true", "here's something", "let me tell you". The thing is said, never introduced.
 - Instructions to breathe, scan, count, close the eyes, or do anything in real time.
 - Waiting language: "take a moment", "when you're ready", "let that settle", "sit with that".
 - Negation-contrast in any disguise: "it is not X, it is Y", "X, not Y", "does not mean X, it means Y", appositive corrections, paired sentences setting one thing against another. State what IS true and stop.
@@ -192,6 +194,7 @@ NEVER
 - The words imagine, picture, visualize, envision, or "see if you can": the scene is stated as real.
 - Naming any sound except the waves. Beyond the water arriving and leaving, the piece stays in the eyes: no birds, no wind you can hear, no silence, no quiet.
 - Comparing the listener's thoughts, feelings, or situation to waves, tides, or water. The ocean is the scenery and the subject, never a metaphor for their mind.
+- Announcing a truth before saying it: "here is something true", "here's something", "let me tell you". The thing is said, never introduced.
 - Telling the listener to relax, be calm, or feel peaceful. Peace arrives through what is shown and said, never through instruction.
 - Instructions to breathe, scan, count, close the eyes, or do anything in real time.
 - Waiting language: "take a moment", "when you're ready", "let that settle", "sit with that".
@@ -272,6 +275,7 @@ NEVER
 - Preaching, converting, warning of punishment, or promising rewards after death.
 - The words imagine, picture, visualize, envision, or "see if you can": the scene is stated as real.
 - Naming sounds, describing anything as heard, or asking the listener to listen: no crackling, no wind you can hear, no silence, no quiet. The real fire sounds are already there. The piece stays in the eyes and in the felt body.
+- Announcing a truth before saying it: "here is something true", "here's something", "let me tell you". The thing is said, never introduced.
 - Instructions to breathe, scan, count, close the eyes, or do anything in real time.
 - Waiting language: "take a moment", "when you're ready", "let that settle", "sit with that".
 - Negation-contrast in any disguise: "it is not X, it is Y", "X, not Y", "does not mean X, it means Y", appositive corrections, paired sentences setting one thing against another. State what IS true and stop.
@@ -349,6 +353,7 @@ Write the way a calm person talks. Ordinary complete sentences, one thought each
 Every sentence must be understandable the first time it is heard, with the eyes closed. Anything that would need a second reading is wrong.
 Anything you present as true about the world must actually be true.
 Quiet and even, never triumphant and never heavy. No stock meditation language beyond the welcome. No leaves on streams, clouds, waves, kintsugi, phoenixes, lighthouses.
+A truth is said, never introduced: no "here is something true", no "here's something", no "let me tell you".
 Nothing in brackets except the two pause markers. No markdown, no titles, no stage directions.
 
 OUTPUT
@@ -356,6 +361,10 @@ One continuous spoken text, about 140 words, welcome first. The first character 
 """
 
 REGULAR_FORBIDDEN = [
+    '\\bhere is something\\b',
+    "\\bhere's something\\b",
+    '\\bsomething true about\\b',
+    '\\blet me tell you\\b',
     '\\bis not\\b',
     '\\bare not\\b',
     '\\bwas not\\b',
@@ -385,6 +394,10 @@ REGULAR_FORBIDDEN = [
 ]
 
 FOREST_FORBIDDEN = [
+    '\\bhere is something\\b',
+    "\\bhere's something\\b",
+    '\\bsomething true about\\b',
+    '\\blet me tell you\\b',
     '\\bis not\\b',
     '\\bare not\\b',
     '\\bwas not\\b',
@@ -426,6 +439,10 @@ FOREST_FORBIDDEN = [
 ]
 
 OCEAN_FORBIDDEN = [
+    '\\bhere is something\\b',
+    "\\bhere's something\\b",
+    '\\bsomething true about\\b',
+    '\\blet me tell you\\b',
     '\\bis not\\b',
     '\\bare not\\b',
     '\\bwas not\\b',
@@ -470,6 +487,10 @@ OCEAN_FORBIDDEN = [
 ]
 
 FIRE_FORBIDDEN = [
+    '\\bhere is something\\b',
+    "\\bhere's something\\b",
+    '\\bsomething true about\\b',
+    '\\blet me tell you\\b',
     '\\bis not\\b',
     '\\bare not\\b',
     '\\bwas not\\b',
@@ -566,13 +587,21 @@ def validate_day1(theme, script):
 
 _ALLOWED_LATER_MARKERS = ("[pause]", "[long pause]")
 
+_LATER_FORBIDDEN = [
+    '\\bhere is something\\b',
+    "\\bhere's something\\b",
+    '\\bsomething true about\\b',
+    '\\blet me tell you\\b',
+]
+
 
 def validate_later(script):
     """Light check for days 2 to 5: only the two pause markers may appear in brackets."""
     stripped = script
     for m in _ALLOWED_LATER_MARKERS:
         stripped = stripped.replace(m, "")
-    hits = []
+    hits = [p for p in _LATER_FORBIDDEN
+            if re.search(p, script, re.IGNORECASE | re.MULTILINE)]
     if "[" in stripped or "]" in stripped:
         hits.append("unexpected bracket tag - only [pause] and [long pause] are allowed")
     return hits
