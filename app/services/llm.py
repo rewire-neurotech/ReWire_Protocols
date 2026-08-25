@@ -795,28 +795,33 @@ def generate_meditation_title(topic: str, reflection: str = "") -> str:
 
 _PROTOCOL_TITLE_SYSTEM = """You title a new meditation protocol for a mental health app.
 You get what the listener wrote about what they want to meditate on.
-The protocol runs across a week of sessions, so the title names the week long theme behind what they wrote, not the single event in it. People often write about one thing coming up: an interview, a conversation, a deadline. The title abstracts one level up to the durable thing underneath, the theme a whole week can sit with, of which their event is one instance. If what they wrote is already a durable thing (a divorce, a grief, a fear), name it directly.
+The title names the central OBJECT of what they wrote: the one concrete thing, person, or event the whole protocol orbits, the way a short story is titled. "The ring". "The first employee". "The launch". The object carries the theme; the title itself stays plain and concrete. Pick the object a reader would point to as the heart of the entry, the thing that will still be there all week.
 Rules:
-- 5 words maximum
-- One level up, never more: the theme must still clearly belong to what they wrote. Not a mood, not a life philosophy
-- Concrete over abstract. Never vague filler like "A bright future ahead" or "Finding your inner peace"
+- 1 to 4 words
+- A noun phrase, usually "The X". Never a verb phrase, never advice, never a mood
+- The object must come straight from their entry; the connection must be obvious at a glance
+- When the heart of the entry is a person, the person IS the title, named the way the listener names them: "Dad", "Mom", "The first employee"
+- Concrete things over abstractions: "The phone", never "The distraction"; "The launch", never "The pressure"
 - Sentence case, no quotes, no trailing punctuation
-- Never repeat their sentence back word for word
 - Return ONLY the title
 Examples:
-They wrote: "I have a job interview on Thursday and I am terrified"
-Title: Steady in high stakes moments
+They wrote: "I am launching my app to beta users this week and the pressure is getting to me"
+Title: The launch
+They wrote: "My dad is getting older and I keep avoiding calling him"
+Title: Dad
+They wrote: "My first employee starts Monday and I have never managed anyone before"
+Title: The first employee
+They wrote: "He proposed last month and I still have not given him an answer"
+Title: The ring
 They wrote: "I need to tell my sister the truth about dad"
-Title: Saying the hard thing
+Title: The truth about dad
 They wrote: "I keep replaying my divorce and blaming myself"
-Title: The divorce and the blame
-They wrote: "I feel like a fraud at work"
-Title: The fraud feeling at work"""
+Title: The divorce"""
 
 
 def generate_protocol_title(topic: str) -> str:
-    """Five-word display title generated at protocol create time. Haiku,
-    cheap, safe fallback to the topic's first words on any error."""
+    """Short object title ("The launch") generated at protocol create time.
+    Haiku, cheap, safe fallback to the topic's first words on any error."""
     fallback = " ".join((topic or "meditation").strip().split()[:5]) or "A quiet meditation"
     if cfg.DEV_MODE:
         return fallback
@@ -838,21 +843,21 @@ def generate_protocol_title(topic: str) -> str:
 
 _PROTOCOL_SUMMARY_SYSTEM = """You summarise a new meditation protocol for the card on a mental health app's home screen.
 You get what the listener wrote about what they want to meditate on.
-Write what this protocol is about in ONE plain sentence anyone can understand: the register of a science article with the jargon removed. Direct, factual, calm.
+Write what this protocol is about in ONE plain sentence: descriptive, direct, scientific. It should work like a mirror; the listener reads it and recognises their exact situation, stated more clearly than they stated it themselves.
 Rules:
 - EXACTLY ONE sentence, 15 words maximum
-- Never mention days, sessions, weeks, or any count of them. Not "five days of", not "a week of". Say what it is about, not how long it runs
-- Plain English. No imagery, no "journey", no "exploring", no "beauty"
-- Never quote or repeat their words back; describe the theme in fresh words
-- No "you", no "I", no advice, no hype
+- Never mention days, sessions, weeks, pace, or any count of them. The listener moves at their own pace and the card never talks about time
+- Plain English. No imagery, no "journey", no "exploring", no "beauty", no hype
+- Never quote or repeat their words back; describe the situation in fresh words
+- No "you", no "I", no advice
 - Return ONLY the sentence, no quotes
 Examples:
+They wrote: "I am launching my app to beta users this week and the pressure is getting to me"
+Summary: A protocol about the pressure of putting finished work in front of real users.
 They wrote: "I keep replaying my divorce and blaming myself"
 Summary: A protocol about the end of a marriage and the self blame around it.
 They wrote: "I feel like a fraud at work"
-Summary: A protocol about the feeling of being a fraud at work.
-They wrote: "I have a job interview on Thursday and I am terrified"
-Summary: A protocol about staying steady when something big is coming."""
+Summary: A protocol about the feeling of being a fraud at work."""
 
 
 def generate_protocol_summary(topic: str, charge: str = "") -> str:
@@ -883,29 +888,37 @@ def generate_protocol_summary(topic: str, charge: str = "") -> str:
 # The experience title on the protocol card was the same generic line for
 # every day of every protocol (a frontend placeholder array). Each day now
 # gets its own title at reflect time, distilled from that day's script and
-# the listener's reflection. The home card summary also grows: each finished
-# day appends one sentence. Both are Haiku with safe fallbacks and are
-# written by routes/protocol_jolt.py inside the reflect handler.
+# the listener's reflection. The home card summary stays ONE sentence: each
+# finished day the sentence is rewritten to carry the protocol's theme plus
+# the sharpest insight so far (Felix, Aug 2026 — the route must ASSIGN the
+# returned sentence, never append it). Both are Haiku with safe fallbacks
+# and are written by routes/protocol_jolt.py inside the reflect handler.
 
 _DAY_TITLE_SYSTEM = """You title one finished meditation session for a mental health app.
 You get the script that was read to the listener and, when present, what they wrote afterwards.
-If their reflection contains an insight, the title IS that insight, distilled. Otherwise the title names the specific thing this session was about.
+The title is the core life lesson of the session, compressed to its essence: the one truth the session left behind, phrased like a proverb the listener earned. When their reflection contains an insight, distill THAT into the lesson. Otherwise distill the central point the script made.
 Rules:
-- 6 words maximum
-- Concrete over abstract: name the actual subject or the actual insight
-- Never write vague filler like "A moment of peace" or "Sitting with it"
+- 3 to 5 words
+- A claim, never a topic label: it must assert something ("Small days shape everything", never "Small daily habits")
+- Plain words; never the script's imagery or metaphor left unexplained ("The river keeps cutting" says nothing on its own)
+- Never vague filler like "A moment of peace" or "Sitting with it"
 - Sentence case, no quotes, no trailing punctuation
 - Return ONLY the title
 Examples:
 Reflection: "I realised I have been angry at myself, not at her"
-Title: The anger was at myself
-Reflection: "" and the script was about watching thoughts pass like clouds
-Title: Watching thoughts pass without chasing"""
+Title: The anger was mine
+Script: a river cuts stone one grain at a time and a person is shaped the same way by small days. No reflection.
+Title: Small days shape everything
+Script: watching thoughts pass like clouds without chasing them. No reflection.
+Title: Thoughts pass when unchased
+Reflection: "I realised the launch is where the real work starts"
+Title: Launching begins the work"""
 
 
 def generate_day_title(script: str, reflection: str = "") -> str:
-    """Six-word title for one day's experience, from that day's script and
-    the listener's reflection. Haiku, cheap, safe fallback on any error."""
+    """Three-to-five word life-lesson title for one day's experience, from
+    that day's script and the listener's reflection. Haiku, cheap, safe
+    fallback on any error."""
     fallback = "A quiet session"
     if cfg.DEV_MODE:
         return fallback
@@ -927,29 +940,34 @@ def generate_day_title(script: str, reflection: str = "") -> str:
         return fallback
 
 
-_SUMMARY_SENTENCE_SYSTEM = """You add one sentence to the summary on a meditation protocol's home card.
-You get the summary so far, the script from the day's session, and what the listener wrote afterwards.
-Write ONE new sentence saying what this day added: the insight if they had one, otherwise what the session was about.
+_SUMMARY_SENTENCE_SYSTEM = """You write the one-sentence summary on a meditation protocol's home card.
+You get the current summary, the script from the latest session, and what the listener wrote afterwards.
+Return ONE fresh sentence that REPLACES the current summary entirely: it says what this protocol is about and carries its sharpest insight so far. Use the listener's own insight when their reflection holds one; otherwise use the clearest idea the latest script put forward. Descriptive, direct, scientific: a mirror the listener recognises themselves in.
 Rules:
-- EXACTLY ONE sentence, 15 words maximum
-- NEVER mention day numbers, session numbers, or any counting ("day six", "the third session"). The card shows no numbering and you do not know which day this is
-- State the insight plainly. Do not narrate what the session did ("examined how", "explored the") and do not write like an essay
-- Sober and plain, third person, no "you", no "I", no hype
-- Do not repeat anything already in the summary so far
+- EXACTLY ONE sentence, 20 words maximum
+- Never mention days, sessions, weeks, pace, or any count of them
+- State the insight as a plain claim about the situation. Never narrate what the session did ("examined how", "explored the")
+- Sober third person, no "you", no "I", no hype, no advice
+- Never reuse the script's imagery or metaphors; carry their meaning instead
 - Never quote the listener's words back
-- Return ONLY the new sentence, no quotes
+- Return ONLY the sentence, no quotes
 Examples:
+Current summary: "A protocol about the pressure of putting finished work in front of real users."
+Reflection: "I realised the launch is where the real work starts"
+Sentence: The pressure of releasing work to users, where launching starts the real work rather than finishing it.
+Current summary: "A protocol about the end of a marriage and the self blame around it."
 Reflection: "I realised I have been angry at myself, not at her"
-Sentence: The anger turned out to be aimed inward.
-Reflection: "" and the script was about the pull between rushing and slowing down
-Sentence: The pull between rushing and slowing down."""
+Sentence: The end of a marriage, where the anger turned out to be aimed inward."""
 
 
 def generate_summary_sentence(summary_so_far: str, script: str,
                               reflection: str = "") -> str:
-    """One sentence saying what a finished day added, appended to the home
-    card summary by the reflect handler. Haiku, safe fallback to empty
-    string on any error so the summary is simply left unchanged."""
+    """The full ONE-sentence home card summary, rewritten after each finished
+    day to carry the theme plus the sharpest insight so far. The reflect
+    handler must ASSIGN the result (protocol.summary = sentence), never
+    append it. Haiku, safe fallback to empty string on any error; the route
+    should only assign when the sentence is non-empty so the previous
+    summary survives errors."""
     if cfg.DEV_MODE:
         return ""
     try:
