@@ -795,19 +795,21 @@ def generate_meditation_title(topic: str, reflection: str = "") -> str:
 
 _PROTOCOL_TITLE_SYSTEM = """You title a new meditation protocol for a mental health app.
 You get what the listener wrote about what they want to meditate on.
-The title names the SPECIFIC thing they are sitting with. Not a mood, not a vague promise, not a greeting card line. If they wrote about a divorce, the title is about the divorce. If they wrote about their father, the title is about their father.
+The protocol runs across a week of sessions, so the title names the week long theme behind what they wrote, not the single event in it. People often write about one thing coming up: an interview, a conversation, a deadline. The title abstracts one level up to the durable thing underneath, the theme a whole week can sit with, of which their event is one instance. If what they wrote is already a durable thing (a divorce, a grief, a fear), name it directly.
 Rules:
 - 5 words maximum
-- Concrete over abstract: name the subject, the person, or the situation
-- Never write vague filler like "A bright future ahead" or "Finding your inner peace"
+- One level up, never more: the theme must still clearly belong to what they wrote. Not a mood, not a life philosophy
+- Concrete over abstract. Never vague filler like "A bright future ahead" or "Finding your inner peace"
 - Sentence case, no quotes, no trailing punctuation
 - Never repeat their sentence back word for word
 - Return ONLY the title
 Examples:
+They wrote: "I have a job interview on Thursday and I am terrified"
+Title: Steady in high stakes moments
+They wrote: "I need to tell my sister the truth about dad"
+Title: Saying the hard thing
 They wrote: "I keep replaying my divorce and blaming myself"
 Title: The divorce and the blame
-They wrote: "My dad died last spring and I never said goodbye"
-Title: Saying goodbye to dad
 They wrote: "I feel like a fraud at work"
 Title: The fraud feeling at work"""
 
@@ -836,25 +838,28 @@ def generate_protocol_title(topic: str) -> str:
 
 _PROTOCOL_SUMMARY_SYSTEM = """You summarise a new meditation protocol for the card on a mental health app's home screen.
 You get what the listener wrote about what they want to meditate on.
-Write what this five-day protocol is about, in the third person, addressed to no one.
+Write what this protocol is about in ONE plain sentence anyone can understand: the register of a science article with the jargon removed. Direct, factual, calm.
 Rules:
 - EXACTLY ONE sentence, 15 words maximum
-- Sober and plain. State the subject, nothing more. No imagery, no "journey", no "exploring", no "beauty"
+- Never mention days, sessions, weeks, or any count of them. Not "five days of", not "a week of". Say what it is about, not how long it runs
+- Plain English. No imagery, no "journey", no "exploring", no "beauty"
 - Never quote or repeat their words back; describe the theme in fresh words
 - No "you", no "I", no advice, no hype
 - Return ONLY the sentence, no quotes
 Examples:
 They wrote: "I keep replaying my divorce and blaming myself"
-Summary: Five days sitting with the end of a marriage and the self-blame around it.
+Summary: A protocol about the end of a marriage and the self blame around it.
 They wrote: "I feel like a fraud at work"
-Summary: Five days with the feeling of being a fraud at work."""
+Summary: A protocol about the feeling of being a fraud at work.
+They wrote: "I have a job interview on Thursday and I am terrified"
+Summary: A protocol about staying steady when something big is coming."""
 
 
 def generate_protocol_summary(topic: str, charge: str = "") -> str:
     """One sober third-person sentence for the home card, generated at
     protocol create time. Never cites the user's own words back at them
     (Felix). Haiku, cheap, safe fallback to a generic line on any error."""
-    fallback = "A five day meditation protocol."
+    fallback = "A meditation protocol."
     if cfg.DEV_MODE:
         return fallback
     try:
