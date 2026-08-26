@@ -4672,6 +4672,7 @@
   let joltKind = "protocol", joltDay = 1, joltJid = null, joltMixUrl = null;
   let sessionAudio = null, sessionPhase = "idle", curAudio = null;
   let standbyAudio = null, standbyReady = false;
+  let primerFadeTimer = null, primerFadeEl = null;
   let bedEndedWaiting = false, waiting = false, joltPollTimer = null;
   let joltPlayed = false, joltPollBusy = false, lastPollAt = 0;
   let mixBlobUrl = null, mixFetchStarted = false;
@@ -5087,6 +5088,57 @@
       else standbyAudio.addEventListener("loadedmetadata", arm, { once: true });
     } catch(e){}
   }
+  /* The overlapped handover (Felix's order, Aug 2026): the mix starts at
+     full volume at the join point and the old primer copy leaves under it.
+     The ramp begins immediately but holds at half volume until the mix's
+     playing event confirms sound is actually flowing (1.5s timeout as
+     backup), so a slow device can never dip the bed over silence. What
+     fades is a duplicate of birds the mix is already playing, so the fade
+     itself is inaudible; the meditation voice is never faded. iPhones
+     ignore volume changes on media elements, so if the first tick shows the
+     volume not taking, the fade is skipped and the primer is stopped after
+     a short confirmed overlap instead. */
+  function fadeOutPrimer(prev, live){
+    if(!prev) return;
+    const teardown = () => {
+      try { prev.pause(); prev.removeAttribute("src"); prev.load(); } catch(e){}
+    };
+    try {
+      let confirmed = false;
+      const confirm = () => { confirmed = true; };
+      try { live.addEventListener("playing", confirm, { once: true }); } catch(e){}
+      setTimeout(confirm, 1500);
+      if(primerFadeTimer) clearInterval(primerFadeTimer);
+      primerFadeEl = prev;
+      let fadeWorks = true;
+      const t0 = Date.now(), FADE_MS = 2000, OVERLAP_MS = 600;
+      primerFadeTimer = setInterval(() => {
+        const elapsed = Date.now() - t0;
+        const t = elapsed / FADE_MS;
+        if(!fadeWorks){
+          if(confirmed && elapsed >= OVERLAP_MS){
+            clearInterval(primerFadeTimer);
+            primerFadeTimer = null; primerFadeEl = null;
+            teardown();
+          }
+          return;
+        }
+        if(t >= 1 && confirmed){
+          clearInterval(primerFadeTimer);
+          primerFadeTimer = null; primerFadeEl = null;
+          teardown();
+          return;
+        }
+        let v = 1 - t;
+        if(!confirmed && v < 0.5) v = 0.5;
+        v = Math.max(0, Math.min(1, v));
+        try {
+          prev.volume = v;
+          if(prev.volume > v + 0.05) fadeWorks = false;
+        } catch(e){ fadeWorks = false; }
+      }, 50);
+    } catch(e){ teardown(); }
+  }
   function onSessionEnded(){
     if(sessionPhase === "primer"){ onBedEnded(); return; }
     if(sessionPhase === "mix") endJolt();
@@ -5214,9 +5266,12 @@
        primer was baked in and simply plays from the top. */
     try {
       /* The standby already holds the mix, loaded and seeked to the join
-         point. Promote it to the live element and pause the primer: nothing
-         loads at this moment, so the handover has no gap. Falls through to
-         the old src swap whenever the standby is not ready. */
+         point. Promote it to the live element and start it at full volume;
+         the old primer copy is NOT cut, it fades out underneath (see
+         fadeOutPrimer). Both are playing the same bird tail at the same
+         timestamp, so the ear hears one continuous bed while the voice
+         enters on cue. Falls through to the old src swap whenever the
+         standby is not ready. */
       if(standbyAudio && standbyReady){
         const prev = sessionAudio;
         sessionPhase = "mix";
@@ -5226,13 +5281,7 @@
         curAudio = sessionAudio;
         const started = sessionAudio.play();
         if(started && started.catch) started.catch(() => {});
-        try {
-          if(prev){
-            prev.pause();
-            prev.removeAttribute("src");
-            prev.load();
-          }
-        } catch(e){}
+        fadeOutPrimer(prev, sessionAudio);
         return;
       }
       const a = ensureSessionAudio();
@@ -5261,6 +5310,15 @@
   }
   function stopSessionAudio(){
     sessionPhase = "idle";
+    if(primerFadeTimer){ clearInterval(primerFadeTimer); primerFadeTimer = null; }
+    try {
+      if(primerFadeEl){
+        primerFadeEl.pause();
+        primerFadeEl.removeAttribute("src");
+        primerFadeEl.load();
+      }
+    } catch(e){}
+    primerFadeEl = null;
     try {
       if(sessionAudio){
         sessionAudio.pause();
