@@ -4951,7 +4951,22 @@
       const r = await POST("/protocol-jolt/" + p._pid + "/start", { day: joltDay });
       if(r._paywall){ showScreen("s-pay"); return; }
       if(r.status === "replay" && r.audio_url){ joltJid = r.jolt_id; joltMixUrl = r.audio_url; }
-      else if(r.status === "generating"){ joltJid = r.jolt_id; joltMixUrl = null; }
+      else if(r.status === "generating"){
+        joltJid = r.jolt_id; joltMixUrl = null;
+        /* Days 2-5 have no primer to cover the wait (Ashwin, Aug 2026).
+           Normally the day was pre generated at the prior reflect and
+           arrives above as an instant replay; when it is still mid flight
+           (tapped seconds after the questionnaire, or pre generation
+           failed and this tap restarted it), say so and go home. The
+           server pushes "Jolt N is ready" the moment it lands, and the
+           next tap delivers it instantly. Day 1 keeps the primer flow. */
+        if(joltDay > 1){
+          await appNotice("Jolt " + joltDay + " is being generated. We will notify you when it is ready.");
+          renderHome();
+          show(joltReturn);
+          return;
+        }
+      }
       else { show(joltReturn); return; }
       runPrimer();
     } catch(e){
