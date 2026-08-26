@@ -154,9 +154,24 @@ def start_jolt(pid: int, req: StartReq,
         return StartResp(status="generating", jolt_id=inprog.id, day=day)
 
     # 4) Sequence gating: only the current frontier day can be started (no
-    #    skipping ahead to a later day).
-    done = _done_days(pid, db)
-    current_day = next((n for n in range(1, cfg.PROTOCOL_DAYS + 1) if n not in done), None)
+    #    skipping ahead to a later day). Pre generation fix (Ashwin, Aug
+    #    2026): for meditation protocols the frontier is the first day
+    #    WITHOUT A SAVED REFLECTION, not without a finished jolt, because
+    #    days are generated ahead at the prior day's reflect and a done
+    #    jolt row no longer means the day was experienced. This also means
+    #    a day whose questionnaire was skipped stays the frontier and
+    #    repeats until it is answered, so no day can ever be generated
+    #    without the full history behind it. Activate keeps the jolt-row
+    #    frontier.
+    if (p.type or "") in ("integrate", "expand"):
+        refl = (db.query(JournalEntry.day)
+                .filter(JournalEntry.protocol_id == pid,
+                        JournalEntry.day.isnot(None))
+                .all())
+        completed = {row.day for row in refl}
+    else:
+        completed = _done_days(pid, db)
+    current_day = next((n for n in range(1, cfg.PROTOCOL_DAYS + 1) if n not in completed), None)
     if current_day is not None and day > current_day:
         raise HTTPException(400, "complete earlier days first")
 
