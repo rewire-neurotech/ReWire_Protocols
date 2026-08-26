@@ -4667,6 +4667,10 @@
     return "regular";
   }
   function primerFor(theme){ return PRIMERS[theme] || PRIMERS.regular; }
+  /* Primer on day 1 only (Ashwin, Aug 2026): protocol days 2-5 are delivered
+     as bare mixes with no primer baked in and play from second zero. Day 1
+     and journal jolts keep the full primer flow. */
+  function joltHasPrimer(){ return joltKind === "journal" || joltDay === 1; }
   const WAIT_LABEL = "···";
   let joltTimer = null, paused = false, hideCtrlTimer = null;
   let joltKind = "protocol", joltDay = 1, joltJid = null, joltMixUrl = null;
@@ -5018,8 +5022,24 @@
     core.classList.remove("paused");
     controls.classList.remove("show");
     show("s-jolt");
-    if(joltMixUrl) playMix(joltMixUrl, primerFor(joltTheme()).start);
-    else { blessStandby(); playMeditationBed(); startPolling(); }
+    if(joltMixUrl){
+      /* Day 1 and journal files carry a baked primer, so seek to the join.
+         A replay of an old day 2-5 file may also carry one, so the seek is
+         attempted and playMix's duration guard resolves old primered files
+         against new bare ones. A fresh day 2-5 delivery (normally pre
+         generated at the prior day's reflect) is always bare: no seek,
+         play from second zero. */
+      playMix(joltMixUrl, (joltHasPrimer() || joltReplay) ? primerFor(joltTheme()).start : null);
+    }
+    else if(joltHasPrimer()){ blessStandby(); playMeditationBed(); startPolling(); }
+    else {
+      /* Days 2-5 still generating (pre generation failed or is mid flight):
+         no primer bed, just the waiting affordance and polling. The tap
+         still blesses the session element so playMix works later even if
+         the app is backgrounded by then. */
+      blessSession();
+      startPolling();
+    }
     runTimer();
   }
   /* the waiting affordance stands in for the clock whenever there is nothing to count */
@@ -5064,6 +5084,21 @@
       const p = standbyAudio.play();
       if(p && p.then) p.then(() => { try { standbyAudio.pause(); } catch(e){} }).catch(() => {});
       standbyAudio.volume = 1;
+    } catch(e){}
+  }
+  /* Bless the main session element itself (days 2-5 waiting path, where no
+     primer bed plays to do it): the silent play inside the tap earns the
+     element the right to start the mix later, screen locked included. Safe
+     because every session event handler gates on sessionPhase, which is
+     idle here. */
+  function blessSession(){
+    try {
+      const a = ensureSessionAudio();
+      a.src = SILENT_WAV;
+      a.volume = 0;
+      const p = a.play();
+      if(p && p.then) p.then(() => { try { a.pause(); } catch(e){} }).catch(() => {});
+      a.volume = 1;
     } catch(e){}
   }
   function prepareStandbyMix(url, at){
@@ -5240,8 +5275,12 @@
          is still playing only the URL is stored. Past the join point only
          the bird tail remains, so a mix arriving then starts right away;
          before it, onSessionTick hands over the moment playback crosses the
-         join. onBedEnded stays as the fallback at the primer's end. */
-      if(bedEndedWaiting || !curAudio || primerPastJoin()) playMix(joltMixUrl, primerJoin());
+         join. onBedEnded stays as the fallback at the primer's end. A fresh
+         day 2-5 file is bare (no primer baked in), so it plays from second
+         zero with no seek. */
+      if(bedEndedWaiting || !curAudio || primerPastJoin()){
+        playMix(joltMixUrl, joltHasPrimer() ? primerJoin() : null);
+      }
     } else if(s.stage === "error" || s.stage === "blocked"){
       clearInterval(joltPollTimer);
       joltVeil.stop();
@@ -5515,9 +5554,9 @@
         try {
           await POST("/protocol-jolt/" + joltJid + "/reflect", { question: q, answer, chills: chillsAnswer || "" });
         } catch(e){
-          /* the no branch carries a server enforced 10 word minimum */
+          /* the no branch carries a server enforced 5 word minimum */
           if(e && e.status === 400){
-            await appNotice(e.message || "Please write at least 10 words.");
+            await appNotice(e.message || "Please write at least 5 words.");
             return;
           }
         }
