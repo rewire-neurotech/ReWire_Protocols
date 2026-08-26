@@ -312,6 +312,20 @@ def _load_job(jolt_id):
                     "reflection": reflection,
                 })
 
+        # Generation guard input (Ashwin, Aug 2026): a meditation day above 1
+        # must never be written without every prior day's questionnaire
+        # answered (day 3 was once generated with an empty day 2 reflection
+        # after the questionnaire was skipped). List the prior days that have
+        # no reflection row at all; the worker refuses to generate if any.
+        missing_reflections = []
+        if (p.type or "") in ("integrate", "expand") and j.day > 1:
+            refl_days = {row.day for row in
+                         (db.query(JournalEntry.day)
+                          .filter(JournalEntry.protocol_id == p.id,
+                                  JournalEntry.day.isnot(None))
+                          .all())}
+            missing_reflections = [n for n in range(1, j.day) if n not in refl_days]
+
         return {
             "user_id": j.user_id,
             "protocol_id": p.id,
@@ -324,6 +338,7 @@ def _load_job(jolt_id):
             "completed_actions": completed,
             "yesterday_reflection": yref,
             "history": history,
+            "missing_reflections": missing_reflections,
         }
     finally:
         db.close()
@@ -570,6 +585,20 @@ def _pad_voice_to_music(wav_path: str, music_path: str) -> str:
 def _run_meditation_gen(jolt_id, ctx):
     theme = cfg.meditation_theme(ctx.get("place", ""))
     day = ctx["day"]
+
+    # Generation guard (Ashwin, Aug 2026): defense in depth behind the
+    # reflection based sequence gate in the start route. Whatever path
+    # created this jolt row, a day above 1 refuses to generate unless every
+    # prior day's questionnaire is answered, so a script can never again be
+    # written from incomplete history. Pre generation always passes this by
+    # construction, it only fires from a saved reflection.
+    missing = ctx.get("missing_reflections") or []
+    if missing:
+        _update(jolt_id, stage="error",
+                gen_error=f"previous day's reflection missing (day {missing[0]})")
+        print(f"[meditation] {jolt_id} refused: day {day} without reflection for day(s) {missing}")
+        return
+
     track = cfg.get_meditation_track(theme, day)
     track_name = track["file"].name
 
@@ -659,7 +688,9 @@ def _run_meditation_gen(jolt_id, ctx):
         _update(jolt_id, audio_filename=af,
                 gen_time_sec=elapsed, stage="done", progress=100)
         print(f"[meditation] {jolt_id} done in {elapsed}s")
-        _notify_user(ctx["user_id"], "Your meditation is ready", "Put on headphones and press play.")
+        # Push wording (Ashwin, Aug 2026): pre generated days complete while
+        # the user is away, so the notification names the day it announces.
+        _notify_user(ctx["user_id"], f"Jolt {day} is ready", "Put on headphones and press play.")
 
     except llm.ProtocolUnsafe as e:
         print(f"[meditation] {jolt_id} unsafe at {e.stage}: {e.verdict} {e.category}")
