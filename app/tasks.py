@@ -13,6 +13,7 @@ v4.
 
 Public entrypoints:
   submit_generation(jolt_id)          -> queue a ProtocolJolt for generation
+  pregenerate_next_day(pid, day)      -> generate day+1 ahead (reflect route)
   recover_orphaned_protocol_jolts()   -> startup cleanup (call from app.main)
 """
 
@@ -201,6 +202,51 @@ def recover_orphaned_protocol_jolts():
 def submit_generation(jolt_id: int):
     """Queue a ProtocolJolt row for background generation (in-process pool)."""
     _pool.submit(_run_protocol_gen, jolt_id)
+
+
+def pregenerate_next_day(protocol_id: int, completed_day: int):
+    """Generate the next day's meditation ahead of the user asking for it.
+
+    Called by the reflect route the moment day N's reflection is saved: the
+    recursive prompt needs that reflection, so this is the earliest point at
+    which day N+1 can be written. Meditation protocols only (integrate and
+    expand). Runs for every user regardless of entitlement (Ashwin, Aug
+    2026): the paywall is enforced by the start route at listen time, never
+    at generation time, so a pre generated file just waits encrypted on disk
+    until the user unlocks it. Idempotent: if the next day already has a
+    finished or in-flight jolt, nothing happens. Day 5's reflection triggers
+    nothing, the protocol is complete. Never raises: pre generation failing
+    must never break the reflection save, and a missing pre generated jolt
+    just means the start route generates on demand exactly as before.
+    """
+    try:
+        if completed_day >= int(cfg.PROTOCOL_DAYS):
+            return
+        next_day = completed_day + 1
+        db = SessionLocal()
+        try:
+            p = db.query(Protocol).filter(Protocol.id == protocol_id).first()
+            if not p or (p.type or "") not in ("integrate", "expand"):
+                return
+            existing = (db.query(ProtocolJolt)
+                        .filter(ProtocolJolt.protocol_id == protocol_id,
+                                ProtocolJolt.day == next_day,
+                                ~ProtocolJolt.stage.in_(("error", "blocked")))
+                        .first())
+            if existing:
+                return
+            j = ProtocolJolt(protocol_id=protocol_id, day=next_day,
+                             user_id=p.user_id, stage="queued", progress=10)
+            db.add(j)
+            db.commit()
+            db.refresh(j)
+            jid = j.id
+        finally:
+            db.close()
+        print(f"[protojolt] pregenerating day {next_day} for protocol {protocol_id} (jolt {jid})")
+        _pool.submit(_run_protocol_gen, jid)
+    except Exception as e:
+        print(f"[protojolt] pregenerate failed for protocol {protocol_id}: {e}")
 
 
 def _load_job(jolt_id):
@@ -439,7 +485,9 @@ def _run_protocol_gen(jolt_id):
 # word counts. TTS inserts real silence for [pause] / [long pause]. The mix is
 # mix_v45 with no retiming: the voice is padded with silence to the music
 # length first, so the voice plays at natural pace, ends, and the music
-# continues to the end of the track.
+# continues to the end of the track. The theme primer is attached in front on
+# day 1 only; days 2-5 ship the bare mix (Ashwin, Aug 2026) and are normally
+# pre generated at the prior day's reflect (pregenerate_next_day).
 # ===========================================================================
 
 def _music_duration_ms(music_path: str) -> int:
@@ -568,29 +616,36 @@ def _run_meditation_gen(jolt_id, ctx):
         )
         _update(jolt_id, stage="mixing", progress=70)
 
-        # ---- 3. Pad voice to music, mix with mix_v45, then attach the
-        # theme primer (Felix's transition) into one complete session ----
-        bare_fd, bare_mix = tempfile.mkstemp(prefix="rewire_bare_", suffix=".mp3")
-        os.close(bare_fd)
+        # ---- 3. Pad voice to music, mix with mix_v45. Day 1 gets the theme
+        # primer attached in front (Felix's transition) into one complete
+        # session; days 2-5 deliver the bare mix alone, no second induction
+        # (Ashwin, Aug 2026) ----
+        af = f"{_PREFIX}{jolt_id}.mp3"
+        final_path = str(cfg.out_dir_path / af)
+        bare_mix = None
+        if day == 1:
+            bare_fd, bare_mix = tempfile.mkstemp(prefix="rewire_bare_", suffix=".mp3")
+            os.close(bare_fd)
         try:
             _pad_voice_to_music(wav, str(track["file"]))
-            af = f"{_PREFIX}{jolt_id}.mp3"
             mix_meditation_audio(
                 voice_path=wav, music_path=str(track["file"]),
-                out_path=bare_mix,
+                out_path=(bare_mix if day == 1 else final_path),
                 ffmpeg_bin=cfg.FFMPEG_BIN,
                 sync_mode="no_retime_trim_pad",
                 # Day 1 only: louder music under the voice (Felix). None on
                 # days 2-5 lets mix_v45 resolve its own profile default.
                 music_premix_gain_db=(DAY1_MUSIC_GAIN_DB if day == 1 else None),
             )
-            # Join primer + meditation the way Felix's 2_transition.py does.
-            # Never raises: on any failure the bare mix is delivered as is.
-            attach_primer(theme, bare_mix, str(cfg.out_dir_path / af))
-            encrypt_file(str(cfg.out_dir_path / af))
+            if day == 1:
+                # Join primer + meditation the way Felix's 2_transition.py
+                # does. Never raises: on any failure the bare mix is
+                # delivered as is.
+                attach_primer(theme, bare_mix, final_path)
+            encrypt_file(final_path)
         finally:
             try:
-                if os.path.exists(bare_mix):
+                if bare_mix and os.path.exists(bare_mix):
                     os.remove(bare_mix)
             except Exception as e:
                 print(f"[meditation] {jolt_id} bare mix cleanup failed: {e}")
