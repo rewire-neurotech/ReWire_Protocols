@@ -1080,6 +1080,12 @@
   }
   .primer-start.in { opacity: 1; transform: none; }
   .primer-start:active { transform: scale(0.97); }
+  .primer-whiteout {
+    position: absolute; inset: 0; z-index: 2;
+    background: var(--screen); opacity: 1; pointer-events: none;
+    transition: opacity 900ms ease;
+  }
+  .primer-whiteout.out { opacity: 0; }
 
   /* ---------- REFLECT ---------- */
   .reflect-q { margin-top: 30px; font-size: 25px; line-height: 1.26; font-weight: 600; letter-spacing: -0.02em; color: var(--ink); }
@@ -1683,11 +1689,24 @@
         flex-shrink: 0;
         padding-top: 16px;
       }
+      .dc-foot .cta {
+        width: 100%;
+        text-align: center;
+      }
       .dc-checks {
         display: flex;
         flex-direction: column;
         gap: 4px;
-        margin-bottom: 16px;
+        margin-bottom: 4px;
+      }
+      .dc-dispute {
+        margin: 0 0 16px 34px;
+        font-size: 12.5px;
+        line-height: 1.5;
+        color: var(--muted);
+      }
+      .dc-dispute .dc-tlink {
+        color: var(--muted);
       }
       .dc-agree {
         display: flex;
@@ -1751,14 +1770,14 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: calc(var(--safe-top) + 62px) 36px 132px;
+        padding: calc(var(--safe-top) + 62px) 36px 152px;
         text-align: center;
       }
       .onb-sentence {
         flex-shrink: 0;
         margin-top: 20px;
-        font-size: 18px;
-        line-height: 1.55;
+        font-size: 19.5px;
+        line-height: 1.5;
         font-weight: 450;
         color: var(--ink-soft);
         letter-spacing: -0.01em;
@@ -1941,6 +1960,29 @@
           inset 0 1px 0 rgba(255, 255, 255, 0.9),
           0 2px 5px rgba(70, 64, 52, 0.14);
       }
+      .ill-row {
+        cursor: pointer;
+        transition: background 160ms ease;
+        border-radius: 10px;
+      }
+      .ill-row:active {
+        background: var(--chip);
+      }
+      .ill-row.tapped-done .ill-mark {
+        transition:
+          transform 220ms cubic-bezier(0.34, 1.56, 0.5, 1),
+          background 180ms ease,
+          border-color 180ms ease,
+          color 180ms ease;
+        transform: scale(1.08);
+        background: var(--ink) !important;
+        border-color: var(--ink) !important;
+        border-style: solid !important;
+        color: var(--screen) !important;
+      }
+      .ill-row.tapped-done .ill-row-text {
+        color: var(--muted) !important;
+      }
 
       /* the first row lands done, then the second unlocks — the rest stays visible and waiting */
       #l-intro.is-active .intro-step.is-active .m-done {
@@ -1950,8 +1992,33 @@
       #l-intro.is-active .intro-step.is-active .t-done {
         animation: textFade 420ms ease 1200ms forwards;
       }
-      #l-intro.is-active .intro-step.is-active .m-unlock {
-        animation: unlockMark 520ms ease 1750ms forwards;
+      #l-intro.is-active .intro-step.is-active .m-done2 {
+        animation: markDone 620ms cubic-bezier(0.34, 1.4, 0.4, 1) 1750ms
+          forwards;
+      }
+      #l-intro.is-active .intro-step.is-active .t-done2 {
+        animation: textFade 420ms ease 2050ms forwards;
+      }
+      #l-intro.is-active .intro-step.is-active .m-done3 {
+        animation: markDone 620ms cubic-bezier(0.34, 1.4, 0.4, 1) 2600ms
+          forwards;
+      }
+      #l-intro.is-active .intro-step.is-active .t-done3 {
+        animation: textFade 420ms ease 2900ms forwards;
+      }
+      #l-intro.is-active .intro-step.is-active .m-done4 {
+        animation: markDone 620ms cubic-bezier(0.34, 1.4, 0.4, 1) 3450ms
+          forwards;
+      }
+      #l-intro.is-active .intro-step.is-active .t-done4 {
+        animation: textFade 420ms ease 3750ms forwards;
+      }
+      #l-intro.is-active .intro-step.is-active .m-done5 {
+        animation: markDone 620ms cubic-bezier(0.34, 1.4, 0.4, 1) 4300ms
+          forwards;
+      }
+      #l-intro.is-active .intro-step.is-active .t-done5 {
+        animation: textFade 420ms ease 4600ms forwards;
       }
       @keyframes markDone {
         0% {
@@ -2024,13 +2091,17 @@
       #l-intro.is-active .intro-step.is-active .p-mon {
         animation: playPulse 760ms cubic-bezier(0.4, 0, 0.3, 1) 120ms 1 both;
       }
-      #l-intro.is-active .intro-step.is-active .t-unlock {
-        animation: textWake 460ms ease 1750ms forwards;
-      }
       #l-intro.is-active .intro-step.is-active .p-tue {
-        animation:
-          playWake 460ms ease 1750ms forwards,
-          playPulse 1900ms cubic-bezier(0.4, 0, 0.3, 1) 2260ms infinite;
+        animation: playPulse 760ms cubic-bezier(0.4, 0, 0.3, 1) 970ms 1 both;
+      }
+      #l-intro.is-active .intro-step.is-active .p-wed {
+        animation: playPulse 760ms cubic-bezier(0.4, 0, 0.3, 1) 1820ms 1 both;
+      }
+      #l-intro.is-active .intro-step.is-active .p-thu {
+        animation: playPulse 760ms cubic-bezier(0.4, 0, 0.3, 1) 2670ms 1 both;
+      }
+      #l-intro.is-active .intro-step.is-active .p-fri {
+        animation: playPulse 760ms cubic-bezier(0.4, 0, 0.3, 1) 3520ms 1 both;
       }
 
       /* slide 4: the number */
@@ -2179,6 +2250,7 @@
         justify-content: flex-end;
         gap: 14px;
         padding-top: 12px;
+        margin-bottom: 15px;
       }
       .q-enter {
         opacity: 0;
@@ -2716,6 +2788,9 @@
         align-items: center;
         gap: 14px;
       }
+      .pay-foot .cta {
+        width: 100%;
+      }
       .pay-legal {
         font-size: 12px;
         font-weight: 500;
@@ -3116,18 +3191,14 @@
               </div>
               <div class="dc-card-body">
                 <p class="dc-lede">
-                  <b>ReWire turns your words into a short, intense voice-over-music experience. It's generated automatically, so it can be inaccurate, off-base, or upsetting. Use it somewhere private, never while driving, and stop any time.</b
+                  <b>ReWire turns your words into a short, intense experience, generated automatically. It can be inaccurate or upsetting. Use it in private, never while driving, and stop any time. If you're in crisis or having thoughts of harming yourself, don't use it now. Call or text 988 (US) or your local emergency number.</b
                   ></p>
-
-                <p class="dc-lede">
-                  If you're in crisis or having thoughts of harming yourself, please don't use this now. Call or text 988 (US) or your local emergency number. If you're being treated for a mental health condition, check with your clinician before using ReWire.
-                </p>
               </div>
             </div>
           </div>
           <div class="dc-foot">
             <div class="dc-checks">
-              <label class="dc-agree" data-check>
+              <label class="dc-agree" data-check="terms">
                 <span class="dc-box"
                   ><svg
                     width="13"
@@ -3142,12 +3213,35 @@
                     <polyline points="20 6 9 17 4 12" /></svg
                 ></span>
                 <span class="dc-copy"
-                  >I'm <b>18 or older</b>, I'm not currently in crisis or having thoughts of harming myself, and I understand this is an automated experience with no medical care attached. I agree to the
-                  <span class="dc-tlink" data-terms>Terms</span>.</span
+                  >I'm <b>18 or older</b> and I agree to the
+                  <span class="dc-tlink" data-sheet="terms">Terms</span> and
+                  <span class="dc-tlink" data-sheet="privacy">Privacy Policy</span>.</span
+                >
+              </label>
+              <label class="dc-agree" data-check="health">
+                <span class="dc-box"
+                  ><svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#fbf9f4"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="20 6 9 17 4 12" /></svg
+                ></span>
+                <span class="dc-copy"
+                  >I'm <b>not currently in crisis</b>, and I understand ReWire is automated and never medical care.</span
                 >
               </label>
             </div>
-            <button class="cta" id="dcAccept">I understand and accept</button>
+            <p class="dc-dispute">
+              The Terms include an
+              <span class="dc-tlink" data-sheet="terms">arbitration agreement and class action waiver</span>.
+            </p>
+            <button class="cta" id="dcAccept" disabled>I understand and accept</button>
           </div>
         </div>
       </div>
@@ -3227,7 +3321,7 @@
                     <polyline points="20 6 9 17 4 12" /></svg
                 ></span>
               </div>
-              <div class="ill-row ill-pending">
+              <div class="ill-row">
                 <span class="ill-play p-tue"
                   ><svg
                     width="10"
@@ -3239,11 +3333,21 @@
                       d="M8 5.5v13a.6.6 0 0 0 .92.5l10-6.5a.6.6 0 0 0 0-1l-10-6.5A.6.6 0 0 0 8 5.5Z"
                     /></svg
                 ></span>
-                <span class="ill-row-text t-unlock">Tuesday</span>
-                <span class="ill-mark m-unlock"></span>
+                <span class="ill-row-text t-done2">Tuesday</span>
+                <span class="ill-mark m-done2"
+                  ><svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="20 6 9 17 4 12" /></svg
+                ></span>
               </div>
-              <div class="ill-row ill-locked">
-                <span class="ill-play"
+              <div class="ill-row">
+                <span class="ill-play p-wed"
                   ><svg
                     width="10"
                     height="10"
@@ -3254,11 +3358,21 @@
                       d="M8 5.5v13a.6.6 0 0 0 .92.5l10-6.5a.6.6 0 0 0 0-1l-10-6.5A.6.6 0 0 0 8 5.5Z"
                     /></svg
                 ></span>
-                <span class="ill-row-text">Wednesday</span>
-                <span class="ill-mark"></span>
+                <span class="ill-row-text t-done3">Wednesday</span>
+                <span class="ill-mark m-done3"
+                  ><svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="20 6 9 17 4 12" /></svg
+                ></span>
               </div>
-              <div class="ill-row ill-locked">
-                <span class="ill-play"
+              <div class="ill-row">
+                <span class="ill-play p-thu"
                   ><svg
                     width="10"
                     height="10"
@@ -3269,11 +3383,21 @@
                       d="M8 5.5v13a.6.6 0 0 0 .92.5l10-6.5a.6.6 0 0 0 0-1l-10-6.5A.6.6 0 0 0 8 5.5Z"
                     /></svg
                 ></span>
-                <span class="ill-row-text">Thursday</span>
-                <span class="ill-mark"></span>
+                <span class="ill-row-text t-done4">Thursday</span>
+                <span class="ill-mark m-done4"
+                  ><svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="20 6 9 17 4 12" /></svg
+                ></span>
               </div>
-              <div class="ill-row ill-locked">
-                <span class="ill-play"
+              <div class="ill-row">
+                <span class="ill-play p-fri"
                   ><svg
                     width="10"
                     height="10"
@@ -3284,8 +3408,18 @@
                       d="M8 5.5v13a.6.6 0 0 0 .92.5l10-6.5a.6.6 0 0 0 0-1l-10-6.5A.6.6 0 0 0 8 5.5Z"
                     /></svg
                 ></span>
-                <span class="ill-row-text">Friday</span>
-                <span class="ill-mark"></span>
+                <span class="ill-row-text t-done5">Friday</span>
+                <span class="ill-mark m-done5"
+                  ><svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="20 6 9 17 4 12" /></svg
+                ></span>
               </div>
             </div>
           </div>
@@ -3317,7 +3451,7 @@
           <button
             class="cta"
             id="introCta"
-            style="width: auto; padding: 0 60px"
+            style="width: auto; padding: 0 24px; white-space: nowrap; flex-shrink: 0"
           >
             Next
           </button>
@@ -3381,7 +3515,7 @@
             <span class="q-step">2 of 2</span>
             <span style="width: 38px"></span>
           </div>
-          <h1 class="q-head q-enter" id="wHead">Why is this important?</h1>
+          <h1 class="q-head q-enter" id="wHead">Why do you care about this?</h1>
           <textarea class="q-area q-enter" id="wArea" placeholder="Whatever comes to mind. It shapes the whole meditation&hellip;"></textarea>
           <div class="q-foot">
             <button class="cta" id="wCta" style="padding: 0 28px">
@@ -3494,22 +3628,6 @@
             </div>
           </div>
 
-          <div class="set-label">Account</div>
-          <div class="set-group">
-            <button class="set-row" id="rowDownload">
-              <span class="set-row-label">Download my data</span>
-              <svg class="chev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            </button>
-            <button class="set-row danger" id="rowSignout">
-              <span class="set-row-label">Sign out</span>
-              <svg class="chev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-            </button>
-            <button class="set-row danger" id="rowDelete">
-              <span class="set-row-label">Delete my account</span>
-              <svg class="chev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-            </button>
-          </div>
-
           <div class="set-label">Legal</div>
           <div class="set-group">
             <button class="set-row" data-sheet="terms">
@@ -3529,6 +3647,23 @@
           <div class="set-label">Subscription</div>
           <div class="set-group" id="subGroup"></div>
 
+
+          <div class="set-label">Account</div>
+          <div class="set-group">
+            <button class="set-row" id="rowDownload">
+              <span class="set-row-label">Download my data</span>
+              <svg class="chev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </button>
+            <button class="set-row danger" id="rowSignout">
+              <span class="set-row-label">Sign out</span>
+              <svg class="chev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            </button>
+            <button class="set-row danger" id="rowDelete">
+              <span class="set-row-label">Delete my account</span>
+              <svg class="chev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
+          
           <div class="set-version">ReWire &middot; version 0.9 &middot; hello@rewire.bio</div>
         </div>
       </div>
@@ -3559,6 +3694,7 @@
         </div>
         <button class="primer-start" id="primerStart">Start</button>
       </div>
+      <div class="primer-whiteout" id="primerWhiteout"></div>
     </section>
 
     <!-- ===== JOLT ===== -->
@@ -3606,10 +3742,8 @@
           <button class="icon-btn" data-nav="home" aria-label="Back">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
           </button>
-          <span class="eyebrow">Reflection</span>
         </div>
         <div class="reflect-step" id="reflectChills">
-          <span class="eyebrow reflect-eyebrow q-enter">A question for you</span>
           <h1 class="reflect-q q-enter">Did you get chills?</h1>
           <p class="reflect-note q-enter">Goosebumps, a shiver, or tingles down the back, arms or scalp.</p>
           <div class="chills-choice q-enter">
@@ -3940,14 +4074,52 @@
   /* paper sounds (user-supplied) */
   const SND_SELECT = "data:audio/mp4;base64,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";
   const SND_CONTINUE = "data:audio/mp4;base64,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";
+  let _sndCtx = null;
+  const _sndBuffers = {};
+  let _sndLoading = null;
+  function _b64ToArrayBuffer(dataUri){
+    const b64 = dataUri.split(",")[1];
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for(let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes.buffer;
+  }
+  function _loadSounds(){
+    if(_sndLoading) return _sndLoading;
+    if(!_sndCtx) _sndCtx = new (window.AudioContext || window.webkitAudioContext)();
+    _sndLoading = Promise.all([
+      _sndCtx.decodeAudioData(_b64ToArrayBuffer(SND_CONTINUE)).then(buf => { _sndBuffers.proto = buf; }),
+      _sndCtx.decodeAudioData(_b64ToArrayBuffer(SND_SELECT)).then(buf => { _sndBuffers.card = buf; })
+    ]).catch(() => {});
+    return _sndLoading;
+  }
+  _loadSounds();
   function paperSound(kind){
     if(!soundOn) return;
     try {
-      const a = new Audio(kind === "proto" ? SND_CONTINUE : SND_SELECT);
-      a.volume = 0.9;
-      a.play().catch(() => {});
+      if(!_sndCtx) _sndCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if(_sndCtx.state === "suspended") _sndCtx.resume();
+      const key = kind === "proto" ? "proto" : "card";
+      const buf = _sndBuffers[key];
+      if(!buf){ _loadSounds(); return; }
+      const src = _sndCtx.createBufferSource();
+      src.buffer = buf;
+      const g = _sndCtx.createGain();
+      g.gain.value = 0.9;
+      src.connect(g).connect(_sndCtx.destination);
+      src.start(0);
     } catch(err) {}
   }
+  document.addEventListener("click", (e) => {
+    if(e.target.closest("#introCta, .cta, .btn-dark, .primer-start, .node-jolt, .jolt-act, .proto-play, .unlock-pill")){
+      paperSound("proto");
+      return;
+    }
+    if(e.target.closest(".toggle, [data-chip], [data-cpcat], [data-cpfill], [data-cpother], .cp-chip, .auth-seg, .chills-opt, .create-item, .pay-opt, .qp-opt, button, .set-row, [data-create], .journal-row, [data-jopen], [data-nav], [data-menu], [data-sheet]")){
+      paperSound("card");
+    }
+  }, true);
+
 
   let deckIndex = 0, deckCount = 0;
   let suppressTap = false;
@@ -4147,8 +4319,8 @@
   }
   $("#composeAlt").addEventListener("click", () => {
     const txt = composeArea.value.trim();
-    closeCompose();
-    setTimeout(() => { newProtocolFlow(); if(txt) cpPick(txt); }, 340);
+    newProtocolFlow();
+    if(txt) cpPick(txt);
   });
 
   /* ---------- PROTOCOLS list (v2: cards + shelf) ---------- */
@@ -4680,241 +4852,219 @@
   let joltReplay = false;
 
 
-  /* ---------- veil engine: forest & shore (seamless 120s loop) ---------- */
+  /* ---------- veil engine: breathing cloth field (ported from jolt-animation.html) ---------- */
   const Veil = (function(){
-    const TAU = Math.PI*2, LOOP = 120, BLUR = 5, SPD = 2, SW = 110;
-    function h(i){ const s = Math.sin(i*127.1 + i*i*3.7)*43758.5453; return s - Math.floor(s); }
-    const TR = [];
-    for(let t=0;t<13;t++) TR.push({ x:h(t)*1.15-.07, d:h(t+40), lean:(h(t+90)-.5)*.9, ph:h(t+7)*6.28 });
-    TR.sort((a,b) => b.d - a.d);
+    const reduceV = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const PAPER = [247, 245, 242], INK = [16, 16, 19];
+    const ELONG = 2.4, BASE = 1.95, WARP_A = 2.2, WARP_B = 1.5;
+    const CONTRAST = 1.74, GAMMA = 0.56;
+    const MASS = 0.26, MASS_R = 0.24, TARGET = 0.50;
+    const PIXEL_BUDGET = 18000;
+    const FIELD_MS = reduceV ? 100 : 33, GRAIN_MS = reduceV ? 900 : 96;
+    const TILE = 220;
+
+    const PERM = new Uint8Array(512);
+    (function(){
+      const p = new Uint8Array(256); let i, j, tmp, s = 20260822;
+      for(i = 0; i < 256; i++) p[i] = i;
+      function rnd(){ s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return (s >>> 0) / 4294967296; }
+      for(i = 255; i > 0; i--){ j = (rnd() * (i + 1)) | 0; tmp = p[i]; p[i] = p[j]; p[j] = tmp; }
+      for(i = 0; i < 512; i++) PERM[i] = p[i & 255];
+    })();
+
+    function vnoise(x, y){
+      const xi = Math.floor(x), yi = Math.floor(y);
+      const xf = x - xi, yf = y - yi;
+      const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+      const X = xi & 255, Y = yi & 255, X1 = (xi + 1) & 255, Y1 = (yi + 1) & 255;
+      const a = PERM[(PERM[X]  + Y ) & 255];
+      const b = PERM[(PERM[X1] + Y ) & 255];
+      const c = PERM[(PERM[X]  + Y1) & 255];
+      const d = PERM[(PERM[X1] + Y1) & 255];
+      const ab = a + (b - a) * u;
+      const cd = c + (d - c) * u;
+      return (ab + (cd - ab) * v) * 0.00392156862;
+    }
+    function fbm2(x, y){
+      return (0.5 * vnoise(x, y) + 0.25 * vnoise(x * 2.03, y * 2.03)) * 1.333333;
+    }
+    function fbm3(x, y){
+      return (0.5 * vnoise(x, y) + 0.25 * vnoise(x * 2.03, y * 2.03)
+            + 0.125 * vnoise(x * 4.12, y * 4.12)) * 1.142857;
+    }
 
     function mount(root){
-      const cv = root.querySelector("canvas"), ctx = cv.getContext("2d");
-      let SH = 220, raf = 0, running = false, kind = "forest";
-      const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const fCan = root.querySelector("canvas");
+      const fCtx = fCan.getContext("2d", { alpha:false });
 
-      function resize(){
-        const w = cv.clientWidth || 440, hh = cv.clientHeight || 880;
-        SH = Math.round(SW * hh / w);
-        cv.width = SW; cv.height = SH;
+      /* second canvas for the fast-reoffset film grain, matching the source file's
+         two-layer field+grain design; inserted right after the field canvas so the
+         page's own scrim/vignette layers keep painting above it */
+      const gCan = document.createElement("canvas");
+      gCan.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block;filter:blur(0.6px);opacity:0.07;pointer-events:none;";
+      fCan.insertAdjacentElement("afterend", gCan);
+      const gCtx = gCan.getContext("2d");
+
+      /* the source file has no lightening scrim and a dark (not paper-toned) vignette;
+         override this scenery's own scrim/vignette so the cloth reads at full depth */
+      const scrim = root.querySelector(".v-scrim");
+      if(scrim) scrim.style.opacity = "0";
+      const vignette = root.querySelector(".v-vignette");
+      if(vignette){
+        vignette.style.background = "radial-gradient(130% 105% at 50% 48%, rgba(16,16,19,0) 45%, rgba(16,16,19,0.05) 70%, rgba(16,16,19,0.15) 88%, rgba(16,16,19,0.28) 100%)";
+        vignette.style.opacity = "1";
       }
-      function num(p){ return parseFloat(getComputedStyle(root).getPropertyValue("--"+p)) || 0; }
+      const oldGrain = root.querySelector(".v-grain");
+      if(oldGrain) oldGrain.style.opacity = "0";
 
-      function forest(p){
-        const depth = num("depth"), sway = num("sway"), s = SPD, W = SW, H = SH;
-        let i, x, y, g;
-        const fSway = 6*s, fLeaf = 20*s, fLight = 4*s, fFloor = 3*s;
-        ctx.filter = "none"; ctx.clearRect(0,0,W,H);
-        g = ctx.createLinearGradient(0,0,0,H);
-        g.addColorStop(0,"#F2F6E9"); g.addColorStop(.22,"#D3E2C2");
-        g.addColorStop(.62,"#96B287"); g.addColorStop(1,"#5E7454");
-        ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
-        const lift = .5 + .5*Math.sin(TAU*p - Math.PI/2);
-        const gx = W*.5 + Math.sin(TAU*fLight*p*.5)*W*.16;
-        g = ctx.createRadialGradient(gx,H*.28,0,gx,H*.28,W*.85);
-        g.addColorStop(0,"rgba(255,255,240,"+(.30+.55*lift)+")");
-        g.addColorStop(.4,"rgba(250,255,235,"+(.12+.22*lift)+")");
-        g.addColorStop(1,"rgba(250,255,235,0)");
-        ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
-        if(BLUR > 0 && "filter" in ctx) ctx.filter = "blur("+BLUR+"px)";
-        ctx.lineCap = "round";
-        for(i=0;i<TR.length;i++){
-          const T = TR[i], d = T.d;
-          ctx.lineWidth = .9 + Math.pow(1-d,2)*7.5;
-          ctx.strokeStyle = "rgba(30,52,32,"+((.10 + Math.pow(1-d,1.6)*.42)*depth)+")";
-          const amp = (.7 + (1-d)*2.6) * sway;
-          ctx.beginPath();
-          for(y=-4; y<=H*.98; y+=5){
-            const up = 1 - y/H;
-            x = T.x*W + T.lean*up*up*W*.10
-              + Math.sin(TAU*fSway*p + T.ph)*amp*up*up
-              + Math.sin(TAU*fLeaf*p + T.ph*2)*amp*.22*up*up;
-            y === -4 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
-          }
-          ctx.stroke();
+      let raf = 0, running = false, last = 0, t = 0;
+      let fw = 0, fh = 0, img = null, buf = null;
+      let lastField = 0, lastGrain = 0;
+      const C = {};
+
+      function resizeField(){
+        const w = root.clientWidth || 440, h = root.clientHeight || 880;
+        if(!w || !h) return;
+        const nfw = Math.max(40, Math.round(Math.sqrt(PIXEL_BUDGET * w / h)));
+        const nfh = Math.max(40, Math.round(nfw * h / w));
+        if(nfw !== fw || nfh !== fh){
+          fw = nfw; fh = nfh;
+          fCan.width = fw; fCan.height = fh;
+          img = fCtx.createImageData(fw, fh);
+          buf = img.data;
+          for(let i = 3; i < buf.length; i += 4) buf[i] = 255;
         }
-        for(i=0;i<7;i++){
-          const cx = (h(i+200)*1.2 - .1)*W + Math.sin(TAU*fLeaf*p + i*1.9)*W*.035*sway;
-          const cy = (h(i+300)*.30 - .06)*H + Math.sin(TAU*fSway*p + i)*H*.012*sway;
-          const cr = (.20 + h(i+400)*.24)*W;
-          g = ctx.createRadialGradient(cx,cy,0,cx,cy,cr);
-          g.addColorStop(0,"rgba(36,60,36,"+(.34*depth)+")");
-          g.addColorStop(.55,"rgba(40,66,40,"+(.16*depth)+")");
-          g.addColorStop(1,"rgba(40,66,40,0)");
-          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx,cy,cr,0,TAU); ctx.fill();
-        }
-        for(i=0;i<3;i++){
-          const pulse = (Math.sin(TAU*fLight*p + i*2.2) + 1)/2;
-          const sx = (.22 + i*.28)*W + Math.sin(TAU*fLight*p*.5 + i)*W*.05;
-          ctx.save(); ctx.translate(sx,0); ctx.rotate(.30 + i*.05);
-          g = ctx.createLinearGradient(0,0,0,H*.95);
-          g.addColorStop(0,"rgba(255,255,238,"+((.10+.22*pulse)*depth)+")");
-          g.addColorStop(.65,"rgba(255,255,238,"+((.04+.10*pulse)*depth)+")");
-          g.addColorStop(1,"rgba(255,255,238,0)");
-          ctx.fillStyle = g; ctx.fillRect(-W*.055,-H*.05,W*.11,H*1.05);
-          ctx.restore();
-        }
-        for(i=0;i<9;i++){
-          const dx = (h(i+500)*1.1 - .05)*W + Math.sin(TAU*fFloor*p + i*1.4)*W*.07;
-          const dy = H*(.68 + h(i+600)*.30) + Math.sin(TAU*fFloor*p*2 + i)*H*.010;
-          const dr = (.06 + h(i+700)*.10)*W;
-          const da = (.18 + .22*((Math.sin(TAU*fLeaf*p*.5 + i*2.6) + 1)/2))*depth;
-          g = ctx.createRadialGradient(dx,dy,0,dx,dy,dr);
-          g.addColorStop(0,"rgba(255,255,235,"+da+")");
-          g.addColorStop(1,"rgba(255,255,235,0)");
-          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(dx,dy,dr,0,TAU); ctx.fill();
-        }
-        for(i=0;i<6;i++){
-          const ux = (h(i+800)*1.2 - .1)*W + Math.sin(TAU*fSway*p + i*2.1)*W*.02*sway;
-          const uy = H*(.90 + h(i+900)*.14);
-          const ur = (.16 + h(i+950)*.16)*W;
-          g = ctx.createRadialGradient(ux,uy,0,ux,uy,ur);
-          g.addColorStop(0,"rgba(34,56,34,"+(.34*depth)+")");
-          g.addColorStop(1,"rgba(34,56,34,0)");
-          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ux,uy,ur,0,TAU); ctx.fill();
-        }
-        g = ctx.createLinearGradient(0,H*.30,0,H*.75);
-        g.addColorStop(0,"rgba(226,238,214,.30)");
-        g.addColorStop(1,"rgba(226,238,214,0)");
-        ctx.fillStyle = g; ctx.fillRect(0,H*.30,W,H*.45);
-        ctx.filter = "none";
       }
 
-      function shore(p){
-        const depth = num("depth"), swell = num("swell"), s = SPD;
-        const W = SW, H = SH, horizon = H*.30, shoreY = H*1.10;
-        let i, x, y, g, k;
-        const fA = 24*s, fB = 45*s, fC = 8*s, fD = 60*s;
-        ctx.filter = "none"; ctx.clearRect(0,0,W,H);
-        g = ctx.createLinearGradient(0,0,0,H);
-        g.addColorStop(0,"#E9EFF2"); g.addColorStop(.28,"#C0D2DC");
-        g.addColorStop(.72,"#89A5B8"); g.addColorStop(1,"#6F8EA4");
-        ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
-        const lift = .5 + .5*Math.sin(TAU*p - Math.PI/2);
-        const gx = W*.5 + Math.sin(TAU*2*p)*W*.12;
-        g = ctx.createRadialGradient(gx,horizon,0,gx,horizon,W*.9);
-        g.addColorStop(0,"rgba(255,253,246,"+(.35+.6*lift)+")");
-        g.addColorStop(.45,"rgba(255,252,244,"+(.14+.24*lift)+")");
-        g.addColorStop(1,"rgba(255,252,244,0)");
-        ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
-        if(BLUR > 0 && "filter" in ctx) ctx.filter = "blur("+BLUR+"px)";
-        ctx.lineCap = "round";
-        const LINES = 15;
-        for(i=0;i<LINES;i++){
-          const u = i/(LINES-1), e = Math.pow(u,2.1);
-          const y0 = horizon + (shoreY-horizon)*e;
-          const amp = (.5 + e*6.5) * swell;
-          const tilt = Math.sin(TAU*fC*p*.25 + u*3.2)*H*.016 + Math.sin(TAU*fC*p + u*1.7)*H*.006;
-          ctx.lineWidth = .8 + e*3.2;
-          ctx.beginPath();
-          for(x=0;x<=W;x+=2){
-            k = x/W;
-            y = y0 + tilt
-              + Math.sin(k*(5+u*4)  + TAU*fA*p + i*.55)*amp
-              + Math.sin(k*(11-u*5) - TAU*fB*p + i*1.27)*amp*.42
-              + Math.sin(k*(19+u*6) + TAU*fD*p + i*2.1)*amp*.16;
-            x ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
+      let grainPatterns = [], grainIdx = 0;
+      function buildGrain(){
+        grainPatterns = [];
+        for(let k = 0; k < 4; k++){
+          const tile = document.createElement("canvas");
+          tile.width = tile.height = TILE;
+          const tctx = tile.getContext("2d");
+          const im = tctx.createImageData(TILE, TILE), d = im.data;
+          for(let i = 0; i < d.length; i += 4){
+            const n = Math.random() > 0.5 ? 255 : 0;
+            d[i] = d[i + 1] = d[i + 2] = n;
+            d[i + 3] = Math.pow(Math.random(), 3.6) * 255;
           }
-          ctx.strokeStyle = "rgba(28,60,84,"+((.05+e*.20)*depth)+")";
-          ctx.stroke();
-          ctx.lineWidth = .6 + e*2.2;
-          ctx.beginPath();
-          for(x=0;x<=W;x+=2){
-            k = x/W;
-            y = y0 + tilt - .6 - e*1.6
-              + Math.sin(k*(5+u*4)  + TAU*fA*p + i*.55)*amp
-              + Math.sin(k*(11-u*5) - TAU*fB*p + i*1.27)*amp*.42
-              + Math.sin(k*(19+u*6) + TAU*fD*p + i*2.1)*amp*.16;
-            x ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
-          }
-          ctx.strokeStyle = "rgba(250,254,255,"+((.10+e*.28)*depth)+")";
-          ctx.stroke();
+          tctx.putImageData(im, 0, 0);
+          grainPatterns.push(gCtx.createPattern(tile, "repeat"));
         }
-        ctx.filter = "none";
       }
 
-      function fire(p){
-        const depth = num("depth"), sway = num("sway"), s = SPD;
-        const W = SW, H = SH;
-        let i, x, y, g;
-        const fFlick = 30*s, fSway = 12*s, fGlow = 6*s, fRise = 10*s;
-        ctx.filter = "none"; ctx.clearRect(0,0,W,H);
-        g = ctx.createLinearGradient(0,0,0,H);
-        g.addColorStop(0,"#F8F1E9"); g.addColorStop(.42,"#F4E1D0");
-        g.addColorStop(.78,"#ECC8AC"); g.addColorStop(1,"#E1AE8D");
-        ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
-        const cx = W*.5, cy = H*.84;
-        const lift = .5 + .5*Math.sin(TAU*p - Math.PI/2);
-        const puls = 1 + .05*Math.sin(TAU*fGlow*p) + .03*Math.sin(TAU*fFlick*p*.5 + 1.7);
-        g = ctx.createRadialGradient(cx,cy,0,cx,cy,W*.9*puls);
-        g.addColorStop(0,"rgba(255,244,228,"+(.35+.5*lift)+")");
-        g.addColorStop(.45,"rgba(255,236,214,"+(.14+.2*lift)+")");
-        g.addColorStop(1,"rgba(255,236,214,0)");
-        ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
-        if(BLUR > 0 && "filter" in ctx) ctx.filter = "blur("+BLUR+"px)";
-        ctx.lineCap = "round";
-        /* flame strokes: rising red lines, same stroke language as the forest trees */
-        const FL = 11;
-        for(i=0;i<FL;i++){
-          const u = i/(FL-1);
-          const c = 1 - Math.abs(u-.5)*2;
-          const bx = cx + (u-.5)*W*.30 + (h(i+40)-.5)*W*.05;
-          const tall = H*(.26 + h(i+60)*.24 + c*.10);
-          const lean = (u-.5)*.9;
-          ctx.lineWidth = 1.2 + Math.pow(c,1.4)*6.5;
-          ctx.strokeStyle = "rgba(160,52,32,"+((.10 + Math.pow(c,1.5)*.34)*depth)+")";
-          ctx.beginPath();
-          for(y=0;y<=tall;y+=5){
-            const t = y/tall;
-            const amp = (1.2 + t*t*9)*sway;
-            x = bx + lean*t*t*W*.06
-              + Math.sin(TAU*fSway*p + i*1.3 + t*3.2)*amp*t
-              + Math.sin(TAU*fFlick*p + i*2.1 + t*6.0)*amp*.35*t;
-            const yy = cy - y;
-            y === 0 ? ctx.moveTo(x,yy) : ctx.lineTo(x,yy);
-          }
-          ctx.stroke();
-        }
-        /* embers: soft warm motes drifting up, like the forest floor lights */
-        for(i=0;i<10;i++){
-          const spd2 = .6 + (i % 3)*.35, ph = h(i+21);
-          const t = (spd2*fRise*p*.1 + ph) % 1;
-          const ey = cy - t*H*.55;
-          const ex = cx + (h(i+55)-.5)*W*.36 + Math.sin(TAU*fSway*p*.5 + i)*W*.04*t;
-          const er = (.015 + h(i+70)*.03)*W;
-          const ea = Math.max(0, .30*(1-t)*(t*6 < 1 ? t*6 : 1))*depth;
-          g = ctx.createRadialGradient(ex,ey,0,ex,ey,er);
-          g.addColorStop(0,"rgba(214,92,54,"+ea+")");
-          g.addColorStop(1,"rgba(214,92,54,0)");
-          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ex,ey,er,0,TAU); ctx.fill();
-        }
-        /* warm ground shadow, like the forest undergrowth */
-        for(i=0;i<4;i++){
-          const ux = (h(i+800)*1.1 - .05)*W;
-          const uy = H*(.94 + h(i+900)*.10);
-          const ur = (.20 + h(i+950)*.18)*W;
-          g = ctx.createRadialGradient(ux,uy,0,ux,uy,ur);
-          g.addColorStop(0,"rgba(134,58,34,"+(.24*depth)+")");
-          g.addColorStop(1,"rgba(134,58,34,0)");
-          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ux,uy,ur,0,TAU); ctx.fill();
-        }
-        ctx.filter = "none";
+      function resizeGrain(){
+        const w = root.clientWidth || 440, h = root.clientHeight || 880;
+        gCan.width  = Math.max(1, Math.round(w));
+        gCan.height = Math.max(1, Math.round(h));
+        buildGrain();
       }
-      function draw(p){ kind === "ocean" ? shore(p) : (kind === "fire" ? fire(p) : forest(p)); }
-      function frame(){ raf = requestAnimationFrame(frame); draw(((performance.now()/1000) % LOOP) / LOOP); }
-      function start(k){
-        kind = k || kind;
-        root.classList.toggle("ocean", kind === "ocean");
-        root.classList.toggle("fire", kind === "fire");
+
+      function drawGrain(){
+        const w = gCan.width, h = gCan.height;
+        const p = grainPatterns[grainIdx];
+        grainIdx = (grainIdx + 1) % grainPatterns.length;
+        gCtx.clearRect(0, 0, w, h);
+        if(!p) return;
+        gCtx.save();
+        gCtx.translate(-Math.random() * TILE, -Math.random() * TILE);
+        gCtx.fillStyle = p;
+        gCtx.fillRect(0, 0, w + TILE * 2, h + TILE * 2);
+        gCtx.restore();
+      }
+
+      function resize(){ resizeField(); resizeGrain(); }
+
+      function sample(nx, ny, ux, uy){
+        const q1 = fbm2(nx,       ny + C.d1);
+        const q2 = fbm2(nx + 5.2, ny + 1.3 - C.d2);
+        const r1 = fbm2(nx + C.wA * q1 + 1.7 + C.d3, ny + C.wA * q2 * 0.5 + 9.2);
+        const r2 = fbm2(nx + C.wA * q1 + 8.3 - C.d4, ny + C.wA * q2 * 0.5 + 2.8);
+        const v  = fbm3(nx + C.wB * r1, ny + C.wB * r2 * 0.55 + C.d5);
+        const dx = (ux - C.pxc) * C.aspect;
+        const dy = (uy - C.pyc);
+        return v - Math.exp(-(dx * dx + dy * dy) * C.pInv2) * MASS;
+      }
+
+      function drawField(){
+        if(!buf) return;
+        const inten = reduceV ? 0.25 : 1;
+        const breath = 0.5 - 0.5 * Math.cos(2 * Math.PI * (t / 11));
+        const base   = BASE * (1 - 0.07 * breath);
+        const aspect = fw / fh;
+        const scaleX = base, scaleY = base * (1 / aspect) / ELONG;
+
+        C.aspect = aspect;
+        C.wA = WARP_A; C.wB = WARP_B;
+        C.d1 = t * 0.085 * inten; C.d2 = t * 0.070 * inten;
+        C.d3 = t * 0.125 * inten; C.d4 = t * 0.098 * inten; C.d5 = t * 0.045 * inten;
+        C.pxc = 0.5 + 0.24 * Math.sin(t * 0.129 * inten) + 0.09 * Math.sin(t * 0.047 * inten);
+        C.pyc = 0.5 + 0.22 * Math.cos(t * 0.101 * inten) + 0.07 * Math.cos(t * 0.038 * inten);
+        const pr = MASS_R + 0.03 * Math.sin(t * 0.21 * inten) + 0.035 * breath;
+        C.pInv2 = 1 / (2 * pr * pr);
+
+        /* fully settled/deep tone throughout, matching the source file once its
+           intro copy has cleared and the veil has finished deepening */
+        const contrast = CONTRAST;
+        const lift = 0.05 * breath;
+
+        let sum = 0, gi, gj, guy, gux;
+        for(gj = 0; gj < 18; gj++){
+          guy = (gj + 0.5) / 18;
+          for(gi = 0; gi < 10; gi++){
+            gux = (gi + 0.5) / 10;
+            sum += sample(gux * scaleX, guy * scaleY, gux, guy);
+          }
+        }
+        const want = (TARGET - lift / contrast) - sum / 180;
+        C.expo = C.expoSet ? C.expo + (want - C.expo) * 0.25 : want;
+        C.expoSet = true;
+        const expo = C.expo;
+
+        let i, j, ux, uy, ny, v, s, sh, o = 0;
+        const invW = 1 / fw, invH = 1 / fh;
+        for(j = 0; j < fh; j++){
+          uy = j * invH; ny = uy * scaleY;
+          for(i = 0; i < fw; i++){
+            ux = i * invW;
+            v = sample(ux * scaleX, ny, ux, uy) + expo;
+            s = (v - 0.5) * contrast + 0.5 + lift;
+            s = s < 0 ? 0 : s > 1 ? 1 : s;
+            s = s * s * (3 - 2 * s);
+            sh = Math.pow(s, GAMMA);
+            buf[o]     = INK[0] + (PAPER[0] - INK[0]) * sh;
+            buf[o + 1] = INK[1] + (PAPER[1] - INK[1]) * sh;
+            buf[o + 2] = INK[2] + (PAPER[2] - INK[2]) * sh;
+            o += 4;
+          }
+        }
+        fCtx.putImageData(img, 0, 0);
+
+        const bright = 1 + 0.05 * breath;
+        fCan.style.filter = "blur(8px) brightness(" + bright.toFixed(3) + ") contrast(1.03)";
+      }
+
+      function frame(now){
+        if(!running) return;
+        raf = requestAnimationFrame(frame);
+        const dt = last ? Math.min((now - last) / 1000, 0.1) : 0.016;
+        last = now;
+        t += dt;
+        if(now - lastField >= FIELD_MS){ lastField = now; drawField(); }
+        if(now - lastGrain >= GRAIN_MS){ lastGrain = now; drawGrain(); }
+      }
+
+      function start(){
         resize();
         root.classList.add("on");
         if(running) return;
-        running = true;
-        if(reduce){ draw(.15); return; }
+        running = true; last = 0; lastField = 0; lastGrain = 0;
+        if(reduceV){ drawField(); drawGrain(); return; }
         raf = requestAnimationFrame(frame);
       }
       function stop(){ running = false; cancelAnimationFrame(raf); root.classList.remove("on"); }
-      addEventListener("resize", () => { resize(); if(!running || reduce) draw(.15); });
+      addEventListener("resize", () => { resize(); if(!running || reduceV){ drawField(); drawGrain(); } });
       document.addEventListener("visibilitychange", () => { if(document.hidden && running){ cancelAnimationFrame(raf); running = false; } });
       return { start, stop };
     }
@@ -4988,14 +5138,19 @@
     p && p.place ? primerVeil.start(p.place) : primerVeil.stop();
     const pels = ["#pl1","#pl2","#pl3","#primerStart"].map(sel => $(sel));
     pels.forEach(el => { el.style.transition = "none"; el.classList.remove("in"); });
+    const whiteout = $("#primerWhiteout");
+    whiteout.style.transition = "none";
+    whiteout.classList.remove("out");
     void pels[0].offsetWidth;
     pels.forEach(el => { el.style.transition = ""; });
+    whiteout.style.transition = "";
     primerTimers.forEach(clearTimeout); primerTimers = [];
     show("s-primer");
-    primerTimers.push(setTimeout(() => $("#pl1").classList.add("in"), 300));
-    primerTimers.push(setTimeout(() => $("#pl2").classList.add("in"), 1500));
-    primerTimers.push(setTimeout(() => $("#pl3").classList.add("in"), 2700));
-    primerTimers.push(setTimeout(() => $("#primerStart").classList.add("in"), 3900));
+    primerTimers.push(setTimeout(() => whiteout.classList.add("out"), 250));
+    primerTimers.push(setTimeout(() => $("#pl1").classList.add("in"), 700));
+    primerTimers.push(setTimeout(() => $("#pl2").classList.add("in"), 1900));
+    primerTimers.push(setTimeout(() => $("#pl3").classList.add("in"), 3100));
+    primerTimers.push(setTimeout(() => $("#primerStart").classList.add("in"), 4300));
   }
   $("#primerStart").addEventListener("click", beginStimulus);
   function beginStimulus(){
@@ -5006,9 +5161,8 @@
     if(mixBlobUrl){ try { URL.revokeObjectURL(mixBlobUrl); } catch(e){} }
     mixBlobUrl = null;
     mixFetchStarted = false;
-    const place = joltProto && joltProto.place;
-    stage.classList.toggle("in-place", !!place);
-    place ? joltVeil.start(place) : joltVeil.stop();
+    stage.classList.add("in-place");
+    joltVeil.start();
     paused = false;
     setWaiting(true);
     playBtn.innerHTML = ICON_PAUSE;
@@ -5161,6 +5315,9 @@
         let seek = at;
         if(typeof seek === "number" && seek > 0){
           const d = a.duration;
+          /* a real session file is the primer plus a whole meditation, so
+             it runs well past the seek point; anything shorter is an old
+             bare mix from before the primer was baked in */
           if(isFinite(d) && d > seek + 90){
             try { a.currentTime = seek; } catch(e){}
           }
@@ -5472,9 +5629,8 @@
       draft.targetFull = txt;
       draft.extras = Object.assign({}, composeExtras);
       const meta = PROTO_META[draft.type];
-      closeCompose();
-      setTimeout(() => openCompose({ mode:"q2", heading: (draft.q2Heading || meta.chargeQ),
-        placeholder:"A sentence or two, in your own words", value: draft.chargePrefill || "", cta:"Create my protocol" }), 380);
+      openCompose({ mode:"q2", heading: (draft.q2Heading || meta.chargeQ),
+        placeholder:"A sentence or two, in your own words", value: draft.chargePrefill || "", cta:"Create my protocol" });
       return;
     }
     if(m === "q2"){
@@ -5492,7 +5648,6 @@
       (async () => {
         try { await POST("/protocols/journal", { text: txt }); await loadJournal(); } catch(e){}
         renderJournal();
-        paperSound("card");
         toast("Saved to your journal.");
         composeSaving = false;
         composeSave.toggleAttribute("disabled", false);
@@ -5676,12 +5831,21 @@
         }
 
         /* disclaimer */
-        $$(".dc-agree").forEach((a) =>
+        const dcAgrees = $$(".dc-agree");
+        function dcRefresh() {
+          const allChecked = dcAgrees.every((a) =>
+            a.classList.contains("checked"),
+          );
+          $("#dcAccept").toggleAttribute("disabled", !allChecked);
+        }
+        dcAgrees.forEach((a) =>
           a.addEventListener("click", (e) => {
-            if (e.target.closest("[data-terms]")) return;
+            if (e.target.closest("[data-terms],[data-sheet]")) return;
             a.classList.toggle("checked");
+            dcRefresh();
           }),
         );
+        dcRefresh();
         let dcBusy = false;
         $("#dcAccept").addEventListener("click", async () => {
           if (dcBusy) return;
@@ -5699,6 +5863,14 @@
         /* intro pager */
         const introSteps = $$(".intro-step");
         let introIdx = 0;
+
+        /* slide 3 illustration: tap a day to mark it done */
+        $$(".ill-row").forEach((row) => {
+          row.addEventListener("click", (e) => {
+            e.stopPropagation();
+            row.classList.toggle("tapped-done");
+          });
+        });
 
         /* slide 2: types a sample goal into the mock field */
         const introMock = "Whether to leave my job";
