@@ -4671,6 +4671,7 @@
   let joltTimer = null, paused = false, hideCtrlTimer = null;
   let joltKind = "protocol", joltDay = 1, joltJid = null, joltMixUrl = null;
   let sessionAudio = null, sessionPhase = "idle", curAudio = null;
+  let standbyAudio = null, standbyReady = false;
   let bedEndedWaiting = false, waiting = false, joltPollTimer = null;
   let joltPlayed = false, joltPollBusy = false, lastPollAt = 0;
   let mixBlobUrl = null, mixFetchStarted = false;
@@ -5017,7 +5018,7 @@
     controls.classList.remove("show");
     show("s-jolt");
     if(joltMixUrl) playMix(joltMixUrl, primerFor(joltTheme()).start);
-    else { playMeditationBed(); startPolling(); }
+    else { blessStandby(); playMeditationBed(); startPolling(); }
     runTimer();
   }
   /* the waiting affordance stands in for the clock whenever there is nothing to count */
@@ -5025,22 +5026,66 @@
     waiting = !!on;
     if(waiting) timeRemain.textContent = WAIT_LABEL;
   }
-  /* One persistent element carries the whole session (Aug 2026). The tap on
-     Start blesses this element; the primer and the mix both play on it. The
-     handover is a src swap inside the primer's own ended event, which is the
-     only pattern phones allow when the app is backgrounded or the screen is
-     locked. A brand new Audio element at that moment gets blocked. */
-  function ensureSessionAudio(){
-    if(sessionAudio) return sessionAudio;
+  /* Two persistent elements carry the session (Aug 2026). The tap on Start
+     blesses BOTH; the primer plays on the live one while the standby loads
+     the finished mix, seeks it to the join point, and waits paused. The
+     handover is then play the standby, pause the primer: nothing loads at
+     that moment, so the split second of silence a src swap caused is gone.
+     Both elements must be created and blessed inside the Start tap, because
+     a brand new Audio element made later gets blocked on phones when the
+     app is backgrounded or the screen is locked. If the standby is not
+     ready in time, the old src swap on the live element remains the
+     fallback. */
+  function _makeSessionEl(){
     const a = new Audio();
     a.preload = "auto";
     if("playsInline" in a) a.playsInline = true;
-    a.addEventListener("ended", onSessionEnded);
-    a.addEventListener("error", onSessionError);
-    a.addEventListener("playing", onSessionPlaying);
-    a.addEventListener("timeupdate", onSessionTick);
-    sessionAudio = a;
+    a.addEventListener("ended", (e) => { if(e.currentTarget === sessionAudio) onSessionEnded(); });
+    a.addEventListener("error", (e) => { if(e.currentTarget === sessionAudio) onSessionError(); });
+    a.addEventListener("playing", (e) => { if(e.currentTarget === sessionAudio) onSessionPlaying(); });
+    a.addEventListener("timeupdate", (e) => { if(e.currentTarget === sessionAudio) onSessionTick(); });
     return a;
+  }
+  function ensureSessionAudio(){
+    if(sessionAudio) return sessionAudio;
+    sessionAudio = _makeSessionEl();
+    return sessionAudio;
+  }
+  /* a zero length wav: playing it inside the Start tap is what blesses the
+     standby element for later unmuted playback */
+  const SILENT_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";
+  function blessStandby(){
+    try {
+      if(!standbyAudio) standbyAudio = _makeSessionEl();
+      standbyReady = false;
+      standbyAudio.src = SILENT_WAV;
+      standbyAudio.volume = 0;
+      const p = standbyAudio.play();
+      if(p && p.then) p.then(() => { try { standbyAudio.pause(); } catch(e){} }).catch(() => {});
+      standbyAudio.volume = 1;
+    } catch(e){}
+  }
+  function prepareStandbyMix(url, at){
+    /* load the mix into the standby and pre seek it to the join point, so
+       the handover has nothing left to do but play */
+    if(!standbyAudio || sessionPhase === "mix") return;
+    try {
+      standbyReady = false;
+      standbyAudio.src = mixBlobUrl || url;
+      standbyAudio.loop = false;
+      standbyAudio.volume = 1;
+      const arm = () => {
+        if(typeof at === "number" && at > 0){
+          const d = standbyAudio.duration;
+          if(isFinite(d) && d > at + 90){
+            try { standbyAudio.currentTime = at; } catch(e){}
+          }
+        }
+        standbyReady = true;
+      };
+      if(standbyAudio.readyState >= 1) arm();
+      else standbyAudio.addEventListener("loadedmetadata", arm, { once: true });
+    } catch(e){}
   }
   function onSessionEnded(){
     if(sessionPhase === "primer"){ onBedEnded(); return; }
@@ -5119,8 +5164,12 @@
     mixFetchStarted = true;
     fetch(url)
       .then(r => { if(!r.ok) throw new Error("prefetch " + r.status); return r.blob(); })
-      .then(b => { if(sessionPhase !== "mix") mixBlobUrl = URL.createObjectURL(b); })
-      .catch(() => {});
+      .then(b => {
+        if(sessionPhase === "mix") return;
+        mixBlobUrl = URL.createObjectURL(b);
+        prepareStandbyMix(url, primerJoin());
+      })
+      .catch(() => { prepareStandbyMix(url, primerJoin()); });
   }
   async function pollJoltStatus(){
     if(!joltJid || joltMixUrl || joltPollBusy) return;
@@ -5164,6 +5213,28 @@
        seek point; anything shorter is an old bare mix from before the
        primer was baked in and simply plays from the top. */
     try {
+      /* The standby already holds the mix, loaded and seeked to the join
+         point. Promote it to the live element and pause the primer: nothing
+         loads at this moment, so the handover has no gap. Falls through to
+         the old src swap whenever the standby is not ready. */
+      if(standbyAudio && standbyReady){
+        const prev = sessionAudio;
+        sessionPhase = "mix";
+        sessionAudio = standbyAudio;
+        standbyAudio = null;
+        standbyReady = false;
+        curAudio = sessionAudio;
+        const started = sessionAudio.play();
+        if(started && started.catch) started.catch(() => {});
+        try {
+          if(prev){
+            prev.pause();
+            prev.removeAttribute("src");
+            prev.load();
+          }
+        } catch(e){}
+        return;
+      }
       const a = ensureSessionAudio();
       sessionPhase = "mix";
       a.src = mixBlobUrl || url;
@@ -5197,6 +5268,15 @@
         sessionAudio.load();
       }
     } catch(e){}
+    try {
+      if(standbyAudio){
+        standbyAudio.pause();
+        standbyAudio.removeAttribute("src");
+        standbyAudio.load();
+      }
+    } catch(e){}
+    standbyAudio = null;
+    standbyReady = false;
     curAudio = null;
   }
   function stopAllAudio(){
