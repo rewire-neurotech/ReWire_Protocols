@@ -117,8 +117,29 @@ def start_jolt(pid: int, req: StartReq,
     if not d:
         raise HTTPException(404, "day not found")
 
-    # 1) Already generated -> replay for free (no charge, no regeneration).
+    # 1) Access gating (paywall) FIRST (Ashwin, Aug 2026): day 1 is free;
+    #    every day beyond the free window requires an unlock (this protocol
+    #    purchased, or an active monthly membership) for EVERY path through
+    #    this route, including replays of days already heard and jolts that
+    #    were pre generated at the prior day's reflect. A pre generated file
+    #    waits encrypted on disk until the user is entitled; a lapsed
+    #    monthly locks days 2-5 again, including replays, until they
+    #    resubscribe or buy the protocol. Day 1 and its replay stay free.
+    if day > cfg.PROTOCOL_FREE_DAYS and not _protocol_unlocked(p, u.id, db):
+        raise HTTPException(402, "unlock required for this protocol")
+
+    # 2) Already generated -> replay for free (no charge, no regeneration).
+    #    Self healing (Ashwin, Aug 2026): the audio lives on the persistent
+    #    disk, not in the DB. If the file behind a done row is gone, the row
+    #    is flipped to error and the flow falls through to regenerate on
+    #    demand, instead of handing out a URL that will 404 forever.
     existing = _latest_done(pid, day, db)
+    if existing and not (cfg.out_dir_path / existing.audio_filename).exists():
+        existing.stage = "error"
+        existing.gen_error = "audio file missing from disk"
+        db.commit()
+        print(f"[protojolt] {existing.id} done row had no file on disk, regenerating")
+        existing = None
     if existing:
         return StartResp(
             status="replay",
@@ -127,25 +148,17 @@ def start_jolt(pid: int, req: StartReq,
             audio_url=_audio_url_for(existing.audio_filename),
         )
 
-    # 2) Already generating -> return the in-flight jolt (avoid double work).
+    # 3) Already generating -> return the in-flight jolt (avoid double work).
     inprog = _in_progress(pid, day, db)
     if inprog:
         return StartResp(status="generating", jolt_id=inprog.id, day=day)
 
-    # 3) Sequence gating: only the current frontier day can be started (no
+    # 4) Sequence gating: only the current frontier day can be started (no
     #    skipping ahead to a later day).
     done = _done_days(pid, db)
     current_day = next((n for n in range(1, cfg.PROTOCOL_DAYS + 1) if n not in done), None)
     if current_day is not None and day > current_day:
         raise HTTPException(400, "complete earlier days first")
-
-    # 4) Access gating (paywall): day 1 is free; days beyond the free window
-    #    require an unlock (this protocol purchased, or an active monthly
-    #    membership). Checked BEFORE the prior-day / daily-cadence gates below,
-    #    so an unpaid user always reaches the paywall and can purchase, instead
-    #    of being told to finish yesterday or come back tomorrow first.
-    if day > cfg.PROTOCOL_FREE_DAYS and not _protocol_unlocked(p, u.id, db):
-        raise HTTPException(402, "unlock required for this protocol")
 
     # 5) Prior-day + daily-cadence gating. Meditation build (Aug 2026):
     #    integrate and expand protocols have no done-marking and no daily
@@ -251,7 +264,15 @@ def get_status(jid: int, u: User = Depends(get_current_user_required),
 
     url = None
     if j.stage == "done" and j.audio_filename:
-        url = _audio_url_for(j.audio_filename)
+        # Self healing (Ashwin, Aug 2026): never hand out a URL whose file is
+        # gone from the disk; flip the row so the next start regenerates.
+        if (cfg.out_dir_path / j.audio_filename).exists():
+            url = _audio_url_for(j.audio_filename)
+        else:
+            j.stage = "error"
+            j.gen_error = "audio file missing, please start again"
+            db.commit()
+            print(f"[protojolt] {j.id} done row had no file on disk (status)")
 
     return StatusResp(jolt_id=j.id, stage=j.stage, progress=j.progress,
                       audio_url=url, error=j.gen_error)
@@ -278,9 +299,10 @@ def save_reflection(jid: int, req: ReflectReq,
 
     # Meditation build (Aug 2026): the post-jolt questionnaire branches on
     # chills. The no branch ("What came up during this session?") carries a
-    # 10 word minimum so the next day's prompt has something real to read.
-    if is_meditation and chills == "no" and len(answer.split()) < 10:
-        raise HTTPException(400, "please write at least 10 words")
+    # 5 word minimum (Ashwin, Aug 2026, was 10) so the next day's prompt has
+    # something real to read.
+    if is_meditation and chills == "no" and len(answer.split()) < 5:
+        raise HTTPException(400, "please write at least 5 words")
 
     # Saved into the journal, tagged to this protocol + day.
     db.add(JournalEntry(
@@ -372,11 +394,18 @@ def start_journal_jolt(entry_id: int,
         raise HTTPException(400, "journal entry is empty")
 
     # 2) Already generated for this entry -> replay for free (no regeneration).
+    #    Self healing (Ashwin, Aug 2026): same disk check as protocol jolts.
     existing = (db.query(JournalJolt)
                 .filter(JournalJolt.journal_entry_id == entry_id,
                         JournalJolt.stage == "done",
                         JournalJolt.audio_filename.isnot(None))
                 .order_by(JournalJolt.id.desc()).first())
+    if existing and not (cfg.out_dir_path / existing.audio_filename).exists():
+        existing.stage = "error"
+        existing.gen_error = "audio file missing from disk"
+        db.commit()
+        print(f"[journaljolt] {existing.id} done row had no file on disk, regenerating")
+        existing = None
     if existing:
         return JournalJoltStartResp(status="replay", jolt_id=existing.id,
                                     audio_url=_audio_url_for(existing.audio_filename))
@@ -450,7 +479,14 @@ def get_journal_status(jj_id: int, u: User = Depends(get_current_user_required),
 
     url = None
     if j.stage == "done" and j.audio_filename:
-        url = _audio_url_for(j.audio_filename)
+        # Self healing (Ashwin, Aug 2026): same disk check as protocol jolts.
+        if (cfg.out_dir_path / j.audio_filename).exists():
+            url = _audio_url_for(j.audio_filename)
+        else:
+            j.stage = "error"
+            j.gen_error = "audio file missing, please start again"
+            db.commit()
+            print(f"[journaljolt] {j.id} done row had no file on disk (status)")
 
     return StatusResp(jolt_id=j.id, stage=j.stage, progress=j.progress,
                       audio_url=url, error=j.gen_error)
