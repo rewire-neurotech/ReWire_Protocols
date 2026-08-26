@@ -347,12 +347,14 @@ class Config:
     #             an offset, so the primer's tail (birds, ambience) plays
     #             under the first words and fades away naturally.
     #
-    # offset_sec is the fixed overlay start (regular starts at 189.5).
+    # offset_sec is the fixed overlay start (regular starts at 183.0, the
+    # measured end of the primer's spoken text; the meditation enters there
+    # over the bird tail, Aug 2026).
     # tail_sec derives the start from the primer length instead (forest
     # starts at primer duration minus 5). Exactly one of the two is set
     # for overlay mode, both are None for concat.
     PRIMER_TRACKS = {
-        "regular": {"file": "main_primer.mp3",   "mode": "overlay", "offset_sec": 189.5, "tail_sec": None},
+        "regular": {"file": "main_primer.mp3",   "mode": "overlay", "offset_sec": 183.0, "tail_sec": None},
         "forest":  {"file": "forest_primer.mp3", "mode": "overlay", "offset_sec": None,  "tail_sec": 5.0},
         "ocean":   {"file": "ocean_primer.mp3",  "mode": "concat",  "offset_sec": None,  "tail_sec": None},
         "fire":    {"file": "fire_primer.mp3",   "mode": "concat",  "offset_sec": None,  "tail_sec": None},
