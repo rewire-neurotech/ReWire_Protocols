@@ -4649,13 +4649,14 @@
   /* ---------- jolt ---------- */
   /* Felix's per theme primers (Aug 2026). The server bakes the primer into
      the finished session file via his transition recipe, so `start` is where
-     the meditation begins inside that file: regular is fixed at 189.5 (the
-     bird bridge overlay), forest is primer length minus 5 (ambience overlay),
+     the meditation begins inside that file: regular is fixed at 183.0 (the
+     measured end of the spoken text, entering over the bird tail), forest is
+     primer length minus 5 (ambience overlay),
      ocean and fire are the primer's end (direct concatenation). The client
      plays the primer live while generating, then swaps to the session file
      at the same timestamp, so the join is Felix's, not a hard cut. */
   const PRIMERS = {
-    regular: { url: "/assets/main_primer.mp3",   start: 189.5 },
+    regular: { url: "/assets/main_primer.mp3",   start: 183.0 },
     forest:  { url: "/assets/forest_primer.mp3", start: 194.5 },
     ocean:   { url: "/assets/ocean_primer.mp3",  start: 194.0 },
     fire:    { url: "/assets/fire_primer.mp3",   start: 188.3 },
@@ -5059,8 +5060,19 @@
   }
   /* Polling rides on the primer's own playback clock: timeupdate keeps firing
      while audio plays with the screen locked, when setInterval is frozen. */
+  /* The join point is where the primer's spoken text ends. Past it only the
+     bird tail remains, and the session file carries the same bridge at the
+     same timestamp, so handing over there is seamless and interrupts no
+     words. Waiting for the primer's ended event instead played the whole
+     tail alone and made the meditation arrive late (Felix, Aug 2026). */
+  function primerJoin(){ return primerFor(joltTheme()).start; }
+  function primerPastJoin(){
+    return sessionPhase === "primer" && curAudio
+      && isFinite(curAudio.currentTime) && curAudio.currentTime >= primerJoin();
+  }
   function onSessionTick(){
     if(sessionPhase !== "primer") return;
+    if(joltMixUrl && primerPastJoin()){ playMix(joltMixUrl, primerJoin()); return; }
     const now = Date.now();
     if(now - lastPollAt < 2500) return;
     lastPollAt = now;
@@ -5123,10 +5135,12 @@
       clearInterval(joltPollTimer);
       joltMixUrl = s.audio_url;
       prefetchMix(s.audio_url);
-      /* Never interrupt the primer (Felix, Aug 2026): while the primer is
-         playing only the URL is stored; onBedEnded hands over the moment
-         the primer finishes. Start now only when nothing is playing. */
-      if(bedEndedWaiting || !curAudio) playMix(joltMixUrl, primerFor(joltTheme()).start);
+      /* Never interrupt the primer's TEXT (Felix, Aug 2026): while the text
+         is still playing only the URL is stored. Past the join point only
+         the bird tail remains, so a mix arriving then starts right away;
+         before it, onSessionTick hands over the moment playback crosses the
+         join. onBedEnded stays as the fallback at the primer's end. */
+      if(bedEndedWaiting || !curAudio || primerPastJoin()) playMix(joltMixUrl, primerJoin());
     } else if(s.stage === "error" || s.stage === "blocked"){
       clearInterval(joltPollTimer);
       joltVeil.stop();
