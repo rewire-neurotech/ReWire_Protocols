@@ -339,6 +339,17 @@ def save_reflection(jid: int, req: ReflectReq,
             p.status = "complete"
 
     db.commit()
+
+    # Pre generation (Ashwin, Aug 2026): the recursive prompt for day N+1
+    # needs day N's reflection, so the moment it is committed is the earliest
+    # the next day can be written. Kicked AFTER the commit so the background
+    # worker's own session can read this reflection. Runs for every user,
+    # entitlement is checked by start at listen time, not here. Idempotent
+    # and never raises inside tasks; the reflection save can never be broken
+    # by it. Day 5 triggers nothing. Journal jolts are untouched.
+    if is_meditation:
+        tasks.pregenerate_next_day(j.protocol_id, j.day)
+
     return Ok(status="ok")
 
 
