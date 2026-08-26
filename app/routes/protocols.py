@@ -199,11 +199,32 @@ def _protocol_out(p, db, uid) -> ProtocolOut:
         if cur is None or j.id > cur.id:
             by_day[j.day] = j
 
+    # Pre generation fix (Ashwin, Aug 2026): a finished jolt row no longer
+    # means the day was experienced, because days 2-5 are generated ahead at
+    # the prior day's reflect and sit ready on disk before anyone hears
+    # them. For meditation protocols a day therefore counts as completed
+    # only when its questionnaire was saved: jolted and current_day are
+    # derived from the reflection rows, so a pre generated day never shows
+    # as a replay row and never advances the frontier, and a day whose
+    # questionnaire was skipped repeats until it is answered. Activate
+    # protocols keep the original jolt-row meaning.
+    is_meditation = (p.type or "") in ("integrate", "expand")
+    reflected_days = set()
+    if is_meditation:
+        refl_rows = (db.query(JournalEntry.day)
+                     .filter(JournalEntry.protocol_id == p.id,
+                             JournalEntry.day.isnot(None))
+                     .all())
+        reflected_days = {row.day for row in refl_rows}
+
     day_outs = []
     current_day = None
     for d in days:
         jj = by_day.get(d.day)
-        jolted = jj is not None
+        if is_meditation:
+            jolted = jj is not None and d.day in reflected_days
+        else:
+            jolted = jj is not None
         if not jolted and current_day is None:
             current_day = d.day
         day_outs.append(DayOut(
@@ -212,8 +233,8 @@ def _protocol_out(p, db, uid) -> ProtocolOut:
             action=(d.action if jolted else None),
             done=bool(d.done),
             jolted=jolted,
-            jolt_id=(jj.id if jj else None),
-            audio_url=(_audio_url_for(jj.audio_filename) if jj and jj.audio_filename else None),
+            jolt_id=(jj.id if jolted and jj else None),
+            audio_url=(_audio_url_for(jj.audio_filename) if jolted and jj and jj.audio_filename else None),
             done_at=(_ts(d.done_at) or None),
         ))
 
