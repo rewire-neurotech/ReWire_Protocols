@@ -5696,6 +5696,10 @@
     joltVeil.stop();
     clearInterval(joltTimer);
     stopAllAudio();
+    /* same pointer-events landmine as the rating Continue: the controls
+       overlay is full screen and .show keeps it clickable after the jolt
+       screen goes invisible, with the X in its top right corner */
+    controls.classList.remove("show");
     /* leaving a live jolt owes a reflection, but only if the jolt actually
        played. Closing during the primer or a failed generation goes home,
        otherwise the day gets reflected and marked done without the jolt
@@ -5708,6 +5712,7 @@
     joltVeil.stop();
     clearInterval(joltTimer);
     stopAllAudio();
+    controls.classList.remove("show");
     if(joltReplay){
       if(joltKind === "journal") renderJournal(); else renderHome();
       show(joltReturn);
@@ -5822,7 +5827,14 @@
     renderRating();
     show("s-rating");
   }
-  $("#rateContinue").addEventListener("click", () => { openReflect(joltProto); });
+  $("#rateContinue").addEventListener("click", () => {
+    /* drop the show class on handover: it carries pointer-events auto, and a
+       child override outlives the screen's deactivation, so leaving it on
+       kept an invisible full width button clickable over the home bottom
+       bar (Ashwin's squares and plus bug, Aug 2026) */
+    $("#rateContinue").classList.remove("show");
+    openReflect(joltProto);
+  });
   function beginPostJolt(){
     if(joltKind === "protocol") openRating();
     else openReflect(joltProto);
