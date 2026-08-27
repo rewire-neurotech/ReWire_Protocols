@@ -174,6 +174,16 @@ if Base is not None and engine is not None:
                 print("[migrate] added chills column to journal_entries")
         except Exception:
             pass  # column already exists
+        # migrate: add rating to journal_entries (Felix's rating screen, Aug 2026)
+        try:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE journal_entries ADD COLUMN rating INTEGER"
+                ))
+                conn.commit()
+                print("[migrate] added rating column to journal_entries")
+        except Exception:
+            pass  # column already exists
 
         # migrate: add place to protocols (meditation build, Aug 2026)
         #
