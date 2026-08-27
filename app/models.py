@@ -278,6 +278,7 @@ class JournalEntry(Base):
     question = Column(Text, nullable=True)       # the reflection prompt (null for a free-form note)
     answer = Column(Text, nullable=True)         # the entry text
     chills = Column(String(10), nullable=True)   # "yes" | "no" | null (not asked, e.g. free-form entry)
+    rating = Column(Integer, nullable=True)      # 0-5 stars, protocol jolts only (Felix's rating screen); null elsewhere
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
