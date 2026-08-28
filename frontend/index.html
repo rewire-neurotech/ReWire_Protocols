@@ -1092,7 +1092,7 @@
   .reflect-eyebrow { margin-top: 24px; }
   .reflect-area { flex: 1; min-height: 0; margin-top: 22px; font-size: 18px; line-height: 1.55; font-weight: 450; color: var(--ink); }
   .reflect-area::placeholder { color: var(--faint); }
-  .reflect-foot { display: flex; justify-content: flex-end; padding-top: 10px; }
+  .reflect-foot { display: flex; justify-content: flex-end; padding-top: 10px;margin-bottom:15px }
 
   .btn-dark {
     min-height: 50px; padding: 0 26px; border-radius: 999px;
@@ -1117,7 +1117,7 @@
   .compose-question.show { display: block; }
   .compose-area { flex: 1; min-height: 0; margin-top: 22px; font-size: 20px; line-height: 1.5; font-weight: 450; color: var(--ink); }
   .compose-area::placeholder { color: var(--faint); }
-  .compose-foot { display: flex; justify-content: flex-end; padding: 8px 0 4px; }
+  .compose-foot { display: flex; justify-content: flex-end; padding: 8px 0 4px; margin-bottom:15px }
 
   .compose-picker { margin-top: 16px; display: none; }
   .compose-picker.show { display: block; }
@@ -1266,6 +1266,9 @@
       .cta[disabled] {
         opacity: 0.32;
         pointer-events: none;
+      }
+      .intro-foot .cta {
+        width:100%!important;
       }
       .app-dialog-backdrop {
         position: absolute;
