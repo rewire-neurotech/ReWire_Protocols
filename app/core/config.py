@@ -506,7 +506,7 @@ class Config:
     # keeps working either way, and both paths run through the same JWT.
     ADMIN_DEV_LOGIN: bool = os.getenv("ADMIN_DEV_LOGIN", "").lower() in ("true", "1", "yes")
     ADMIN_DEV_USER: str = os.getenv("ADMIN_DEV_USER", "admin")
-    ADMIN_DEV_PASS: str = os.getenv("ADMIN_DEV_PASS", "admin")
+    ADMIN_DEV_PASS: str = os.getenv("ADMIN_DEV_PASS", "Neurogene@123")
     # The account rows created by the dev login are tagged with this address so
     # they are obvious in the users table and in audit_logs.
     ADMIN_DEV_EMAIL: str = os.getenv("ADMIN_DEV_EMAIL", "admin@console.local")
