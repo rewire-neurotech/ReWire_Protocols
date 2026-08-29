@@ -15,7 +15,7 @@ from app.db import get_db
 from app.models import (
     User, Subscription, Goal, Challenge, Tip, Jolt, Reflection,
     PushSubscription, AuditLog,
-    Protocol, ProtocolDay, ProtocolJolt, JournalEntry, Entitlement,
+    Protocol, ProtocolDay, ProtocolJolt, JournalEntry, JournalJolt, Entitlement,
     UserActivity, SafetyEvent, SafetyReview, Payment,
 )
 
@@ -479,11 +479,33 @@ def get_auth_config():
     return {"google_client_id": cfg.GOOGLE_CLIENT_ID or ""}
 
 
-@r.delete("/account", response_model=StatusResp)
-def delete_account(u: User = Depends(get_current_user_required),
-                   db: Session = Depends(get_db)):
-    """Permanently delete the user's account and all associated data."""
+def delete_user_data(db: Session, u: User) -> int:
+    """Delete one user and everything they own. Shared by the self-serve
+    account deletion below and the admin console's delete endpoints.
+
+    Same rules as before the extraction:
+      - v4 and v5 rows are deleted outright
+      - safety events are ANONYMISED (verdict/severity stats survive, the
+        verbatim text goes), reviews keep the decision and drop the reviewer,
+        payments keep the money and drop the person
+      - generated audio files are removed from the disk after the commit, so
+        a failed unlink can never roll back the delete
+
+    Commits inside. Returns the number of audio files removed from disk.
+    """
     uid = u.id
+
+    # Collect audio filenames BEFORE the rows go, so the files can be
+    # removed from /data/audio after the commit. v4 jolts also keep a raw
+    # voice file alongside the mix.
+    audio_files = []
+    for j in db.query(Jolt.audio_filename, Jolt.voice_filename).filter(Jolt.user_id == uid).all():
+        audio_files.extend([j.audio_filename, j.voice_filename])
+    for j in db.query(ProtocolJolt.audio_filename).filter(ProtocolJolt.user_id == uid).all():
+        audio_files.append(j.audio_filename)
+    for j in db.query(JournalJolt.audio_filename).filter(JournalJolt.user_id == uid).all():
+        audio_files.append(j.audio_filename)
+    audio_files = [f for f in audio_files if f]
 
     # --- v4 data: goals and their children ---
     goal_ids = [g.id for g in db.query(Goal.id).filter(Goal.user_id == uid).all()]
@@ -499,7 +521,10 @@ def delete_account(u: User = Depends(get_current_user_required),
     db.query(Jolt).filter(Jolt.user_id == uid).delete(synchronize_session=False)
 
     # --- v5 data: protocols and their children, journal, entitlements ---
+    # JournalJolt goes before JournalEntry: the FK cascade covers Postgres,
+    # but SQLite runs with foreign keys off, and the rows must go on both.
     protocol_ids = [p.id for p in db.query(Protocol.id).filter(Protocol.user_id == uid).all()]
+    db.query(JournalJolt).filter(JournalJolt.user_id == uid).delete(synchronize_session=False)
     db.query(ProtocolJolt).filter(ProtocolJolt.user_id == uid).delete(synchronize_session=False)
     if protocol_ids:
         db.query(ProtocolDay).filter(ProtocolDay.protocol_id.in_(protocol_ids)).delete(synchronize_session=False)
@@ -548,6 +573,20 @@ def delete_account(u: User = Depends(get_current_user_required),
     db.delete(u)
     db.commit()
 
+    # Remove the generated audio from the disk. After the commit on purpose:
+    # the rows are gone either way, and a file that fails to unlink is just
+    # an orphan on the disk, never a failed deletion.
+    removed = 0
+    from app.core.config import cfg
+    for name in audio_files:
+        try:
+            fp = cfg.out_dir_path / name
+            if fp.exists():
+                fp.unlink()
+                removed += 1
+        except Exception as e:
+            print(f"[delete] could not remove audio {name}: {e}")
+
     # Drop the throttle entry so a recycled id cannot inherit a stale timestamp.
     try:
         with _activity_lock:
@@ -555,4 +594,12 @@ def delete_account(u: User = Depends(get_current_user_required),
     except Exception:
         pass
 
+    return removed
+
+
+@r.delete("/account", response_model=StatusResp)
+def delete_account(u: User = Depends(get_current_user_required),
+                   db: Session = Depends(get_db)):
+    """Permanently delete the user's account and all associated data."""
+    delete_user_data(db, u)
     return StatusResp(status="ok")
