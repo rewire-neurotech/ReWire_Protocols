@@ -568,6 +568,111 @@
         background: var(--pink);
       }
 
+      /* ---------- delete controls ---------- */
+      th.sel, td.sel {
+        width: 26px;
+        padding-right: 4px;
+      }
+      td.sel input, th.sel input {
+        cursor: pointer;
+        accent-color: var(--alarm);
+      }
+      th.rowdel, td.rowdel {
+        width: 30px;
+        text-align: right;
+      }
+      .rowdel button {
+        font-family: var(--body);
+        font-size: 11px;
+        padding: 3px 8px;
+        border: 1px solid var(--hairline);
+        border-radius: 6px;
+        background: var(--card);
+        color: var(--muted);
+        cursor: pointer;
+        visibility: hidden;
+      }
+      tr.person:hover .rowdel button {
+        visibility: visible;
+      }
+      .rowdel button:hover {
+        background: var(--alarm-soft);
+        border-color: rgba(178, 58, 58, 0.25);
+        color: var(--alarm);
+      }
+      .danger {
+        font-family: var(--body);
+        font-size: 12px;
+        padding: 6px 12px;
+        border: 1px solid rgba(178, 58, 58, 0.25);
+        border-radius: 7px;
+        background: var(--alarm-soft);
+        color: var(--alarm);
+        cursor: pointer;
+      }
+      .danger:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+
+      /* ---------- per-session detail ---------- */
+      .sess {
+        border-top: 1px dashed var(--hairline);
+        margin-top: 10px;
+        padding-top: 10px;
+      }
+      .sess .stop {
+        display: flex;
+        gap: 10px;
+        align-items: baseline;
+        margin-bottom: 7px;
+      }
+      .sess .stop .when {
+        font-family: var(--data);
+        font-size: 11px;
+        color: var(--muted);
+        margin-left: auto;
+      }
+      .sess .stitle {
+        font-size: 12px;
+        color: var(--ink-soft);
+      }
+      .pill {
+        font-family: var(--data);
+        font-size: 10px;
+        padding: 2px 7px;
+        border-radius: 4px;
+        background: var(--chip);
+        color: var(--ink-soft);
+        white-space: nowrap;
+      }
+      .pill.yes {
+        background: var(--good-soft);
+        color: var(--good);
+      }
+      .pill.no {
+        background: var(--alarm-soft);
+        color: var(--alarm);
+      }
+      .pill.na {
+        color: var(--faint);
+      }
+      .stars {
+        font-size: 12px;
+        color: var(--amber);
+        letter-spacing: 1px;
+        white-space: nowrap;
+      }
+      .stars .off {
+        color: var(--faint);
+      }
+      .stars .none {
+        font-family: var(--data);
+        font-size: 10px;
+        color: var(--faint);
+        letter-spacing: 0;
+      }
+
       /* ---------- safety ---------- */
       .qcard {
         border: 1px solid var(--hairline);
@@ -859,6 +964,7 @@
           <header>
             <h2>People</h2>
             <span class="spacer"></span>
+            <button class="danger" id="deleteSelBtn" hidden>Delete selected</button>
             <input class="search" id="peopleSearch" placeholder="Search account, goal, or charge" aria-label="Search" />
             <span class="eyebrow" id="peopleCount">—</span>
           </header>
@@ -870,12 +976,14 @@
           <table>
             <thead>
               <tr id="peopleHead">
+                <th class="sel"><input type="checkbox" id="selAll" aria-label="Select all shown" /></th>
                 <th class="sortable" data-sort="joined">Joined<span class="arrow">↓</span></th>
                 <th>Account</th>
                 <th class="sortable r" data-sort="protocols">Protocols<span class="arrow">↓</span></th>
                 <th>Most recent goal</th>
                 <th class="sortable" data-sort="plan">Plan<span class="arrow">↓</span></th>
                 <th class="sortable" data-sort="last">Last seen<span class="arrow">↓</span></th>
+                <th class="rowdel"></th>
               </tr>
             </thead>
             <tbody id="peopleRows"></tbody>
@@ -966,7 +1074,7 @@
       /* ---------------- state ---------------- */
       const ui = {
         range: 30, tab: "overview", q: "", qFilter: "open", open: null,
-        data: null, people: [], detail: {}, safety: null,
+        data: null, people: [], detail: {}, safety: null, selected: new Set(),
         sort: { key: "protocols", dir: "desc" },
         loading: false,
       };
@@ -1042,7 +1150,7 @@
       }
       function signOut() {
         setToken(null);
-        ui.data = null; ui.people = []; ui.detail = {}; ui.safety = null; ui.open = null;
+        ui.data = null; ui.people = []; ui.detail = {}; ui.safety = null; ui.open = null; ui.selected = new Set();
         showGate();
       }
 
@@ -1235,8 +1343,9 @@
         $("#peopleCount").textContent = n(list.length) + " shown";
         if (!list.length) {
           $("#peopleRows").innerHTML =
-            '<tr><td colspan="6" style="color:var(--muted);padding:18px 0">' +
+            '<tr><td colspan="8" style="color:var(--muted);padding:18px 0">' +
             (ui.q ? "Nobody matches that search." : "No accounts yet.") + "</td></tr>";
+          syncDeleteUi(list);
           return;
         }
 
@@ -1248,21 +1357,86 @@
             const goal = u.latest_goal || "";
             const row =
               '<tr class="person' + (ui.open === u.id ? " open" : "") + '" data-id="' + esc(u.id) +
-              '"><td class="mono">' + esc(shortDate(u.created_at)) + '</td><td class="mono">' +
+              '"><td class="sel"><input type="checkbox" data-sel="' + esc(u.id) + '"' +
+              (ui.selected.has(u.id) ? " checked" : "") + ' aria-label="Select account" /></td>' +
+              '<td class="mono">' + esc(shortDate(u.created_at)) + '</td><td class="mono">' +
               esc(u.email_masked) + '</td><td class="mono r">' + n(u.protocol_count) +
               "</td><td>" + (goal ? esc(goal) : '<span style="color:var(--faint)">—</span>') +
               '</td><td><span class="tag ' + (u.plan === "monthly" ? "good" : "") + '">' +
               esc(u.plan) + '</span></td><td class="mono">' +
               (u.last_active ? esc(ago(u.last_active)) + " ago" : '<span style="color:var(--faint)">never</span>') +
-              "</td></tr>";
+              '</td><td class="rowdel"><button data-del="' + esc(u.id) + '">Delete</button></td></tr>';
             if (ui.open !== u.id) return row;
-            return row + '<tr><td class="detail" colspan="6">' + detailHtml(u.id) + "</td></tr>";
+            return row + '<tr><td class="detail" colspan="8">' + detailHtml(u.id) + "</td></tr>";
           })
           .join("");
 
         $$("#peopleRows tr.person").forEach((tr) =>
           tr.addEventListener("click", () => togglePerson(tr.dataset.id)),
         );
+        /* checkbox and delete clicks must not open the row */
+        $$("#peopleRows [data-sel]").forEach((cb) => {
+          cb.addEventListener("click", (e) => e.stopPropagation());
+          cb.addEventListener("change", (e) => {
+            const id = e.target.dataset.sel;
+            if (e.target.checked) ui.selected.add(id);
+            else ui.selected.delete(id);
+            syncDeleteUi(list);
+          });
+        });
+        $$("#peopleRows [data-del]").forEach((b) =>
+          b.addEventListener("click", (e) => {
+            e.stopPropagation();
+            deleteAccounts([b.dataset.del]);
+          }),
+        );
+        syncDeleteUi(list);
+      }
+
+      /* keep the bulk button and the select-all box honest against the
+         current (possibly filtered) list */
+      function syncDeleteUi(list) {
+        const shown = (list || ui.people).map((u) => u.id);
+        /* selections that fell out of the list (deleted, or filtered away
+           and re-fetched) are dropped so the count never lies */
+        for (const id of [...ui.selected]) if (!shown.includes(id)) ui.selected.delete(id);
+        const btn = $("#deleteSelBtn");
+        btn.hidden = ui.selected.size === 0;
+        btn.textContent = "Delete selected (" + ui.selected.size + ")";
+        const all = $("#selAll");
+        all.checked = shown.length > 0 && shown.every((id) => ui.selected.has(id));
+        all.indeterminate = ui.selected.size > 0 && !all.checked;
+      }
+
+      async function deleteAccounts(ids) {
+        ids = [...new Set(ids)];
+        if (!ids.length) return;
+        const who = ids.length === 1
+          ? "this account"
+          : ids.length + " accounts";
+        const ok = window.confirm(
+          "Permanently delete " + who + "?\n\n" +
+          "Every protocol, session, journal entry and generated audio file is destroyed. " +
+          "Safety events and payments are anonymised, not deleted. This cannot be undone.");
+        if (!ok) return;
+        const btn = $("#deleteSelBtn");
+        btn.disabled = true;
+        try {
+          let r;
+          if (ids.length === 1) r = await DEL("/api/admin/people/" + encodeURIComponent(ids[0]));
+          else r = await POST("/api/admin/people/delete", { ids: ids.map(Number) });
+          if (r.skipped && r.skipped.length) {
+            window.alert(r.skipped.length + " account(s) were skipped (admin accounts cannot be deleted from the console).");
+          }
+          ui.selected = new Set();
+          ui.open = null;
+          ui.detail = {};
+          await reload();
+        } catch (e) {
+          window.alert("Delete failed: " + e.message);
+        } finally {
+          btn.disabled = false;
+        }
       }
 
       function detailHtml(id) {
@@ -1275,6 +1449,7 @@
         const total = d.protocols.length;
         return '<div class="protos">' + d.protocols.map((p, i) =>
           '<div class="proto"><div class="ptop"><span class="tag">Protocol ' + (total - i) +
+          '</span><span class="tag">' + esc(p.place || p.type || "") +
           '</span><span class="dots" title="day ' + p.day + ' of 5">' +
           [1, 2, 3, 4, 5].map((k) => '<i class="' + (k <= p.day ? "on" : "") + '"></i>').join("") +
           '</span><span class="spacer"></span><span class="when">' + esc(p.status) + " · " +
@@ -1283,7 +1458,43 @@
           (p.charge
             ? '<div class="field"><span class="k">Charge</span><span class="txt charge">' + esc(p.charge) + "</span></div>"
             : "") +
+          (p.summary
+            ? '<div class="field"><span class="k">Summary</span><span class="txt">' + esc(p.summary) + "</span></div>"
+            : "") +
+          (p.sessions || []).map(sessionHtml).join("") +
           "</div>").join("") + "</div>";
+      }
+
+      /* one finished day: chills, stars, question, comment */
+      function chillsPill(c) {
+        if (c === "yes") return '<span class="pill yes">chills yes</span>';
+        if (c === "no") return '<span class="pill no">chills no</span>';
+        return '<span class="pill na">chills —</span>';
+      }
+      function starsHtml(r) {
+        /* null = never recorded (journal jolt, or reflected before the
+           rating fix shipped). 0 is a real answer: the person cleared the
+           stars, so it renders as five empty stars, not as missing. */
+        if (r === null || r === undefined) return '<span class="stars"><span class="none">no rating</span></span>';
+        let s = "";
+        for (let k = 1; k <= 5; k++) s += k <= r ? "★" : '<span class="off">☆</span>';
+        return '<span class="stars" title="' + r + ' of 5">' + s + "</span>";
+      }
+      function sessionHtml(s) {
+        return '<div class="sess"><div class="stop"><span class="tag">Day ' + s.day + "</span>" +
+          (s.day_title ? '<span class="stitle">' + esc(s.day_title) + "</span>" : "") +
+          chillsPill(s.chills) + starsHtml(s.rating) +
+          '<span class="when">' +
+          (s.played_at ? "played " + esc(shortDate(s.played_at)) : "") +
+          (s.reflected_at ? " · reflected " + esc(shortDate(s.reflected_at)) : "") +
+          "</span></div>" +
+          (s.question
+            ? '<div class="field"><span class="k">Asked</span><span class="txt">' + esc(s.question) + "</span></div>"
+            : "") +
+          (s.comment
+            ? '<div class="field"><span class="k">They wrote</span><span class="txt charge">' + esc(s.comment) + "</span></div>"
+            : '<div class="field"><span class="k">They wrote</span><span class="txt" style="color:var(--faint)">nothing</span></div>') +
+          "</div>";
       }
 
       /* Protocols load ON EXPAND rather than with the list. Charges are the
@@ -1454,6 +1665,13 @@
 
       /* Debounced so a search does not fire a request per keystroke. */
       let searchTimer = null;
+      $("#selAll").addEventListener("change", (e) => {
+        const shown = ui.people.map((u) => u.id);
+        if (e.target.checked) shown.forEach((id) => ui.selected.add(id));
+        else ui.selected = new Set();
+        renderPeople();
+      });
+      $("#deleteSelBtn").addEventListener("click", () => deleteAccounts([...ui.selected]));
       $("#peopleSearch").addEventListener("input", (e) => {
         ui.q = e.target.value;
         ui.open = null;
