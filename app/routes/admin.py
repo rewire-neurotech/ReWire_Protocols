@@ -47,7 +47,7 @@ from app.models import (
     User, Protocol, ProtocolDay, ProtocolJolt, JournalEntry,
     Entitlement, Payment, UserActivity, SafetyEvent, SafetyReview, AuditLog,
 )
-from app.routes.auth import get_current_admin_required, check_pw, make_token
+from app.routes.auth import get_current_admin_required, check_pw, make_token, delete_user_data
 from app.utils.encryption import decrypt_field
 
 r = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -233,12 +233,43 @@ class PeopleResp(BaseModel):
     truncated: bool = False
 
 
+class SessionOut(BaseModel):
+    """One finished day of one protocol, with everything the person gave
+    back afterwards. chills is "yes" | "no" | None (not asked / skipped),
+    rating is 0-5 stars or None (journal jolts have no rating screen, and
+    every session reflected before the rating fix has None -- those stars
+    were dropped at the API boundary and are unrecoverable)."""
+    day: int
+    day_title: str = ""
+    played_at: str = ""
+    chills: Optional[str] = None
+    rating: Optional[int] = None
+    question: str = ""
+    comment: str = ""
+    reflected_at: Optional[str] = None
+
+
 class ProtocolOut(BaseModel):
     goal: str
     charge: str = ""
+    type: str = "activate"
+    place: Optional[str] = None
+    summary: str = ""
     day: int
     status: str
     created_at: str
+    sessions: List[SessionOut] = []
+
+
+class DeleteManyReq(BaseModel):
+    ids: List[int]
+
+
+class DeleteResp(BaseModel):
+    status: str
+    deleted: int = 0
+    skipped: List[int] = []
+    audio_removed: int = 0
 
 
 class PersonDetail(BaseModel):
@@ -588,11 +619,32 @@ def person_detail(user_id: int, request: Request,
 
     pids = [p.id for p in ps]
     jolted: Dict[int, set] = {pid: set() for pid in pids}
+    # Latest finished jolt per (protocol, day), for the played_at timestamp.
+    jolt_rows: Dict[tuple, object] = {}
     if pids:
-        for pid, dayno in (db.query(ProtocolJolt.protocol_id, ProtocolJolt.day)
-                           .filter(ProtocolJolt.protocol_id.in_(pids),
-                                   ProtocolJolt.stage == "done").all()):
-            jolted.setdefault(pid, set()).add(dayno)
+        for j in (db.query(ProtocolJolt)
+                  .filter(ProtocolJolt.protocol_id.in_(pids),
+                          ProtocolJolt.stage == "done")
+                  .order_by(ProtocolJolt.id).all()):
+            jolted.setdefault(j.protocol_id, set()).add(j.day)
+            jolt_rows[(j.protocol_id, j.day)] = j
+
+    # Latest reflection per (protocol, day): question, decrypted comment,
+    # chills, rating. Ordered ascending so the last write wins.
+    refl_rows: Dict[tuple, object] = {}
+    if pids:
+        for e in (db.query(JournalEntry)
+                  .filter(JournalEntry.protocol_id.in_(pids),
+                          JournalEntry.day.isnot(None))
+                  .order_by(JournalEntry.id).all()):
+            refl_rows[(e.protocol_id, e.day)] = e
+
+    # Day titles (the action field the reflect handler fills for meditations).
+    day_titles: Dict[tuple, str] = {}
+    if pids:
+        for d in (db.query(ProtocolDay.protocol_id, ProtocolDay.day, ProtocolDay.action)
+                  .filter(ProtocolDay.protocol_id.in_(pids)).all()):
+            day_titles[(d.protocol_id, d.day)] = d.action or ""
 
     now = datetime.now(timezone.utc)
     out: List[ProtocolOut] = []
@@ -613,12 +665,34 @@ def person_detail(user_id: int, request: Request,
         if cfg.ADMIN_SHOW_CHARGE and p.charge:
             charge = decrypt_field(p.charge) or ""
 
+        sessions: List[SessionOut] = []
+        for dayno in sorted(done_days):
+            j = jolt_rows.get((p.id, dayno))
+            e = refl_rows.get((p.id, dayno))
+            comment = ""
+            if e is not None and e.answer:
+                comment = decrypt_field(e.answer) or ""
+            sessions.append(SessionOut(
+                day=dayno,
+                day_title=day_titles.get((p.id, dayno), ""),
+                played_at=(_ts(j.created_at) or "") if j else "",
+                chills=(e.chills or None) if e else None,
+                rating=(e.rating if e else None),
+                question=(e.question or "") if e else "",
+                comment=comment,
+                reflected_at=(_ts(e.created_at) if e else None),
+            ))
+
         out.append(ProtocolOut(
             goal=p.target or "",
             charge=charge,
+            type=p.type or "activate",
+            place=(p.place or None),
+            summary=p.summary or "",
             day=day,
             status=status,
             created_at=_ts(p.created_at) or "",
+            sessions=sessions,
         ))
 
     journal_count = (db.query(func.count(JournalEntry.id))
@@ -755,3 +829,74 @@ def clear_review(event_id: int,
      .delete(synchronize_session=False))
     db.commit()
     return Ok(status="ok")
+
+
+# --------------------------------------------------------------------------- #
+# Delete accounts (test cleanup)
+# --------------------------------------------------------------------------- #
+
+def _delete_one(db: Session, admin: User, request: Request, user_id: int):
+    """Shared by the single and bulk endpoints. Returns (deleted, audio_removed)
+    or raises HTTPException for the single path's error cases."""
+    u = db.query(User).filter(User.id == user_id).first()
+    if not u:
+        raise HTTPException(404, "person not found")
+    # Admin accounts are refused: the console must not be able to delete the
+    # account that is holding it open, or a colleague's. Revoke is_admin in
+    # the database first if an admin account genuinely has to go.
+    if u.is_admin:
+        raise HTTPException(400, "cannot delete an admin account from the console")
+    email = u.email
+    _audit(db, admin, request, "admin.delete_person", f"user:{user_id} {email}")
+    removed = delete_user_data(db, u)
+    print(f"[admin] {admin.email} deleted user {user_id} ({email}), "
+          f"{removed} audio file(s) removed")
+    return removed
+
+
+@r.delete("/people/{user_id}", response_model=DeleteResp)
+def delete_person(user_id: int, request: Request,
+                  admin: User = Depends(get_current_admin_required),
+                  db: Session = Depends(get_db)):
+    """Permanently delete one account and everything it owns.
+
+    Runs the exact same cleanup as the user deleting themselves from
+    Settings (routes/auth.py delete_user_data): rows deleted, safety events
+    and payments anonymised, generated audio removed from the disk.
+    """
+    removed = _delete_one(db, admin, request, user_id)
+    return DeleteResp(status="ok", deleted=1, audio_removed=removed)
+
+
+@r.post("/people/delete", response_model=DeleteResp)
+def delete_people(req: DeleteManyReq, request: Request,
+                  admin: User = Depends(get_current_admin_required),
+                  db: Session = Depends(get_db)):
+    """Bulk delete. Missing ids and admin accounts are skipped and reported
+    back rather than failing the whole batch, so one bad id in a selection
+    of fifty test accounts does not stop the other forty-nine.
+    """
+    ids = list(dict.fromkeys(int(i) for i in (req.ids or [])))
+    if not ids:
+        raise HTTPException(400, "ids required")
+    if len(ids) > cfg.ADMIN_MAX_ROWS:
+        raise HTTPException(400, f"too many ids (max {cfg.ADMIN_MAX_ROWS})")
+
+    deleted = 0
+    audio_removed = 0
+    skipped: List[int] = []
+    for uid in ids:
+        try:
+            audio_removed += _delete_one(db, admin, request, uid)
+            deleted += 1
+        except HTTPException:
+            skipped.append(uid)
+        except Exception as e:
+            print(f"[admin] bulk delete failed for user {uid}: {e}")
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            skipped.append(uid)
+    return DeleteResp(status="ok", deleted=deleted, skipped=skipped,
+                      audio_removed=audio_removed)
