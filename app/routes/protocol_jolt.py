@@ -52,6 +52,11 @@ class ReflectReq(BaseModel):
     question: str = ""
     answer: str = ""
     chills: str = ""
+    # Felix's rating screen (0-5 stars). Was silently dropped before this
+    # field existed: pydantic ignores unknown keys, so every star sent by
+    # the frontend died at the API boundary and JournalEntry.rating stayed
+    # null. 0 is a valid answer.
+    rating: Optional[int] = None
 
 
 class Ok(BaseModel):
@@ -311,6 +316,9 @@ def save_reflection(jid: int, req: ReflectReq,
 
     chills = (req.chills or "").strip().lower() or None
     answer = (req.answer or "").strip()
+    rating = req.rating
+    if rating is not None:
+        rating = max(0, min(5, int(rating)))
 
     # Meditation build (Aug 2026): the post-jolt questionnaire branches on
     # chills. The no branch ("What came up during this session?") carries a
@@ -327,6 +335,7 @@ def save_reflection(jid: int, req: ReflectReq,
         question=req.question or None,
         answer=encrypt_field(answer) if answer else None,
         chills=chills,
+        rating=rating,
     ))
 
     if is_meditation:
