@@ -6,6 +6,11 @@ Day 1 prompts are Felix's stimgen experiments, verbatim:
 Days 2 to 5 and journal jolts use the recursive prompt from experiment 75.
 Each day 1 prompt carries its own forbidden pattern validator. A failed
 validation means regenerate the take.
+
+Revised Aug 29: scripts open on substance (the primer already settles the
+listener), pointing/label sentences banned by shape and by regex, loose
+measures rule (round quantities, digits banned), final question must carry
+the claim, all prompts, day 1 and later days alike, produce about 400 words.
 """
 
 import re
@@ -16,6 +21,11 @@ import zipfile
 # day 1 prompts, one per theme, verbatim from the experiments
 # ------------------------------------------------------------------ #
 REGULAR_DAY1_PROMPT = """You write spoken meditation scripts. The script will be read aloud by a calm voice over continuous music, with no silences. The listener only listens. Write it to be heard, never read.
+
+THE HANDOFF
+A spoken primer plays right before this script, in the same voice. It has already settled the listener - eyes closed, body soft, deep inside a guided scene - and it ends on a promise: something is waiting for them inside a house, something they need to hear. Its last words are "Now listen."
+Your first sentence is the thing that was waiting, and it begins by touching their subject - the reason they came, present inside the sentence itself, at category level - so the promise pays off as recognition and substance at once. Any settling, welcoming, arriving, easing in, or mood-setting sounds like the primer starting over and breaks the whole experience.
+Never mention the primer, its scene, its house, or its words. The listener hears one continuous voice, and the seam is invisible because the substance arrives exactly when it was promised.
 
 OUTPUT
 Reply with the script only. The first characters of your reply are the first spoken sentence of the script. No title, no labels, no preamble, no separator lines, no notes after.
@@ -57,23 +67,29 @@ End with exactly this shape as the last line: "Now ask yourself: [the question]"
 The question turns the insight toward their situation, so that answering it makes them re-derive the insight for themselves.
 It is written in plain everyday grammar, sayable across a table, and asks about something concrete they can picture: a person, a moment, a thing they do, a choice in front of them.
 Test it: a tired friend hearing it once could start answering right away. If it needs a second hearing to understand, rewrite it. If it uses a metaphor, rewrite it.
+Second test: the question only exists because of the claim. Answering it should require using the claim on their own life. If the question could have been asked before the piece was written - a generic reflection question that fits any meditation - it carries no insight; discard it and build one from the claim.
 
 CRAFT
-The first sentence invites the listener to settle - posture, weight, softening - in one sentence that asks for nothing beyond what happens on its own while they hear it.
+THE FIRST SENTENCE does two jobs at once: it lands on their subject and it says something true. Two ways to do it, pick whichever the lens allows:
+- Fold the recognition into the fact itself, so the first sentence of the fact contains the category word of their situation: "A thousand years ago, friend was a verb." This is the best opening when it exists.
+- Otherwise, open with one sharp, general observation about the category their situation belongs to - a real claim with content, the kind of sentence that could only begin this piece: "Most friendships end without anyone deciding anything." Then the fact begins in the next sentence.
+Either way, a platitude is banned: any opening sentence that is true of everything ("friendship can be complicated", "relationships matter", "life brings change") says nothing and is discarded. No settling, no preview, no preparation of any kind.
 The listener only listens. Give no exercise to perform, nothing to count, nothing to hold, nothing to wait for. The piece carries them; they never carry it.
-Then preview the session in two or three sentences, one idea per sentence, referring to their material at category level.
 One idea per script. Go deeper instead of adding more.
+Loose measures. Outside the one true fact being taught, every quantity stays round and everyday: hours, many years, most people, a handful. A precise figure belongs only inside the central fact, where precision is the point; anywhere else it reads as fake. Numbers are written as words, never digits.
 Simple everyday words. Every sentence a complete spoken sentence, one clause where possible.
 Every sentence adds a new thing. A sentence that restates the previous sentence in different words gets cut.
 Slow pacing comes from the writing itself: short sentences, one idea at a time, room between thoughts.
 
 STRUCTURE
-About 300 words of plain spoken text. No pause markers, no bracket tags, no stage directions, no markers of any kind - only sentences.
+About 400 words of plain spoken text. No pause markers, no bracket tags, no stage directions, no markers of any kind - only sentences.
 
 NEVER
+- Settling openings of any kind: shoulders, posture, softening, relaxing, closing the eyes, getting comfortable, welcoming, arriving. The primer did all of that. The piece starts inside its subject.
 - Instructions to breathe, scan, count, close the eyes, or do any exercise in real time.
 - Waiting language: "take a moment", "when you're ready", "slowly now", "let that settle", "sit with that", or any request that needs silence to be honored.
 - Negation-contrast in any disguise: "it is not X, it is Y", "X, not Y", "does not mean X, it means Y", "not because X but because Y", appositive corrections, paired sentences setting one thing against another. State what IS true and stop.
+- Pointing sentences, in any wording: "that is what X is", "this is what it tells us", "what this tells you is", "in other words", "which is to say" - any sentence whose only job is to name, label, summarize, or explain the sentence before it. Such a sentence adds nothing and sounds machine-made. Meaning and fact live inside the same sentence, always.
 - Restating what the listener wrote and then labeling it. Join fact and meaning inside one natural sentence.
 - Comments on the listener showing up, being here, or pressing play.
 - Repeating the listener's own words back. Speak of their material through general truths about people.
@@ -123,9 +139,11 @@ Now the claim turns toward their situation. Several sentences, spoken as general
 5. THE QUESTION.
 End with exactly this shape as the last line: "Now ask yourself: [the question]"
 The question turns the claim toward their situation, in plain everyday grammar, about something concrete they can picture. A tired friend hearing it once could start answering right away. No metaphors in the question.
+The question only exists because of the claim: answering it should require using the claim on their own life. If it could have been asked before the piece was written, it carries no insight - discard it and build one from the claim.
 
 LANGUAGE
 Simple everyday words a child could follow. Short sentences. One idea per sentence. Every sentence a complete spoken sentence. Every sentence adds a new thing. If a sentence needs to be heard twice to be understood, rewrite it.
+Loose measures: outside a true fact, quantities stay round and everyday - hours, many years, most people. Numbers are written as words, never digits.
 
 STRUCTURE
 About 400 words of plain spoken text. No pause markers, no bracket tags, no stage directions - only sentences.
@@ -133,6 +151,7 @@ About 400 words of plain spoken text. No pause markers, no bracket tags, no stag
 NEVER
 - The words imagine, picture, visualize, envision, or "see if you can": the scene is stated as real.
 - Naming sounds, describing anything as heard, or asking the listener to listen: no birdsong, no wind you can hear, no rustling, no silence, no quiet. The real forest sounds are already there. The piece stays in the eyes.
+- Pointing sentences, in any wording: "that is what X is", "this is what it tells us", "what this tells you is", "in other words" - any sentence whose only job is to name, label, or explain the sentence before it. Meaning and fact live inside the same sentence.
 - Announcing a truth before saying it: "here is something true", "here's something", "let me tell you". The thing is said, never introduced.
 - Instructions to breathe, scan, count, close the eyes, or do anything in real time.
 - Waiting language: "take a moment", "when you're ready", "let that settle", "sit with that".
@@ -183,9 +202,11 @@ Close with whichever of these fits the piece best, chosen fresh each time:
 - guidance for the rest of the track: one simple thing to think about or notice while the water continues ("For the rest of this time, think about...")
 - something to reflect on: one plain statement worth turning over, left with them as the last word
 Whatever form it takes, it uses the claim, it is concrete, and a tired friend hearing it once would know exactly what to do with it. No metaphors in the ending.
+The ending only exists because of the claim: using it should require the claim. If it would make sense to someone who never heard the piece, it carries no insight - discard it and build one from the claim.
 
 LANGUAGE
 Only simple words that anybody knows. If a ten-year-old would need the word explained, use a different word. Short sentences. One idea per sentence. Every sentence a complete spoken sentence. Every sentence adds a new thing. If a sentence needs to be heard twice to be understood, rewrite it.
+Loose measures: outside the ocean facts themselves, quantities stay round and everyday - hours, many years, most people. Precision belongs only to the true facts. Numbers are written as words, never digits.
 
 STRUCTURE
 About 400 words of plain spoken text. No pause markers, no bracket tags, no stage directions - only sentences.
@@ -194,6 +215,7 @@ NEVER
 - The words imagine, picture, visualize, envision, or "see if you can": the scene is stated as real.
 - Naming any sound except the waves. Beyond the water arriving and leaving, the piece stays in the eyes: no birds, no wind you can hear, no silence, no quiet.
 - Comparing the listener's thoughts, feelings, or situation to waves, tides, or water. The ocean is the scenery and the subject, never a metaphor for their mind.
+- Pointing sentences, in any wording: "that is what X is", "this is what it tells us", "what this tells you is", "in other words" - any sentence whose only job is to name, label, or explain the sentence before it. Meaning and fact live inside the same sentence.
 - Announcing a truth before saying it: "here is something true", "here's something", "let me tell you". The thing is said, never introduced.
 - Telling the listener to relax, be calm, or feel peaceful. Peace arrives through what is shown and said, never through instruction.
 - Instructions to breathe, scan, count, close the eyes, or do anything in real time.
@@ -260,9 +282,11 @@ Then several sentences of plain counsel: what people who carry this kind of ques
 5. THE CHARGE.
 The presence ends with exactly this shape as the last line: "Now ask yourself: [the question]"
 The question turns the claim toward their topic, in plain everyday grammar, about something concrete they can picture. A tired friend hearing it once could start answering right away. No metaphors in the question.
+The question only exists because of the claim: answering it should require using the claim on their own life. If it could have been asked before the piece was written, it carries no insight - discard it and build one from the claim.
 
 LANGUAGE
 Simple everyday words a child could follow. Short sentences. One idea per sentence. Every sentence a complete spoken sentence. Every sentence adds a new thing. If a sentence needs to be heard twice to be understood, rewrite it. Modern plain grammar throughout; the piece never imitates scripture.
+Loose measures: quantities stay round and everyday - hours, many years, most people. Numbers are written as words, never digits.
 
 STRUCTURE
 About 400 words of plain spoken text. No pause markers, no bracket tags, no quotation marks, no stage directions - only sentences.
@@ -275,6 +299,7 @@ NEVER
 - Preaching, converting, warning of punishment, or promising rewards after death.
 - The words imagine, picture, visualize, envision, or "see if you can": the scene is stated as real.
 - Naming sounds, describing anything as heard, or asking the listener to listen: no crackling, no wind you can hear, no silence, no quiet. The real fire sounds are already there. The piece stays in the eyes and in the felt body.
+- Pointing sentences, in any wording: "that is what X is", "this is what it tells us", "what this tells you is", "in other words" - any sentence whose only job is to name, label, or explain the sentence before it. Meaning and fact live inside the same sentence.
 - Announcing a truth before saying it: "here is something true", "here's something", "let me tell you". The thing is said, never introduced.
 - Instructions to breathe, scan, count, close the eyes, or do anything in real time.
 - Waiting language: "take a moment", "when you're ready", "let that settle", "sit with that".
@@ -330,12 +355,12 @@ Everything happens now, while they are listening. No imagined days, no future co
 One line of thought from the first sentence to the last. Each sentence follows the one before it. Never jump to a new idea, and never open a second subject.
 
 THE SHAPE
-1. THE WELCOME, about 25 words. Settle them with a technique none of the previous meditations used: a slow breath, the eyes closing, the weight of the body in the chair, the hands, the sounds in the room, the shoulders coming down, the feet on the floor, arriving from wherever they just were. Invent others as the list runs low. Then tell them how to hold their attention while the music plays, in fresh words, drawing from: let the mind wander without steering, let the music carry your thinking, let whatever arrives arrive, hold it at the edge of your attention, come back to your hands when you notice you have gone. Then write [long pause] on the same line, at the end of the sentence.
-2. THE BODY, about 80 words. Name their situation plainly, in ordinary words, at the temperature they said it. Then do the one job this meditation does, in the one form it takes, arriving at something they have not seen before. The realization is one finished sentence that stands on its own and needs nothing after it. Write [pause] on the same line, directly after it.
-3. THE CLOSE, about 35 words. Tell them what to do with the rest of the track. Name the thing to stay with, plainly and concretely, in the words the piece has already used, then leave them to it. Something like staying with one particular thought while the music runs, or letting one word sit there, or noticing what comes up around it without answering anything. Never end on a question. Never end on an abstract riddle they would have to decode. Say plainly that answers come after the searching stops, in the words of this piece.
+1. THE OPENING, about 15 words. A primer has already settled them, so the piece never settles them again: no welcome, no breath, no eyes, no shoulders, no posture, no body instruction of any kind. One sentence telling them how to hold their attention while the music plays, in fresh words none of the previous meditations used, drawing from: let the mind wander without steering, let the music carry your thinking, let whatever arrives arrive, hold it at the edge of your attention, come back to the words when you notice you have gone. Invent others as the list runs low. Then write [long pause] on the same line, at the end of the sentence.
+2. THE BODY, about 330 words. Name their situation plainly, in ordinary words, at the temperature they said it. Then do the one job this meditation does, in the one form it takes, arriving at something they have not seen before. Take the long way there: the slow build toward the realization is most of the piece, one step per sentence, and rushing it wastes the length. The realization is one finished sentence that stands on its own and needs nothing after it. Write [pause] on the same line, directly after it.
+3. THE CLOSE, about 50 words. Tell them what to do with the rest of the track. Name the thing to stay with, plainly and concretely, in the words the piece has already used, then leave them to it. Something like staying with one particular thought while the music runs, or letting one word sit there, or noticing what comes up around it without answering anything. Never end on a question. Never end on an abstract riddle they would have to decode. Say plainly that answers come after the searching stops, in the words of this piece.
 
 WHERE THE PAUSES GO
-Exactly two markers in the whole script and nowhere else: [long pause] at the end of the welcome, and [long pause] after the realization in the body.
+Exactly two markers in the whole script and nowhere else: [long pause] at the end of the opening, and [long pause] after the realization in the body.
 A pause always follows a finished thought. Never place one between two sentences that belong together.
 The sentence after a pause must open something new. If it completes, explains, corrects, or continues the sentence before it, the placement is wrong. If it begins with It is, And, But, Because, So, Which, or repeats the subject of the previous sentence, move the pause or rewrite the sentences.
 Both markers are written inline at the end of a sentence, after the full stop and one space, with the next sentence continuing on the following line. No blank lines and no paragraph breaks anywhere in the script.
@@ -348,16 +373,17 @@ A true thing from the world, told as a story, is allowed at most once in every t
 Choose by counting the letters of the last word of the most recent meditation and adding the number of previous meditations, then counting that far down each list, wrapping around, skipping anything used.
 
 RULES
-No sentence points back at the one before it. Never begin a sentence with That, That's, This, These, Those, or Such. Never restate, summarize, or label what you just said.
+No sentence points back at the one before it. Never begin a sentence with That, That's, This, These, Those, or Such. Never restate, summarize, or label what you just said. Pointing constructions in any wording are banned: "that is what X is", "this is what it tells us", "what this tells you is", "in other words". Meaning and fact live inside the same sentence.
+Loose measures: quantities stay round and everyday - hours, many years, most people. Numbers are written as words, never digits.
 Write the way a calm person talks. Ordinary complete sentences, one thought each. No fragments, no stacked clauses, no inversions.
 Every sentence must be understandable the first time it is heard, with the eyes closed. Anything that would need a second reading is wrong.
 Anything you present as true about the world must actually be true.
-Quiet and even, never triumphant and never heavy. No stock meditation language beyond the welcome. No leaves on streams, clouds, waves, kintsugi, phoenixes, lighthouses.
+Quiet and even, never triumphant and never heavy. No stock meditation language anywhere. No leaves on streams, clouds, waves, kintsugi, phoenixes, lighthouses.
 A truth is said, never introduced: no "here is something true", no "here's something", no "let me tell you".
 Nothing in brackets except the two pause markers. No markdown, no titles, no stage directions.
 
 OUTPUT
-One continuous spoken text, about 140 words, welcome first. The first character is the first word spoken aloud.
+One continuous spoken text, about 400 words, opening first. The first character is the first word spoken aloud.
 """
 
 REGULAR_FORBIDDEN = [
@@ -365,6 +391,20 @@ REGULAR_FORBIDDEN = [
     "\\bhere's something\\b",
     '\\bsomething true about\\b',
     '\\blet me tell you\\b',
+    '\\bwhat this tells\\b',
+    '\\bwhat that tells\\b',
+    '\\btells us\\b',
+    '\\btells you\\b',
+    '\\btells me\\b',
+    '\\bThis is what\\b',
+    '\\bwhich is to say\\b',
+    '\\bin other words\\b',
+    '\\byour shoulders\\b',
+    '\\brelax\\b',
+    '\\bsettle\\b',
+    '\\bcomfortable\\b',
+    '\\bclose your eyes\\b',
+    '\\bwelcome\\b',
     '\\bis not\\b',
     '\\bare not\\b',
     '\\bwas not\\b',
@@ -398,6 +438,14 @@ FOREST_FORBIDDEN = [
     "\\bhere's something\\b",
     '\\bsomething true about\\b',
     '\\blet me tell you\\b',
+    '\\bwhat this tells\\b',
+    '\\bwhat that tells\\b',
+    '\\btells us\\b',
+    '\\btells you\\b',
+    '\\btells me\\b',
+    '\\bThis is what\\b',
+    '\\bwhich is to say\\b',
+    '\\bin other words\\b',
     '\\bis not\\b',
     '\\bare not\\b',
     '\\bwas not\\b',
@@ -443,6 +491,14 @@ OCEAN_FORBIDDEN = [
     "\\bhere's something\\b",
     '\\bsomething true about\\b',
     '\\blet me tell you\\b',
+    '\\bwhat this tells\\b',
+    '\\bwhat that tells\\b',
+    '\\btells us\\b',
+    '\\btells you\\b',
+    '\\btells me\\b',
+    '\\bThis is what\\b',
+    '\\bwhich is to say\\b',
+    '\\bin other words\\b',
     '\\bis not\\b',
     '\\bare not\\b',
     '\\bwas not\\b',
@@ -491,6 +547,14 @@ FIRE_FORBIDDEN = [
     "\\bhere's something\\b",
     '\\bsomething true about\\b',
     '\\blet me tell you\\b',
+    '\\bwhat this tells\\b',
+    '\\bwhat that tells\\b',
+    '\\btells us\\b',
+    '\\btells you\\b',
+    '\\btells me\\b',
+    '\\bThis is what\\b',
+    '\\bwhich is to say\\b',
+    '\\bin other words\\b',
     '\\bis not\\b',
     '\\bare not\\b',
     '\\bwas not\\b',
@@ -575,6 +639,8 @@ def validate_day1(theme, script):
             if re.search(p, script, re.IGNORECASE | re.MULTILINE)]
     if "[" in script or "]" in script:
         hits.append("bracket tag found - plain text only")
+    if re.search(r"\d", script):
+        hits.append("digit found - write numbers as words")
     if theme == "forest" and not re.match(FOREST_OPENING, script.lstrip(), re.IGNORECASE):
         hits.append("missing establishing sentence - script must open with 'You are standing ... forest ...'")
     if theme == "fire":
@@ -592,6 +658,32 @@ _LATER_FORBIDDEN = [
     "\\bhere's something\\b",
     '\\bsomething true about\\b',
     '\\blet me tell you\\b',
+    '\\bwhat this tells\\b',
+    '\\bwhat that tells\\b',
+    '\\btells us\\b',
+    '\\btells you\\b',
+    '\\btells me\\b',
+    '\\bThis is what\\b',
+    '\\bwhich is to say\\b',
+    '\\bin other words\\b',
+    '\\byour shoulders\\b',
+    '\\brelax\\b',
+    '\\bsettle\\b',
+    '\\bcomfortable\\b',
+    '\\bclose your eyes\\b',
+    '\\bwelcome\\b',
+    '\\bThat is what\\b',
+    '\\bThat is the\\b',
+    '\\bis not\\b',
+    '\\bare not\\b',
+    '\\bwas not\\b',
+    "n't\\b",
+    ', not ',
+    '\\bnot because\\b',
+    '\\brather than\\b',
+    '\\binstead of\\b',
+    '\\bbreathe\\b',
+    '\\bbreath\\b',
 ]
 
 
@@ -604,6 +696,8 @@ def validate_later(script):
             if re.search(p, script, re.IGNORECASE | re.MULTILINE)]
     if "[" in stripped or "]" in stripped:
         hits.append("unexpected bracket tag - only [pause] and [long pause] are allowed")
+    if re.search(r"\d", stripped):
+        hits.append("digit found - write numbers as words")
     return hits
 
 
