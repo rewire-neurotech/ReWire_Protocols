@@ -439,6 +439,38 @@ def screen_input(target: str, charge: str) -> dict:
         return {"verdict": "clarify", "category": "other", "rationale": "screen error"}
 
 
+_CLARIFY_QUESTION_SYSTEM = """You help a meditation app understand what a listener wants to meditate about.
+The listener wrote something too vague or cryptic to build a session from. Write ONE short question, addressed to them, that would get them to say it more concretely.
+Rules:
+- EXACTLY ONE question, 15 words maximum, ending with a question mark
+- Second person, warm, plain English
+- Never suggest a topic for them, never give advice, never guess what they meant
+- Never mention safety, screening, rules, or the app
+- Return ONLY the question, no quotes"""
+
+
+def generate_clarify_question(target: str, charge: str = "") -> str:
+    """One clarifying question shown when the input screen returns clarify
+    (Felix, Sep 2026: the generic screen gave the user nothing to act on).
+    Haiku, cheap. Returns "" on any error so the frontend falls back to its
+    own generic text."""
+    if cfg.DEV_MODE:
+        return "What part of your life is this about?"
+    try:
+        user = f"They wrote: {target}"
+        if charge and charge.strip():
+            user += f"\nWhy it matters to them: {charge.strip()}"
+        raw = _claude_text(cfg.HAIKU_MODEL, _CLARIFY_QUESTION_SYSTEM, user,
+                           max_tokens=60, temperature=0.7, max_retries=2)
+        question = raw.strip().strip('"').strip("'")
+        if question and question.endswith("?"):
+            return question[:200]
+        return ""
+    except Exception as e:
+        print(f"[LLM] clarify question failed: {e}")
+        return ""
+
+
 # --- Plan (break the goal into 5 daily components) --------------------------
 
 _DEV_PLAN = {
