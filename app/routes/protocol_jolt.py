@@ -321,10 +321,9 @@ def save_reflection(jid: int, req: ReflectReq,
         rating = max(0, min(5, int(rating)))
 
     # Meditation build (Aug 2026): the post-jolt questionnaire branches on
-    # chills. The no branch ("What came up during this session?") carries a
-    # 5 word minimum (Ashwin, Aug 2026, was 10) so the next day's prompt has
-    # something real to read.
-    if is_meditation and chills == "no" and len(answer.split()) < 5:
+    # chills. Both branches carry a 5 word minimum (Felix, Sep 2026, was the
+    # no branch only) so the next day's prompt has something real to read.
+    if is_meditation and len(answer.split()) < 5:
         raise HTTPException(400, "please write at least 5 words")
 
     # Saved into the journal, tagged to this protocol + day.
