@@ -400,7 +400,13 @@ def create_protocol(req: CreateProtocolReq, u: User = Depends(get_current_user_r
             said=compose_said(target, charge),
             rationale=verdict.get("rationale", ""),
         )
-        return CreateProtocolResp(status=v, category=verdict.get("category", "other"), protocol=None)
+        # Clarify feedback (Felix, Sep 2026): give the user an actual question
+        # to answer instead of the generic screen, so they know what to fix.
+        # Empty on any failure; the frontend falls back to its generic text.
+        message = None
+        if v == "clarify":
+            message = llm.generate_clarify_question(target, charge) or None
+        return CreateProtocolResp(status=v, category=verdict.get("category", "other"), message=message, protocol=None)
 
     # 2) Plan the 5-day arc. Meditation protocols carry no per-day actions:
     # each day's script is generated fresh from the growing history, so the
