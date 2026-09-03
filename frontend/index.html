@@ -554,57 +554,99 @@
   .deck-card.dragging { transition: none; }
   .deck-card::after {
     content: ""; position: absolute; inset: 0; z-index: 5;
-    border-radius: 26px;
+    border-radius: 30px;
     background: #EDE9E0;
     box-shadow: 0 14px 30px -18px rgba(28,26,22,0.18);
     opacity: 0; pointer-events: none;
     transition: opacity 420ms ease;
   }
   .deck-card.deck-behind::after { opacity: 1; }
-  .deck-card .hv-flip { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform 640ms cubic-bezier(0.34,1.1,0.4,1); }
-  .deck-card.flipped .hv-flip { transform: rotateY(180deg); }
-  .deck-card.current:not(.flipped) .hv-flip { animation: hvTease 1.5s cubic-bezier(0.34,1,0.4,1) 1.1s 1; }
-  .deck-card.flipped .hv-flip, .deck-card.dragging .hv-flip { animation: none; }
-  .deck-card .hv-back { pointer-events: none; }
-  .deck-card.flipped .hv-back { pointer-events: auto; }
-  .deck-card.flipped .hv-card { pointer-events: none; }
+  /* Felix's no-flip card (Sep 2026): one face, experiences inline. His
+     layout and metrics verbatim; ink, gradient background, radial glow and
+     photo treatment stay exactly as the app already had them. */
+  .deck-face {
+    position: absolute; inset: 0; border-radius: 30px; overflow: hidden;
+    display: flex; flex-direction: column; text-align: left;
+    padding: 28px 22px 23px; color: var(--cink, #33534E);
+    --c-muted: color-mix(in srgb, var(--cink) 55%, transparent);
+    --c-line: color-mix(in srgb, var(--cink) 13%, transparent);
+    background: linear-gradient(155deg, var(--g1) 0%, var(--g2) 46%, var(--g3) 100%);
+    box-shadow: 0 24px 48px -20px color-mix(in srgb, var(--g3) 55%, rgba(28,26,22,0.35)),
+                0 5px 14px rgba(28,26,22,0.06);
+  }
+  .deck-face::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background:
+      radial-gradient(90% 64% at 12% -8%, rgba(255,255,255,0.55), transparent 62%),
+      radial-gradient(70% 52% at 96% 104%, color-mix(in srgb, var(--g3) 55%, transparent), transparent 70%);
+  }
+  .deck-face > * { position: relative; z-index: 1; }
+  .deck-eyebrow { font-size: 11.5px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--c-muted); }
+  .deck-title {
+    font-family: var(--display);
+    font-weight: 600; font-size: 30px; line-height: 1.1; letter-spacing: -0.01em;
+    margin-top: 8px; color: var(--cink);
+  }
+  .deck-desc { margin-top: 18px; font-size: 17px; line-height: 1.42; font-weight: 400; color: var(--cink); opacity: 0.8; }
+  .deck-list { list-style: none; margin: auto 0; padding: 22px 0 26px; flex-shrink: 0; }
+  .deck-desc, .deck-startbtn { flex-shrink: 0; }
+  .deck-exp {
+    display: flex; align-items: center;
+    min-height: 64px; border-bottom: 1px solid var(--c-line);
+  }
+  .deck-exp:first-child { border-top: 1px solid var(--c-line); }
+  .deck-exp .deck-exp-n { width: 36px; padding-left: 6px; flex-shrink: 0; font-size: 17px; font-weight: 500; color: var(--c-muted); }
+  .deck-exp .deck-exp-t { flex: 1; min-width: 0; font-size: 19px; line-height: 1.2; letter-spacing: -0.005em; font-weight: 450; color: var(--cink); padding: 8px 12px 8px 0; }
+  .deck-exp.is-next { cursor: pointer; }
+  .deck-exp.is-next .deck-exp-t { font-weight: 600; }
+  .deck-exp.empty .deck-exp-n { opacity: 0.55; }
+  .deck-exp.empty .deck-exp-t { color: var(--c-muted); font-weight: 400; }
+  .deck-ctl {
+    flex-shrink: 0; width: 33px; height: 33px; border-radius: 50%;
+    border: 1.3px solid var(--c-muted);
+    display: grid; place-items: center; color: var(--cink);
+    transition: transform 0.18s ease;
+  }
+  .deck-ctl:active { transform: scale(0.92); }
+  .deck-ctl svg { width: 13px; height: 13px; fill: currentColor; margin-left: 2px; }
+  /* Start button with a quiet breathing ring, so the tap is obvious */
+  .deck-startbtn {
+    position: relative; width: 100%; height: 57px; border-radius: 999px;
+    background: var(--cink); color: #fff;
+    font-size: 17.5px; font-weight: 450; letter-spacing: -0.005em;
+    animation: deckBreathe 2800ms ease-in-out infinite;
+    transition: transform 0.18s ease, opacity 0.2s ease;
+  }
+  .deck-startbtn::after {
+    content: ""; position: absolute; inset: -1px; border-radius: 999px;
+    border: 1.5px solid var(--cink); opacity: 0;
+    animation: deckRingPulse 2800ms ease-out infinite;
+  }
+  .deck-startbtn:active { transform: scale(0.985); animation: none; }
+  .deck-startbtn[disabled] { opacity: 0.7; cursor: default; animation: none; }
+  .deck-startbtn[disabled]::after { animation: none; }
+  @keyframes deckRingPulse {
+    0% { opacity: 0.4; transform: scale(1); }
+    70%, 100% { opacity: 0; transform: scale(1.05, 1.32); }
+  }
+  @keyframes deckBreathe {
+    0%, 100% { box-shadow: 0 6px 18px transparent; }
+    50% { box-shadow: 0 8px 22px color-mix(in srgb, var(--cink) 28%, transparent); }
+  }
+  @media (max-height: 820px) { .deck-exp { min-height: 58px; } .deck-list { padding: 16px 0 18px; } }
 
-  .deck-front { justify-content: flex-start; text-align: left; }
-  .deck-head { position: relative; z-index: 1; flex-shrink: 0; }
-  .deck-title { margin-top: 8px; font-family: var(--display); font-size: 27px; line-height: 1.22; font-weight: 500; letter-spacing: -0.014em; }
-  .deck-mid { flex: 1; min-height: 0; display: grid; place-items: center; }
-  .deck-logo { width: 38%; max-height: 78%; filter: brightness(0) invert(1); opacity: 0.42; mix-blend-mode: soft-light; pointer-events: none; }
-  .hv-card.past .deck-logo { opacity: 0.22; }
-  .deck-sum {
-    position: relative; z-index: 1; flex-shrink: 0;
-    font-size: 15px; line-height: 1.58; font-weight: 450; opacity: 0.88;
-    display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+  .deck-face.deck-photo { color: #FBF7EF; --c-muted: rgba(251,247,239,0.62); --c-line: rgba(251,247,239,0.22); }
+  .deck-face.deck-photo .deck-title, .deck-face.deck-photo .deck-desc, .deck-face.deck-photo .deck-exp-t { color: #FBF7EF; }
+  .deck-face.deck-photo .deck-title { text-shadow: 0 1px 12px rgba(10,10,8,0.3); }
+  .deck-face.deck-photo .deck-desc { opacity: 0.94; text-shadow: 0 1px 10px rgba(10,10,8,0.25); }
+  .deck-face.deck-photo .deck-ctl { color: #FBF7EF; }
+  .deck-face.deck-photo .deck-startbtn { background: #FBF9F4; color: #1C1A16; }
+  .deck-face.deck-photo .deck-startbtn::after { border-color: #FBF9F4; }
+  .deck-face.deck-photo .deck-startbtn { animation: deckBreathePhoto 2800ms ease-in-out infinite; }
+  @keyframes deckBreathePhoto {
+    0%, 100% { box-shadow: 0 6px 18px transparent; }
+    50% { box-shadow: 0 8px 22px rgba(10,10,8,0.28); }
   }
-  .deck-seebtn {
-    flex-shrink: 0; align-self: flex-end; margin-top: 16px;
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 17px 21px; border-radius: 999px;
-    border: 1.6px solid var(--cink);
-    background: color-mix(in srgb, #ffffff 42%, transparent);
-    color: var(--cink); font-size: 15.5px; font-weight: 500; letter-spacing: -0.005em;
-  }
-
-  .deck-card .hv-fn { font-size: 12.5px; }
-  .deck-front.deck-photo { color: #FBF7EF; }
-  .deck-front.deck-photo .hv-fn, .deck-front.deck-photo .deck-sum { color: #FBF7EF; }
-  .deck-front.deck-photo .deck-sum { opacity: 0.94; text-shadow: 0 1px 10px rgba(10,10,8,0.25); }
-  .deck-front.deck-photo .deck-title { text-shadow: 0 1px 12px rgba(10,10,8,0.3); }
-  .deck-front.deck-photo .deck-seebtn {
-    border-color: #FBF7EF; color: #FBF7EF;
-    background: rgba(251,247,239,0.2);
-    -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
-  }
-  .deck-front.deck-photo .deck-logo { display: none; } /* the photo is the identity \u2014 no watermark on nature cards */
-  .deck-card.photo .hv-back {
-    --cink: #F5F1E9;
-    background: #0E0D0B; color: #F5F1E9;
-  }
-  .deck-card.photo .hv-startbtn { background: #FBF9F4; color: #1C1A16; }
 
   .toast {
     position: fixed; left: 50%; bottom: 36px; z-index: 90;
@@ -658,35 +700,6 @@
   .pa-continue:active { transform: scale(0.97); }
   .pa-fade { opacity: 0; transform: translateY(12px); transition: opacity 640ms ease, transform 640ms cubic-bezier(0.22,1,0.36,1); }
   .pa-fade.in { opacity: 1; transform: none; }
-
-  .deck-back { padding: 24px 22px 20px; }
-  .deck-back-title { margin-top: 4px; font-family: var(--display); font-size: 21px; line-height: 1.25; font-weight: 500; letter-spacing: -0.012em; }
-  .deck-sess {
-    flex: 1; min-height: 0; overflow-y: auto; margin-top: 12px;
-    display: flex; flex-direction: column; justify-content: center;
-    scrollbar-width: none;
-  }
-  .deck-sess::-webkit-scrollbar { display: none; }
-  .sess-row {
-    display: flex; align-items: center; gap: 12px;
-    width: 100%; padding: 15px 2px; text-align: left;
-    border-bottom: 1px solid color-mix(in srgb, var(--cink) 14%, transparent);
-    transition: opacity 160ms ease;
-  }
-  .sess-row:first-child { border-top: 1px solid color-mix(in srgb, var(--cink) 14%, transparent); }
-  .sess-row:active { opacity: 0.55; }
-  .sess-num {
-    flex-shrink: 0; width: 22px;
-    font-size: 13px; font-weight: 600; letter-spacing: 0.04em;
-    color: var(--cink); opacity: 0.5; font-variant-numeric: tabular-nums;
-  }
-  .sess-title { flex: 1; min-width: 0; font-size: 16px; line-height: 1.45; font-weight: 500; letter-spacing: -0.008em; }
-  .sess-play {
-    flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
-    display: grid; place-items: center;
-    border: 1.2px solid color-mix(in srgb, var(--cink) 32%, transparent);
-    color: var(--cink);
-  }
 
   /* ---------- PROTOCOLS ---------- */
   .page-title { margin-top: 26px; font-family: var(--display); font-size: 29px; font-weight: 400; letter-spacing: -0.01em; color: var(--ink); flex-shrink: 0; }
@@ -4266,7 +4279,6 @@
     if(deckCount < 1) return;
     const next = Math.max(0, Math.min(deckCount - 1, i)); /* the deck stops at both ends */
     if(next === deckIndex){ deckApply(); return; }
-    document.querySelectorAll(".deck-card.flipped").forEach(el => el.classList.remove("flipped"));
     deckIndex = next;
     if(protocols[deckIndex]) activeId = protocols[deckIndex].id;
     if(!silent) paperSound("proto");
@@ -4287,34 +4299,27 @@
   function deckCard(p, i){
     const pal = PROTO_PALETTES[i % PROTO_PALETTES.length];
     const done = isDone(p);
-    const logo = $("#brandSrc").src;
-    const rows = p.days.map((d, j) => d.jolted ? `
-        <button class="sess-row" data-replay="${j + 1}">
-          <span class="sess-num">${j + 1}</span>
-          <span class="sess-title">${escapeHtml(d.act || GENERIC_ACTS[j])}</span>
-          <span class="sess-play">${PLAY_SM}</span>
-        </button>` : "").join("");
+    const nextIdx = p.days.findIndex(d => !d.jolted);
+    const rows = p.days.map((d, j) => {
+      if(d.jolted) return `
+        <li class="deck-exp done"><span class="deck-exp-n">${j + 1}</span><span class="deck-exp-t">${escapeHtml(d.act || GENERIC_ACTS[j])}</span>
+          <button class="deck-ctl" data-replay="${j + 1}" aria-label="Replay experience ${j + 1}">${PLAY_SM}</button></li>`;
+      if(j === nextIdx) return `
+        <li class="deck-exp is-next" data-startnext="1"><span class="deck-exp-n">${j + 1}</span><span class="deck-exp-t">Ready</span></li>`;
+      return `
+        <li class="deck-exp empty"><span class="deck-exp-n">${j + 1}</span><span class="deck-exp-t">&hellip;</span></li>`;
+    }).join("");
     const pl = p.place ? PLACES.find(x => x.id === p.place) : null;
     const photoCls = pl ? " deck-photo" : "";
     const photoSty = pl ? ` style="background-image:linear-gradient(rgba(18,16,12,0.18),rgba(18,16,12,0.52)),url('${pl.cardImg}');background-size:cover;background-position:center"` : "";
     return `
       <div class="deck-card${pl ? " photo" : ""}" data-proto="${p.id}" style="--g1:${pal.g[0]};--g2:${pal.g[1]};--g3:${pal.g[2]};--cink:${pal.ink}">
-        <div class="hv-flip">
-          <button class="hv-face hv-card deck-front${photoCls}"${photoSty}>
-            <div class="deck-head">
-              <div class="hv-fn">Protocol ${protocols.length - i}</div>
-              <div class="deck-title">${escapeHtml(p.title)}</div>
-            </div>
-            <div class="deck-mid"><img class="deck-logo" src="${logo}" alt="" /></div>
-            <p class="deck-sum">${protoStory(p)}</p>
-            <span class="deck-seebtn">Experiences ${CHEV_XS}</span>
-          </button>
-          <div class="hv-face hv-back deck-back">
-            <div class="hv-back-n">Protocol ${protocols.length - i}</div>
-            <div class="deck-back-title">${escapeHtml(p.title)}</div>
-            <div class="deck-sess">${rows}</div>
-            ${done ? "" : `<button class="hv-startbtn" data-startnext="1">Start the next experience</button>`}
-          </div>
+        <div class="deck-face${photoCls}"${photoSty}>
+          <div class="deck-eyebrow">Protocol ${protocols.length - i}</div>
+          <h2 class="deck-title">${escapeHtml(p.title)}</h2>
+          <p class="deck-desc">${protoStory(p)}</p>
+          <ol class="deck-list">${rows}</ol>
+          <button class="deck-startbtn" data-startnext="1"${done ? " disabled" : ""}>${done ? "All experiences done" : "Start the next experience"}</button>
         </div>
       </div>`;
   }
@@ -4343,12 +4348,12 @@
   }
 
   /* drag / swipe across protocols (delegated once) */
-  let dragX = null, dragDx = 0, dragged = false, downTarget = null, dragEl = null;
+  let dragX = null, dragDx = 0, dragged = false, dragEl = null;
   $("#s-home").addEventListener("pointerdown", (ev) => {
     if(ev.target.closest(".home-foot") || ev.target.closest(".topbar")) return;
     const deck = $("#deck"); if(!deck) return;
     dragEl = deck.children[deckIndex] || null; if(!dragEl) return;
-    dragX = ev.clientX; dragDx = 0; dragged = false; downTarget = ev.target;
+    dragX = ev.clientX; dragDx = 0; dragged = false;
     dragEl.classList.add("dragging");
   });
   window.addEventListener("pointermove", (ev) => {
@@ -4364,17 +4369,8 @@
     const w = dragEl.clientWidth || 320;
     if(dragged && Math.abs(dragDx) > w * 0.22) goDeck(deckIndex + (dragDx > 0 ? 1 : -1));
     else deckApply();
-    const tapped = !dragged ? downTarget : null;
     dragX = null; dragDx = 0; dragEl = null;
     if(dragged){ suppressTap = true; return; }
-    if(tapped && !tapped.closest("[data-startnext]") && !tapped.closest("[data-replay]")){
-      const card = tapped.closest(".deck-card");
-      if(card && card.classList.contains("current")){
-        card.classList.toggle("flipped");
-        paperSound("card");
-        suppressTap = true;
-      }
-    }
   }
   window.addEventListener("pointerup", endDeckDrag);
   window.addEventListener("pointercancel", endDeckDrag);
@@ -4429,7 +4425,6 @@
 
   /* ---------- PROTOCOLS list (v2: cards + shelf) ---------- */
   const PLAY_SM = '<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a.6.6 0 0 0 .92.5l10-6.5a.6.6 0 0 0 0-1l-10-6.5A.6.6 0 0 0 8 5.5Z"/></svg>';
-  const CHEV_XS = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
 
   function protoRow(p){
     const done = isDone(p);
@@ -6505,7 +6500,7 @@
               if (created) startJolt(created, "s-home");
               else { renderHome(true); show("s-home"); }
             } else {
-              showSafety(r.status || "clarify", r.category);
+              showSafety(r.status || "clarify", r.category, r.message);
             }
           } catch (e) {
             const _buildEl = Date.now() - _buildStart;
@@ -6624,7 +6619,7 @@
 
 
         /* ===== safety surfaces (clarify / block / crisis) ===== */
-        function showSafety(kind, category) {
+        function showSafety(kind, category, message) {
           let title,
             body,
             cta,
@@ -6642,7 +6637,10 @@
             cta = "Go back";
           } else if (kind === "clarify") {
             title = "Tell us a little more.";
+            /* Clarify feedback (Felix, Sep 2026): the backend sends an actual
+               question about what they wrote, so they know what to fix. */
             body =
+              message ||
               "We couldn\u2019t quite tell what you\u2019re aiming for. Try saying it again in a sentence or two.";
             cta = "Try again";
           } else {
