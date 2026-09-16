@@ -32,6 +32,14 @@ class User(Base):
 
     stripe_customer_id = Column(String(200), nullable=True)
 
+    # EDGE (Sept 2026): link to the ChillsTV account this user arrived from.
+    # Accounts are created in ChillsTV (rewire.bio); Edge creates this row on
+    # first arrival via /go/{code}, the shared cv_session cookie, or
+    # email+password checked through services/chillstv_bridge.py.
+    # NEW column on an EXISTING table -- the ALTER TABLE migration in main.py
+    # adds it to live databases; create_all alone will not.
+    chillstv_user_id = Column(Integer, nullable=True, index=True)
+
     # ADMIN CONSOLE: last time this account made an authenticated request.
     # Written by the activity touch in routes/auth.py (throttled to once per
     # window per user). Powers the "Last seen" column in the People table.
@@ -190,6 +198,12 @@ class Protocol(Base):
     # NEW column on an EXISTING table -- the ALTER TABLE migration in main.py
     # adds it to live databases; create_all alone will not.
     place = Column(String(20), nullable=True)
+    # EDGE (Sept 2026): which part of life this protocol belongs to, one of
+    # cfg.TOPICS ("Family", "Work", ...). Picked on the work page or guessed
+    # client side from the text. Null on protocols made before Edge.
+    # NEW column on an EXISTING table -- the ALTER TABLE migration in main.py
+    # adds it to live databases; create_all alone will not.
+    category = Column(String(30), nullable=True)
     target = Column(Text, nullable=False)        # the goal they typed
     charge = Column(Text, nullable=True)         # why it matters (private fuel; never surfaced raw)
     title = Column(String(200), nullable=True)   # optional display title
