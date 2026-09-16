@@ -86,7 +86,7 @@ def _promote_admins():
 
 
 app = FastAPI(
-    title="ReWire",
+    title=cfg.APP_NAME,
     version="5.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
@@ -220,6 +220,39 @@ if Base is not None and engine is not None:
             pass  # column already exists
 
         # ------------------------------------------------------------------ #
+        # EDGE MIGRATIONS (Sept 2026)
+        # ------------------------------------------------------------------ #
+        # migrate: add chillstv_user_id to users
+        #
+        # NOT OPTIONAL, same severity as last_active_at below: the column is
+        # declared on the User model, so every select and insert against
+        # `users` includes it. Login and every authenticated request fail on
+        # a database missing it. INTEGER works on Postgres and SQLite.
+        try:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE users ADD COLUMN chillstv_user_id INTEGER"
+                ))
+                conn.commit()
+                print("[migrate] added chillstv_user_id column to users")
+        except Exception:
+            pass  # column already exists
+
+        # migrate: add category to protocols
+        #
+        # NOT OPTIONAL either: declared on the Protocol model, so protocol
+        # listing and creation fail on a database missing it.
+        try:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE protocols ADD COLUMN category VARCHAR(30)"
+                ))
+                conn.commit()
+                print("[migrate] added category column to protocols")
+        except Exception:
+            pass  # column already exists
+
+        # ------------------------------------------------------------------ #
         # ADMIN CONSOLE MIGRATION
         # ------------------------------------------------------------------ #
         # migrate: add last_active_at to users
@@ -255,7 +288,7 @@ if Base is not None and engine is not None:
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": "rewire"}
+    return {"status": "ok", "service": "edge"}
 
 
 from app.routes.auth import r as auth_r
@@ -313,7 +346,7 @@ except Exception as e:
 
 
 _SW_JS = """
-var CACHE_NAME = 'rewire-v5-v2';
+var CACHE_NAME = 'edge-v1';
 var APP_SHELL = ['/', '/assets/logo.png'];
 
 self.addEventListener('install', function(e) {
@@ -358,7 +391,7 @@ self.addEventListener('fetch', function(e) {
 });
 
 self.addEventListener('push', function(e) {
-  var data = {title: 'ReWire', body: 'Your jolt is ready'};
+  var data = {title: 'Edge', body: 'Your next experience is ready'};
   try { data = e.data.json(); } catch(err) {}
   e.waitUntil(self.registration.showNotification(data.title, {
     body: data.body,
@@ -421,9 +454,9 @@ def serve_sw():
 @app.get("/manifest.json")
 def serve_manifest():
     manifest = {
-        "name": "ReWire",
-        "short_name": "ReWire",
-        "description": "Behavioral activation powered by music and AI",
+        "name": cfg.APP_NAME,
+        "short_name": cfg.APP_NAME,
+        "description": "Listening experiences built around aesthetic chills",
         "start_url": "/",
         "scope": "/",
         "display": "standalone",
@@ -521,6 +554,26 @@ def push_unsubscribe(req: PushSubReq, db: Session = Depends(get_db), user=Depend
         db.delete(sub)
         db.commit()
     return {"status": "ok"}
+
+
+@app.get("/go/{code}")
+def go(code: str, db: Session = Depends(get_db)):
+    """The grant email link: app.rewire.bio/go/{code} signs the person in.
+
+    Resolves the code against ChillsTV, links or creates the Edge user, and
+    redirects to the app with a JWT in the URL fragment. The frontend reads
+    #edge_token=..., stores it, and cleans the URL. The fragment never
+    reaches any server log. Bad or revoked codes land on the app signed
+    out, which shows the normal sign in.
+    """
+    from fastapi.responses import RedirectResponse
+    from app.services import chillstv_bridge as bridge
+    from app.routes.auth import edge_user_for_chillstv, make_token
+    ctv = bridge.user_by_edge_code(code)
+    if not ctv or not bridge.has_edge_access(ctv):
+        return RedirectResponse("/", status_code=302)
+    user = edge_user_for_chillstv(db, ctv)
+    return RedirectResponse("/#edge_token=" + make_token(user.id, user.email), status_code=302)
 
 
 FRONTEND = Path(__file__).resolve().parent.parent / "frontend" / "index.html"
