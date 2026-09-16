@@ -985,20 +985,35 @@ async function refreshProtocols(){
   if (intro && INTRO && !INTRO.done) mine.unshift(intro);
 }
 /* a new protocol: create on the server, land it fresh, warm day 1, unfreeze when ready */
+let createBusy = false;
 async function createProtocol(topic, text, extra){
-  const body = { type: "integrate", target: text, category: topic || topicFrom(text) || "Meaning" };
-  if (extra && extra.format){ body.type = "expand"; body.place = extra.format; }
-  const resp = await api("/api/protocols", { method: "POST", body });
-  if (resp.status !== "created"){
-    toast(resp.message || (resp.status === "crisis" ? "Please reach out to someone you trust. Help lines are there for you." : "Try saying it another way."));
+  if (createBusy) return null;
+  createBusy = true;
+  try {
+    const body = { type: "integrate", target: text, category: topic || topicFrom(text) || "Meaning" };
+    if (extra && extra.format){ body.type = "expand"; body.place = extra.format; }
+    const resp = await api("/api/protocols", { method: "POST", body });
+    if (resp.status !== "created"){
+      if (resp.status === "clarify" && extra && extra.onClarify){
+        extra.onClarify(resp.message || "Say a little more about it.");
+        toast("One more line for this one");
+      } else {
+        toast(resp.message || (resp.status === "crisis" ? "Please reach out to someone you trust. Help lines are there for you." : "Try saying it another way."));
+      }
+      return null;
+    }
+    await refreshProtocols();
+    const it = mine.find(x => x.pid === resp.protocol.id);
+    if (it){ it.fresh = true; warmDay1(it); }
+    return it;
+  } catch(err){
+    toast(err.message || "Try again.");
     return null;
+  } finally {
+    createBusy = false;
   }
-  await refreshProtocols();
-  const it = mine.find(x => x.pid === resp.protocol.id);
-  if (it){ it.fresh = true; warmDay1(it); }
-  return it;
 }
-function warmDay1(it){
+function warmDay1(it, attempt){
   api("/api/protocol-jolt/" + it.pid + "/start", { method: "POST", body: { day: 1 } })
     .then(r => {
       if (r.status === "replay"){ it.fresh = false; renderHome(); return; }
@@ -1006,13 +1021,16 @@ function warmDay1(it){
         try {
           const s = await api("/api/protocol-jolt/" + r.jolt_id + "/status");
           if (s.stage === "done"){ it.fresh = false; renderHome(); return; }
-          if (s.stage === "error" || s.stage === "blocked"){ it.fresh = false; renderHome(); toast("That one could not be made. Try again."); return; }
+          if (s.stage === "error" || s.stage === "blocked"){ it.fresh = false; renderHome(); toast("That one could not be made. Tap it to try again."); return; }
         } catch(e){}
         setTimeout(poll, 4000);
       };
       setTimeout(poll, 4000);
     })
-    .catch(() => { it.fresh = false; renderHome(); });
+    .catch(() => {
+      // a failed warm up call is not readiness; try again, the card keeps waiting
+      if ((attempt || 0) < 20) setTimeout(() => warmDay1(it, (attempt || 0) + 1), 6000);
+    });
 }
 const settings = { sound:true, notifications:false };
 const SND = { select:new Audio("data:audio/mp4;base64,AAAAHGZ0eXBNNEEgAAACAE00QSBpc29taXNvMgAAAAhmcmVlAAAFYW1kYXTeAgBMYXZjNjAuMzEuMTAyAAIEcF8omhoejYOoe/271+/4viXqVwi7s0qpuYdZnN5lq1WTB/740yyTOO0Afkfi+Gcq83zoPoDW+UqIFIXytZk49tYUyC7umQmav9NTo49oIMyDlIEsE2F37M4ad0dQBJ2BLo+c/PZXHl3t6gB9DegzODsX3PdmruoLC7VlcHRPl3AORpUNvvmWZw6t9ioAk7AoUfV/dsrj5l/TWIe2uI8v9i0ODTGHb06I+ZoMOueBUALz6ZC9H79oMOG7ezjxwFCg4dWo6DRo36lRA+hvLfa8y+R6t9uoguFc02OJs5K0JcW0I/jHN/v9ldcXF0Zt+Oeu9iIqohVIw7gvmecNFWIL5NxLaXR7QLFMa08DTXBNVJdD0ecCfE0LDW3l+MGuBqs+fwDh3BXCfPVgRDwVUXsa24VYw+VtcFKHNVh7KidyzDuXZKG1kmnwZbYzizA1Yr5Q6RwbTSr6R4eyEsE58UUQ5pYE4boHu2VYbq3SB8tL7cNgooBwAOAyrxRGEQgCRH7fO7/X9fj388ZwlXa7Tnur3jdGQZBH2DbpyMOD9aJGF3zYofUvp2VX4CqZTfUZ8hkq+AJHJWQJNKRdDI2qJGIHITSUeWSgLlYWQSEUqIyHyoIkV5KJEJPN6OROwi1ePU10AkhpJqqCBaICJTESh/wysUklRIwO3yJVkWqu0v7BIiCST1kL50iVBFBPICQEkmLJHBpMiAxFCCKg+UEkNJNVUxKhCRQ0i1HZhIJiSD4+JmPOpCKT3aPFM7HJLVUxK1CRMn7zVnSX57m5rz72rzTHte49joPjvGYWvbVji3nObCkzrKpcjOxriSxVic13aazMzrKl9daknDMmzljOrXqOKRfBzZmR8JDpxavBwanFK8BPHGPeH4MWj4g9329AyBIO37v5s8PwkB/n0ZAAGw1kg0HzZw/BwAEYIAcA1lOvVDYaGEKPj33rP1y2qk8fHt4/XX7T1x3jaeFCgTwOAJ3rhPAWydaeTkQLHMQHVIY7SEJU8hUrkI8ghJkELdkhXqEIsIg5RDTY8hXZg8AnPtE8voCem1RPWasnqdKTz+YJ5DDk7tMnIdWa86KIQoxCRIIQWkDg16TGonGmE6NQnXsE69YnarE6EknBRzl0hkwJAZCBSkLdkhWokJkYg9FAA6bJyaJOpUJ0JRN4MEeQn3iEKOQmTyFKmQqUyFKeQmRyHJOEkNVhyLnk8FnSex4AT4Vw8n1XqBPo3NifIeEE9ViSUJJC7liGo2hDc7kgUf7ywcnkJpcThRSciUTlyydGeTmyicaETaixxTd/cICIQKQgMVMKinT+J5jxeHpow/SEACIDIQIQgMZAIP2mzGzN/G/ZdjVhSGcdg9U+8+A6pjFg8ni9r2va8XHqzxDBggEdvP4vF4uxx6sMAw0zzlUIiIQ1z7PHx8fHpnKoAAGq2ZyqJXd/l/9/7/3/vL5coQHdx7uAAAAAMO7gAAp7Q8Pbd3eMPDw9t3dxAAAAAAAMPGHh4eHgbf6cAQic2vQWgu8xRnA/Afh/739/jv9OeOZzXP9P/O/v0/t3d8z1YIAVKgycSPkw3L/aRNxefCNjCkKBrpRj4VjHm5nH5N+6ho7y9s+jOFdDzmty00j/XYDzkhNsq1XkRK9lRDkoiyJQELMy3yS7As4d3A9dhH3OYaSJRDkXIn6Ny4RgI+5EpUGzY5AMioZMqjJQlkoSSKUy03HpibT5NCQKj4giAi3dpM7AN9vaHed4JgYkTRxxfVftSmL4RQdn5wE+2IN4o7uvo63XQDp/e635T7q+9esFQLAupOQDgAEYgbRwAAADE21vb3YAAABsbXZoZAAAAAAAAAAAAAAAAAAAA+gAAABiAAEAAAEAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAI9dHJhawAAAFx0a2hkAAAAAwAAAAAAAAAAAAAAAQAAAAAAAABiAAAAAAAAAAAAAAABAQAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAJGVkdHMAAAAcZWxzdAAAAAAAAAABAAAAYgAABAAAAQAAAAABtW1kaWEAAAAgbWRoZAAAAAAAAAAAAAAAAAAAu4AAABZXVcQAAAAAAC1oZGxyAAAAAAAAAABzb3VuAAAAAAAAAAAAAAAAU291bmRIYW5kbGVyAAAAAWBtaW5mAAAAEHNtaGQAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAASRzdGJsAAAAanN0c2QAAAAAAAAAAQAAAFptcDRhAAAAAAAAAAEAAAAAAAAAAAABABAAAAAAu4AAAAAAADZlc2RzAAAAAAOAgIAlAAEABICAgBdAFQAAAAAB9AAAAWcQBYCAgAURiFblAAaAgIABAgAAACBzdHRzAAAAAAAAAAIAAAAFAAAEAAAAAAEAAAJXAAAAHHN0c2MAAAAAAAAAAQAAAAEAAAAGAAAAAQAAACxzdHN6AAAAAAAAAAAAAAAGAAABhwAAAUIAAAAEAAABqwAAANwAAAAFAAAAFHN0Y28AAAAAAAAAAQAAACwAAAAac2dwZAEAAAByb2xsAAAAAgAAAAH//wAAABxzYmdwAAAAAHJvbGwAAAABAAAABgAAAAEAAABidWR0YQAAAFptZXRhAAAAAAAAACFoZGxyAAAAAAAAAABtZGlyYXBwbAAAAAAAAAAAAAAAAC1pbHN0AAAAJal0b28AAAAdZGF0YQAAAAEAAAAATGF2ZjYwLjE2LjEwMA=="), cont:new Audio("data:audio/mp4;base64,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") };
@@ -1287,32 +1305,112 @@ function renderHome(){
   }));
   homeVeil.resize();
 }
+/* Felix's per theme primers. The server bakes the same primer into the
+   front of every day 1 file, so the client plays the primer live the
+   moment the user taps, generation runs underneath, and the handover
+   into the generated file at the offset is inaudible. Day 1 only;
+   days 2-5 are bare mixes. */
+const PRIMERS = {
+  regular: { url: "/assets/main_primer.mp3",   start: 183.0 },
+  forest:  { url: "/assets/forest_primer.mp3", start: 194.5 },
+  ocean:   { url: "/assets/ocean_primer.mp3",  start: 194.0 },
+  fire:    { url: "/assets/fire_primer.mp3",   start: 188.3 },
+};
+function themeOf(it){ return (it.format && PRIMERS[it.format]) ? it.format : "regular"; }
+
+function primerBegin(theme){
+  const p = PRIMERS[theme] || PRIMERS.regular;
+  const a = new Audio(p.url);
+  a.preload = "auto";
+  a.volume = 0;
+  pl.audio = a; pl.primer = true; pl.offset = p.start; pl.mixReady = false; pl.mixUrl = null;
+  a.addEventListener("timeupdate", () => { pl.t = a.currentTime; draw(); maybeSwap(); });
+  a.addEventListener("ended", () => { maybeSwap(true); });
+  a.addEventListener("error", () => { pl.primer = false; pl.audio = null; pl.playing = false; draw(); });
+  pl.playing = true;
+  a.play().catch(() => { pl.playing = false; draw(); });
+  let v = 0;
+  const fad = setInterval(() => { v += 0.08; if (v >= 1){ v = 1; clearInterval(fad); } try { a.volume = v; } catch(e){} }, 120);
+  homeVeil.setIntensity(1);
+  draw();
+}
+
+/* the mix landing is never a sound event: playing continues through the
+   swap, paused stays paused, closed stays closed */
+function mixArrived(url){
+  if (pl.mixReady && pl.mixUrl === url) return;
+  pl.mixUrl = url; pl.mixReady = true;
+  if (!pl.primer){
+    const wasPlaying = false;
+    plAttach(url);
+    draw();
+    return;
+  }
+  maybeSwap();
+}
+
+function maybeSwap(force){
+  if (!pl.primer || !pl.mixReady) return;
+  const primerA = pl.audio;
+  const t = primerA ? primerA.currentTime : pl.t;
+  const ended = force || !primerA || primerA.ended;
+  if (!ended && t < pl.offset) return;
+  const wasPlaying = pl.playing;
+  pl.primer = false;
+  plAttach(pl.mixUrl);
+  const a = pl.audio;
+  const go = () => {
+    try { a.currentTime = t; } catch(e){}
+    if (wasPlaying) a.play().catch(() => { pl.playing = false; draw(); });
+  };
+  if (a.readyState >= 1) go(); else a.addEventListener("loadedmetadata", go, { once:true });
+  if (primerA){ try { primerA.pause(); } catch(e){} }
+}
+
+let startBusy = false;
 function startNext(it){
-  if (!it || it.fresh) return;
+  if (!it || it.fresh || startBusy) return;
   if (it.intro){
     startPlayer(it, { title:it.title, date:today(), ts:nowTs(), len:INTRO_LEN, fresh:true }, false);
     return;
   }
   const day = it.nextDay;
   if (!day){ toast("This protocol is complete."); return; }
+  startBusy = true;
   const sess = { title:"", date:today(), ts:nowTs(), len:"10:00", fresh:true };
+  const primed = day === 1;
+  if (primed){
+    // the tap is the sound: primer starts now, inside the gesture
+    startPlayer(it, sess, false, true);
+    primerBegin(themeOf(it));
+  }
   api("/api/protocol-jolt/" + it.pid + "/start", { method: "POST", body: { day } })
     .then(r => {
+      startBusy = false;
       sess.joltId = r.jolt_id;
-      if (r.status === "replay" && r.audio_url){ sess.audio_url = r.audio_url; startPlayer(it, sess, false, false); return; }
-      startPlayer(it, sess, false, true);
+      if (r.status === "replay" && r.audio_url){
+        sess.audio_url = r.audio_url;
+        if (primed){ mixArrived(r.audio_url); return; }
+        startPlayer(it, sess, false, false);
+        return;
+      }
+      if (!primed) startPlayer(it, sess, false, true);
       const poll = async () => {
         if (pl.sess !== sess) return;
         try {
           const s = await api("/api/protocol-jolt/" + r.jolt_id + "/status");
-          if (s.stage === "done" && s.audio_url){ sess.audio_url = s.audio_url; plAttach(s.audio_url); togglePlay(); return; }
+          if (s.stage === "done" && s.audio_url){ sess.audio_url = s.audio_url; mixArrived(s.audio_url); return; }
           if (s.stage === "error" || s.stage === "blocked"){ toast("That one could not be made. Try again."); closePlayer(); return; }
         } catch(e){}
         setTimeout(poll, 3500);
       };
       setTimeout(poll, 3500);
     })
-    .catch(err => { toast(err.message || "Not yet."); });
+    .catch(err => {
+      startBusy = false;
+      if (primed) closePlayer();
+      toast(err.message || "Not yet.");
+    });
 }
 /* the mark is the way home from anywhere */
 function goHome(){ closeSearch(); flip(false, true); navStack = []; renderHome(); nav("home", true); homeVeil.pulse(.5); }
@@ -1353,7 +1451,7 @@ function fmt(sec){ const m = Math.floor(sec / 60), s = Math.floor(sec % 60); ret
 const topicOf = t => { const c = t.replace(/\s+/g, " ").split(/[.,;:!?\n]/)[0].trim().split(" ").slice(0, 5).join(" "); return c.charAt(0).toUpperCase() + c.slice(1); };
 /* the one question something from the library asks, when you add it: what you write names the protocol */
 function askTopic(tag, question, then){
-  $("#preBody").innerHTML = `<div class="ob-step ct-one"><div class="ob-tag">${esc(tag)}</div><h1 class="ob-q">${esc(question)}</h1><div class="ob-area"><textarea id="preText" rows="4" enterkeyhint="done"></textarea></div><p class="need" id="preNeed"></p></div>`;
+  $("#preBody").innerHTML = `<div class="ob-step ct-one"><div class="ob-tag">${esc(tag)}</div><h1 class="ob-q" id="preQ">${esc(question)}</h1><div class="ob-area"><textarea id="preText" rows="4" enterkeyhint="done"></textarea></div><p class="need" id="preNeed"></p></div>`;
   $("#preFoot").innerHTML = `<button class="ob-cta" id="preGo">Add to your protocols</button>`;
   const ta = $("#preText"); watchMore(ta, $("#preNeed"), MIN_WORDS);
   $("#preGo").addEventListener("click", () => { if (needMore(ta, $("#preNeed"), MIN_WORDS)) return; const text = ta.value.trim(); ta.blur(); preVeil.pulse(.9); setTimeout(() => then(text), 260); });
@@ -1516,8 +1614,23 @@ function afterIntro(text){
     currentId = null;
     closePlayer();
     if (!text){ setTimeout(() => { renderStore(); nav("store"); navStack = []; }, 320); return; }
-    const it = await createProtocol(null, text);
-    setTimeout(() => { if (it) land(it); else { renderHome(); } }, 320);
+    const make = async t => {
+      const it = await createProtocol(null, t, { onClarify: q => {
+        asking = true;
+        box.innerHTML = `<h2>${esc(q)}</h2><div class="ob-area"><textarea id="aiMore" rows="3"></textarea></div>
+          <div class="row-btn"><button class="go" id="aiGo">Continue</button></div>`;
+        box.classList.add("show");
+        setTimeout(() => $("#aiMore").focus(), 350);
+        $("#aiGo").addEventListener("click", () => {
+          const more = $("#aiMore").value.trim();
+          if (!more){ toast("A line first"); return; }
+          asking = false; box.classList.remove("show");
+          setTimeout(() => make(t + " " + more), 320);
+        });
+      } });
+      setTimeout(() => { if (it) land(it); else if (!asking) renderHome(); }, 320);
+    };
+    await make(text);
   };
   if (!text){ leave(); return; }
   box.classList.remove("show");
@@ -1624,7 +1737,12 @@ function afterPlace(){
   $("#wk2").hidden = true; $("#wkFoot").hidden = true; $("#wk1").hidden = false;
   $("#wkGrid").innerHTML = order.map(t => `<button class="wk-tile" data-t="${esc(t)}"><span class="wimg ${t === guess ? "guess" : ""}"><span class="ill"><img src="${ILL[t]}" alt="" draggable="false"></span><span class="name">${esc(t)}</span></span></button>`).join("")
     + `<button class="wk-tile" id="wkOwn"><span class="wimg own"><span class="plus"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span><span class="name">Something else</span></span></button>`;
-  const done = topic => { createProtocol(topic || null, wkLine).then(it => { if (it) land(it); }); };
+  const done = topic => { createProtocol(topic || null, wkLine, { onClarify: q => {
+    afterAsk();
+    $("#wkQ").textContent = q;
+    $("#wkQs").textContent = "Add a line, then continue.";
+    $("#wkText").value = wkLine;
+  } }).then(it => { if (it) land(it); }); };
   $("#wkGrid").querySelectorAll("[data-t]").forEach(b => b.addEventListener("click", () => done(b.dataset.t)));
   $("#wkOwn").addEventListener("click", () => done(""));
   $("#wk1").scrollTop = 0;
@@ -1658,7 +1776,10 @@ $("#wkGo").addEventListener("click", () => {
   if (needMore($("#wkText"), $("#wkNeed"), MIN_WORDS)) return;
   const text = $("#wkText").value.trim();
   $("#wkText").blur();
-  createProtocol(wkPick || null, text).then(it => { if (it) land(it); });
+  createProtocol(wkPick || null, text, { onClarify: q => {
+    $("#wkQ").textContent = q;
+    $("#wkQs").textContent = "Add a line answering this to what you wrote, then create again.";
+  } }).then(it => { if (it) land(it); });
 });
 
 /* ===== discover: the library, and settings ===== */
@@ -1775,7 +1896,9 @@ function openXp(id){
 $("#xpClose").addEventListener("click", goBack);
 $("#xpGo").addEventListener("click", () => {
   const { it } = cur;
-  askTopic(it.title, it.q, text => { createProtocol(null, text, { format:it.id }).then(np => { if (np) land(np); }); });
+  askTopic(it.title, it.q, text => { createProtocol(null, text, { format:it.id, onClarify: q => {
+    $("#preQ").textContent = q;
+  } }).then(np => { if (np) land(np); }); });
 });
 
 /* ===== signing in: an email, a code, and you are where you left off ===== */
