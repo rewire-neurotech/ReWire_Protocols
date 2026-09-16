@@ -77,7 +77,8 @@ def _query(sql: str, params=()):
                 rows = cur.fetchall()
                 cur.close()
                 return [dict(r) for r in rows]
-    except Exception:
+    except Exception as e:
+        print(f"[chillstv bridge] query failed: {type(e).__name__}: {e}")
         return []
 
 
