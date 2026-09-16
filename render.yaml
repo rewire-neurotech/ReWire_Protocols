@@ -1,5 +1,9 @@
 services:
   - type: web
+    # The service keeps its Render name. Renaming here would make Render
+    # create a brand new service and detach the disk and every dashboard
+    # env var. To show "edge" in the dashboard, rename it in the service
+    # settings instead, which keeps everything attached.
     name: rewire
     runtime: python
     buildCommand: pip install -r requirements.txt
@@ -39,6 +43,15 @@ services:
         sync: false
       - key: OUT_DIR
         value: /data/audio
+      # EDGE (Sept 2026): read connection to ChillsTV's Postgres, set in the
+      # dashboard to the chillstv database's connection string. Unset, the
+      # app boots fine but nobody can sign in through ChillsTV accounts.
+      - key: CHILLSTV_DB_URL
+        sync: false
+      # Payments are off for the Edge beta. Flip to "true" to bring the
+      # paywall and Stripe checkout back, no code change needed.
+      - key: PAYWALL_ENABLED
+        value: "false"
       - key: PUBLIC_BASE_URL
         sync: false
       - key: DB_URL
