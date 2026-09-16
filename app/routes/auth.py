@@ -3,7 +3,7 @@ import time
 from datetime import datetime, timedelta, timezone, date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Cookie, Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -11,6 +11,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 
 from app.core.config import cfg
+from app.services import chillstv_bridge as bridge
 from app.db import get_db
 from app.models import (
     User, Subscription, Goal, Challenge, Tip, Jolt, Reflection,
@@ -198,6 +199,44 @@ def _has_active_sub(uid, db):
     return True
 
 
+def edge_user_for_chillstv(db: Session, ctv: dict) -> User:
+    """The Edge users row for a ChillsTV account, created on first arrival.
+
+    Accounts are made in ChillsTV; Edge only mirrors the identity. Match by
+    chillstv_user_id first, then link an existing Edge account by email,
+    else create. Every /go/ visit, cookie sign in, and password sign in
+    lands here.
+    """
+    cid = ctv["id"]
+    email = (ctv.get("email") or "").strip().lower()
+    u = db.query(User).filter(User.chillstv_user_id == cid).first()
+    if u:
+        return u
+    if email:
+        u = db.query(User).filter(User.email == email).first()
+        if u:
+            u.chillstv_user_id = cid
+            db.commit()
+            print(f"[chillstv] linked existing Edge account {email} to chillstv user {cid}")
+            return u
+    name = (ctv.get("display_name") or "").strip()
+    u = User(
+        email=email or f"chillstv-{cid}@no-email.rewire.bio",
+        first_name=name or None,
+        auth_provider="chillstv",
+        chillstv_user_id=cid,
+    )
+    db.add(u)
+    db.commit()
+    db.refresh(u)
+    print(f"[chillstv] created Edge account for chillstv user {cid}")
+    return u
+
+
+def _first_time(uid, db) -> bool:
+    return db.query(Protocol.id).filter(Protocol.user_id == uid).first() is None
+
+
 class RegisterReq(BaseModel):
     email: str
     password: str
@@ -232,6 +271,7 @@ class AuthResp(BaseModel):
     disclaimer_accepted: bool = False
     has_subscription: bool = False
     is_admin: bool = False          # admin console gate; always false for app users
+    first_time: bool = True         # no protocols yet: frontend runs the story + Introduction
 
 class UserResp(BaseModel):
     user_id: int
@@ -243,6 +283,7 @@ class UserResp(BaseModel):
     disclaimer_accepted: bool = False
     has_subscription: bool = False
     is_admin: bool = False          # admin console gate; always false for app users
+    first_time: bool = True         # no protocols yet: frontend runs the story + Introduction
 
 class StatusResp(BaseModel):
     status: str
@@ -260,6 +301,7 @@ def _auth_resp(u, token, db):
         disclaimer_accepted=u.disclaimer_accepted_at is not None,
         has_subscription=_has_active_sub(u.id, db),
         is_admin=bool(u.is_admin),
+        first_time=_first_time(u.id, db),
     )
 
 
@@ -309,10 +351,32 @@ def register(req: RegisterReq, db: Session = Depends(get_db)):
 def login(req: LoginReq, db: Session = Depends(get_db)):
     email = (req.email or "").strip().lower()
     u = db.query(User).filter(User.email == email).first()
-    if not u or not u.password_hash:
-        raise HTTPException(401, "invalid email or password")
-    if not check_pw(req.password, u.password_hash):
-        raise HTTPException(401, "invalid email or password")
+    if u and u.password_hash and check_pw(req.password, u.password_hash):
+        return _auth_resp(u, make_token(u.id, u.email), db)
+    # Edge accounts live in ChillsTV: same email and password as rewire.bio.
+    ctv = bridge.verify_login(email, req.password)
+    if ctv:
+        if not bridge.has_edge_access(ctv):
+            raise HTTPException(403, "this account has no Edge access yet, request it on rewire.bio")
+        u = edge_user_for_chillstv(db, ctv)
+        return _auth_resp(u, make_token(u.id, u.email), db)
+    raise HTTPException(401, "invalid email or password")
+
+
+@r.post("/session", response_model=AuthResp)
+def chillstv_session(cv_session: str = Cookie(default=""), db: Session = Depends(get_db)):
+    """Sign in from the cv_session cookie ChillsTV sets on .rewire.bio.
+
+    Someone already signed in on rewire.bio opens app.rewire.bio and is
+    recognized without typing anything. The frontend calls this on boot
+    when it holds no token. 401 just means show the sign in screen.
+    """
+    ctv = bridge.user_by_session(cv_session)
+    if not ctv:
+        raise HTTPException(401, "no chillstv session")
+    if not bridge.has_edge_access(ctv):
+        raise HTTPException(403, "this account has no Edge access yet, request it on rewire.bio")
+    u = edge_user_for_chillstv(db, ctv)
     return _auth_resp(u, make_token(u.id, u.email), db)
 
 
@@ -471,6 +535,7 @@ def get_me(u: User = Depends(get_current_user_required), db: Session = Depends(g
         disclaimer_accepted=u.disclaimer_accepted_at is not None,
         has_subscription=_has_active_sub(u.id, db),
         is_admin=bool(u.is_admin),
+        first_time=_first_time(u.id, db),
     )
 
 
