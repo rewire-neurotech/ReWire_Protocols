@@ -137,10 +137,20 @@ def has_edge_access(user: dict) -> bool:
     return bool(user) and (user.get("beta_status") or "none") == "granted"
 
 
-def research_context(chillstv_user_id: int) -> dict:
-    """Questionnaire answers + chills profile for generation context.
+def _json(s, fallback):
+    try:
+        v = json.loads(s or "")
+        return v if v else fallback
+    except (ValueError, TypeError):
+        return fallback
 
-    Returns {} when unavailable so callers can just merge it in.
+
+def research_context(chillstv_user_id: int) -> dict:
+    """The curated slice fed into speech generation prompts.
+
+    Questionnaire answers, chills profile, and what they wrote after
+    watching stimuli. Returns {} when unavailable so callers can just
+    merge it in.
     """
     if not chillstv_user_id:
         return {}
@@ -152,22 +162,53 @@ def research_context(chillstv_user_id: int) -> dict:
     if not u:
         return {}
     out = {}
-    try:
-        answers = json.loads(u.get("answers_json") or "{}")
-        if answers:
-            out["answers"] = answers
-    except (ValueError, TypeError):
-        pass
-    try:
-        top5 = json.loads(u.get("top5_json") or "[]")
-        if top5:
-            out["top5"] = top5
-    except (ValueError, TypeError):
-        pass
+    answers = _json(u.get("answers_json"), {})
+    if answers:
+        out["answers"] = answers
+    top5 = _json(u.get("top5_json"), [])
+    if top5:
+        out["top5"] = top5
     if u.get("score"):
         out["chills_score"] = u["score"]
     if u.get("percentile"):
         out["chills_percentile"] = u["percentile"]
     if u.get("display_name"):
         out["name"] = u["display_name"]
+    reports = _query(
+        "SELECT stimulus_id, chills, what_text, why_text FROM after_answers "
+        "WHERE user_id = ? ORDER BY created_at DESC LIMIT 10",
+        (chillstv_user_id,),
+    )
+    if reports:
+        out["chills_reports"] = reports
     return out
+
+
+def full_record(chillstv_user_id: int) -> dict:
+    """Every piece of ChillsTV data linked to this user, read live.
+
+    For research and export. Nothing is copied into Edge's DB; this is
+    the complete picture on demand. {} when unavailable.
+    """
+    if not chillstv_user_id:
+        return {}
+    u = _one("SELECT * FROM users WHERE id = ?", (chillstv_user_id,))
+    if not u:
+        return {}
+    u.pop("password_hash", None)
+    u["answers_json"] = _json(u.get("answers_json"), {})
+    u["top5_json"] = _json(u.get("top5_json"), [])
+    u["vector_json"] = _json(u.get("vector_json"), [])
+    uid = (chillstv_user_id,)
+    return {
+        "user": u,
+        "after_answers": _query("SELECT * FROM after_answers WHERE user_id = ? ORDER BY created_at", uid),
+        "video_watches": _query("SELECT * FROM video_watches WHERE user_id = ? ORDER BY watched_at", uid),
+        "sends": _query("SELECT * FROM sends WHERE sender_user_id = ? ORDER BY created_at", uid),
+        "send_responses": _query("SELECT * FROM send_responses WHERE respondent_user_id = ? ORDER BY created_at", uid),
+        "duo_pairs": _query("SELECT * FROM duo_pairs WHERE user_id = ? OR partner_user_id = ? ORDER BY created_at", uid + uid),
+        "video_comments": _query("SELECT * FROM video_comments WHERE user_id = ? ORDER BY created_at", uid),
+        "contributions": _query("SELECT * FROM contributions WHERE submitted_by = ? ORDER BY created_at", uid),
+        "events": _query("SELECT * FROM events WHERE user_id = ? ORDER BY created_at", uid),
+        "tags": _query("SELECT tag, created_at FROM user_tags WHERE user_id = ? ORDER BY created_at", uid),
+    }
