@@ -29,12 +29,20 @@ class DayOut(BaseModel):
     jolt_id: Optional[int] = None
     audio_url: Optional[str] = None   # for replay, when a finished jolt exists
     done_at: Optional[str] = None     # when this day's action was marked done (ISO, UTC)
+    # Edge card fields, from the day's reflection (meditation protocols).
+    # The session title itself is `action`, written at reflect time.
+    chills: Optional[str] = None      # "yes" | "no"
+    rating: Optional[int] = None      # 1-5 stars
+    note: Optional[str] = None        # what came up
+    session_at: Optional[str] = None  # when the session was reflected (ISO, UTC)
 
 
 class ProtocolOut(BaseModel):
     id: int
     type: str
     place: Optional[str] = None       # forest | ocean | fire (expand meditations)
+    category: Optional[str] = None    # one of cfg.TOPICS, the work page pick
+    protocol_number: int = 0          # creation order among the user's own protocols, the card kicker
     target: str
     title: Optional[str] = None
     # LLM home-card summary, generated at create time. Third person, never
@@ -60,6 +68,7 @@ class CreateProtocolReq(BaseModel):
     target: str
     charge: str = ""
     title: Optional[str] = None
+    category: Optional[str] = None    # one of cfg.TOPICS; unknown values are dropped
 
 
 class CreateProtocolResp(BaseModel):
@@ -178,6 +187,13 @@ def _audio_url_for(filename: str) -> str:
     return f"{base}/api/protocol-jolt/audio/{filename}"
 
 
+def _category(raw) -> Optional[str]:
+    t = (raw or "").strip().lower()
+    if not t:
+        return None
+    return next((c for c in cfg.TOPICS if c.lower() == t), None)
+
+
 def _own(pid, u, db) -> Protocol:
     p = db.query(Protocol).filter(Protocol.id == pid, Protocol.user_id == u.id).first()
     if not p:
@@ -210,12 +226,16 @@ def _protocol_out(p, db, uid) -> ProtocolOut:
     # protocols keep the original jolt-row meaning.
     is_meditation = (p.type or "") in ("integrate", "expand")
     reflected_days = set()
+    refl_by_day = {}
     if is_meditation:
-        refl_rows = (db.query(JournalEntry.day)
+        refl_rows = (db.query(JournalEntry)
                      .filter(JournalEntry.protocol_id == p.id,
                              JournalEntry.day.isnot(None))
+                     .order_by(JournalEntry.id)
                      .all())
-        reflected_days = {row.day for row in refl_rows}
+        for row in refl_rows:
+            refl_by_day[row.day] = row   # latest wins
+        reflected_days = set(refl_by_day)
 
     day_outs = []
     current_day = None
@@ -227,6 +247,7 @@ def _protocol_out(p, db, uid) -> ProtocolOut:
             jolted = jj is not None
         if not jolted and current_day is None:
             current_day = d.day
+        refl = refl_by_day.get(d.day) if jolted else None
         day_outs.append(DayOut(
             day=d.day,
             stage=d.stage,
@@ -236,12 +257,22 @@ def _protocol_out(p, db, uid) -> ProtocolOut:
             jolt_id=(jj.id if jolted and jj else None),
             audio_url=(_audio_url_for(jj.audio_filename) if jolted and jj and jj.audio_filename else None),
             done_at=(_ts(d.done_at) or None),
+            chills=(refl.chills or None) if refl else None,
+            rating=(refl.rating or None) if refl else None,
+            note=((decrypt_field(refl.answer) or "") if refl and refl.answer else None),
+            session_at=(_ts(refl.created_at) or None) if refl else None,
         ))
+
+    number = (db.query(Protocol.id)
+              .filter(Protocol.user_id == uid, Protocol.id <= p.id)
+              .count())
 
     return ProtocolOut(
         id=p.id,
         type=p.type or "activate",
         place=(p.place or None),
+        category=(p.category or None),
+        protocol_number=number,
         target=p.target or "",
         title=p.title,
         summary=(p.summary or None),
@@ -336,6 +367,7 @@ def export_data(u: User = Depends(get_current_user_required), db: Session = Depe
         days = db.query(ProtocolDay).filter(ProtocolDay.protocol_id == p.id).order_by(ProtocolDay.day).all()
         out.append({
             "type": p.type or "activate",
+            "category": p.category or "",
             "target": p.target or "",
             "title": p.title or "",
             "summary": p.summary or "",
@@ -452,6 +484,7 @@ def create_protocol(req: CreateProtocolReq, u: User = Depends(get_current_user_r
         user_id=u.id,
         type=ptype,
         place=place,
+        category=_category(req.category),
         target=target[:2000],
         charge=encrypt_field(charge) if charge else None,
         title=title,
