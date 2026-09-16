@@ -32,7 +32,8 @@ from datetime import datetime, timezone
 
 from app.core.config import cfg
 from app.db import SessionLocal
-from app.models import Protocol, ProtocolDay, ProtocolJolt, JournalEntry, JournalJolt, PushSubscription
+from app.models import Protocol, ProtocolDay, ProtocolJolt, JournalEntry, JournalJolt, PushSubscription, User
+from app.services import chillstv_bridge as bridge
 from app.services import llm
 from app.services.tts import synth, synth_meditation
 from app.services.mix import mix as mix_audio
@@ -326,6 +327,18 @@ def _load_job(jolt_id):
                           .all())}
             missing_reflections = [n for n in range(1, j.day) if n not in refl_days]
 
+        # ChillsTV listener context (Edge, Sept 2026): what rewire.bio knows
+        # about this listener, read live over the bridge and handed to day 1
+        # generation through the existing CONTEXT MATERIAL slot. Empty for
+        # unlinked users or with the bridge off, and then generation runs
+        # byte-identical to before.
+        listener_context = ""
+        if (p.type or "") in ("integrate", "expand") and j.day == 1:
+            urow = db.query(User).filter(User.id == j.user_id).first()
+            if urow and urow.chillstv_user_id:
+                listener_context = _listener_block(
+                    bridge.research_context(urow.chillstv_user_id))
+
         return {
             "user_id": j.user_id,
             "protocol_id": p.id,
@@ -339,9 +352,38 @@ def _load_job(jolt_id):
             "yesterday_reflection": yref,
             "history": history,
             "missing_reflections": missing_reflections,
+            "listener_context": listener_context,
         }
     finally:
         db.close()
+
+
+def _listener_block(rc: dict) -> str:
+    """Plain text block of what ChillsTV knows about the listener.
+
+    Fed into the day 1 prompt's existing CONTEXT MATERIAL slot, so the
+    prompt already tells the model to draw from it without quoting or
+    naming. Empty dict in, empty string out. Capped small.
+    """
+    if not rc:
+        return ""
+    lines = ["ABOUT THE LISTENER (from their chills questionnaire on rewire.bio):"]
+    if rc.get("name"):
+        lines.append(f"Name: {rc['name']}")
+    if rc.get("chills_score"):
+        pct = rc.get("chills_percentile")
+        lines.append(f"Chills sensitivity score: {rc['chills_score']}" +
+                     (f" (percentile {pct})" if pct else ""))
+    for rep in (rc.get("chills_reports") or [])[:5]:
+        what = (rep.get("what_text") or "").strip()
+        why = (rep.get("why_text") or "").strip()
+        if what or why:
+            lines.append("Gave them chills before: " + " - ".join(x for x in (what, why) if x))
+    answers = rc.get("answers") or {}
+    for k, v in list(answers.items())[:20]:
+        if v is not None and str(v).strip():
+            lines.append(f"{k}: {v}")
+    return "\n".join(lines)[:2000]
 
 
 def _run_protocol_gen(jolt_id):
@@ -626,7 +668,8 @@ def _run_meditation_gen(jolt_id, ctx):
                 track_name=track_name, voice_id=track["voice_id"])
 
         if day == 1:
-            speech = llm.generate_meditation_day1(theme, ctx["target"], ctx["charge"])
+            speech = llm.generate_meditation_day1(theme, ctx["target"], ctx["charge"],
+                                                  listener_context=ctx.get("listener_context") or "")
         else:
             speech = llm.generate_meditation_later(
                 ctx["target"], ctx["charge"], ctx.get("history") or []
