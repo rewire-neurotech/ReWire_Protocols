@@ -970,7 +970,7 @@ async function loadAll(){
   const ps = await api("/api/protocols");
   mine.length = 0;
   ps.protocols.forEach(p => mine.push(itemOf(p)));
-  mine.sort((a, b) => (lastTs(b) || b.made/1e7) - (lastTs(a) || a.made/1e7));
+  mine.sort((a, b) => (a.made - b.made) || (a.pid - b.pid));
   if (INTRO && !INTRO.done){ mine.unshift(introItem()); currentId = "intro"; }
   else currentId = mine.length ? mine[0].id : null;
 }
@@ -981,7 +981,7 @@ async function refreshProtocols(){
   const intro = mine.find(x => x.intro);
   mine.length = 0;
   ps.protocols.forEach(p => { const it = itemOf(p); if (keep[p.id]) it.fresh = true; mine.push(it); });
-  mine.sort((a, b) => (lastTs(b) || b.made/1e7) - (lastTs(a) || a.made/1e7));
+  mine.sort((a, b) => (a.made - b.made) || (a.pid - b.pid));
   if (intro && INTRO && !INTRO.done) mine.unshift(intro);
 }
 /* a new protocol: create on the server, land it fresh, warm day 1, unfreeze when ready */
@@ -1239,7 +1239,7 @@ const formatOf = it => it.format ? STORE.find(x => x.id === it.format) : null;
 function kickerOf(it){
   if (it.intro) return "Your first experience";
   if (it.shared) return "From " + it.by;
-  const n = mine.filter(x => !x.shared).sort((a, b) => a.made - b.made).indexOf(it) + 1;
+  const n = it.num || (mine.filter(x => !x.shared && !x.intro).sort((a, b) => a.made - b.made).indexOf(it) + 1);
   const f = formatOf(it);
   return "Protocol " + n + (f ? " · " + f.title : "");
 }
@@ -1341,7 +1341,7 @@ function mixArrived(url){
   if (pl.mixReady && pl.mixUrl === url) return;
   pl.mixUrl = url; pl.mixReady = true;
   if (!pl.primer){
-    const wasPlaying = false;
+    pl.pendingPrimer = null;   // full file has the primer baked in already
     plAttach(url);
     draw();
     return;
@@ -1380,9 +1380,10 @@ function startNext(it){
   const sess = { title:"", date:today(), ts:nowTs(), len:"10:00", fresh:true };
   const primed = day === 1;
   if (primed){
-    // the tap is the sound: primer starts now, inside the gesture
+    // the player opens quiet; the play press starts the primer instantly
+    // (a static asset), and generation finishes underneath it
     startPlayer(it, sess, false, true);
-    primerBegin(themeOf(it));
+    pl.pendingPrimer = themeOf(it);
   }
   api("/api/protocol-jolt/" + it.pid + "/start", { method: "POST", body: { day } })
     .then(r => {
@@ -1488,8 +1489,8 @@ function startPlayer(item, sess, replay, paused){
   card.style.transition = "transform .6s var(--ease)";
   card.style.transform = "none";
   homeVeil.start(); homeVeil.resize(); homeVeil.setCalm(0.15);
-  setTimeout(() => { card.style.transition = ""; card.style.transform = ""; homeVeil.resize(); $("#mp3").classList.add("show"); draw(); if (!paused) togglePlay(); }, 620);
-  clearTimeout(hideTimer); if (!paused) hideTimer = setTimeout(hideControls, 4200);
+  setTimeout(() => { card.style.transition = ""; card.style.transform = ""; homeVeil.resize(); $("#mp3").classList.add("show"); draw(); }, 620);
+  clearTimeout(hideTimer);
 }
 function hideControls(){ if (pl.item && pl.item.intro) return; $("#mp3").classList.remove("show"); $("#mpHint").classList.add("show"); clearTimeout(hintTimer); hintTimer = setTimeout(() => $("#mpHint").classList.remove("show"), 2200); }
 function toggleControls(){
@@ -1513,7 +1514,10 @@ function plAttach(src){
   pl.audio = a;
 }
 function togglePlay(){
-  if (!pl.audio){ toast("Getting it ready\u2026"); return; }
+  if (!pl.audio){
+    if (pl.pendingPrimer){ const th = pl.pendingPrimer; pl.pendingPrimer = null; primerBegin(th); return; }
+    toast("Getting it ready\u2026"); return;
+  }
   pl.playing = !pl.playing;
   if (pl.playing){ pl.audio.play().catch(() => { pl.playing = false; draw(); }); homeVeil.setIntensity(1); }
   else { pl.audio.pause(); homeVeil.setIntensity(0.35); clearTimeout(hideTimer); }
