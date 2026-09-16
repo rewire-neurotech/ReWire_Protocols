@@ -207,14 +207,9 @@ def start_jolt(pid: int, req: StartReq,
     return StartResp(status="generating", jolt_id=j.id, day=day)
 
 
-@r.get("/audio/{fname}")
-def serve_audio(fname: str, request: Request):
-    fp = cfg.out_dir_path / fname
-    if not fp.exists():
-        raise HTTPException(404, "audio not found")
-    data = decrypt_file_to_bytes(str(fp))
+def _bytes_response(data: bytes, fname: str, mt: str, request: Request):
+    """Serve an audio byte string with Range support (Safari, mobile)."""
     total = len(data)
-    mt = "audio/mpeg" if fname.endswith(".mp3") else "audio/wav"
 
     # Parse Range header for byte-range requests (Safari, mobile browsers).
     range_header = request.headers.get("range")
@@ -262,6 +257,103 @@ def serve_audio(fname: str, request: Request):
             "Content-Disposition": f"inline; filename={fname}",
         },
     )
+
+
+@r.get("/audio/{fname}")
+def serve_audio(fname: str, request: Request):
+    fp = cfg.out_dir_path / fname
+    if not fp.exists():
+        raise HTTPException(404, "audio not found")
+    data = decrypt_file_to_bytes(str(fp))
+    mt = "audio/mpeg" if fname.endswith(".mp3") else "audio/wav"
+    return _bytes_response(data, fname, mt, request)
+
+
+# --------------------------------------------------------------------------- #
+# The Introduction (Edge, Sept 2026): one fixed audio, the same for every
+# user, played once as the first experience on the card. Served raw from
+# app/assets, never generated, never mixed, nothing to do with the day 1
+# primers. Its notebook note, stars and chills land in the journal as an
+# entry with no protocol, marked by INTRO_QUESTION.
+# --------------------------------------------------------------------------- #
+
+INTRO_QUESTION = "introduction"
+
+
+class IntroInfo(BaseModel):
+    available: bool                   # the audio file is on the server
+    audio_url: str
+    length_sec: int
+    done: bool                        # this user already finished and reflected
+
+
+@r.get("/intro", response_model=IntroInfo)
+def intro_info(u: User = Depends(get_current_user_required),
+               db: Session = Depends(get_db)):
+    e = (db.query(JournalEntry)
+         .filter(JournalEntry.user_id == u.id,
+                 JournalEntry.protocol_id.is_(None),
+                 JournalEntry.question == INTRO_QUESTION)
+         .first())
+    base = cfg.PUBLIC_BASE_URL.rstrip("/") if cfg.PUBLIC_BASE_URL else ""
+    return IntroInfo(
+        available=cfg.intro_audio_path.exists(),
+        audio_url=f"{base}/api/protocol-jolt/intro/audio",
+        length_sec=cfg.INTRO_LEN_SEC,
+        done=e is not None,
+    )
+
+
+@r.get("/intro/audio")
+def intro_audio(request: Request):
+    fp = cfg.intro_audio_path
+    if not fp.exists():
+        raise HTTPException(404, "introduction audio not uploaded yet")
+    data = fp.read_bytes()
+    return _bytes_response(data, fp.name, "audio/mpeg", request)
+
+
+@r.post("/intro/reflect", response_model=Ok)
+def intro_reflect(req: ReflectReq, u: User = Depends(get_current_user_required),
+                  db: Session = Depends(get_db)):
+    """Save the Introduction's notebook note, stars and chills.
+
+    Same strictness as a session (no skipping): the note needs 5 words,
+    the stars 1-5, chills yes or no. Saved once per user; a repeat just
+    updates the same entry.
+    """
+    answer = (req.answer or "").strip()
+    if len(answer.split()) < 5:
+        raise HTTPException(400, "please write at least 5 words")
+    chills = (req.chills or "").strip().lower()
+    if chills not in ("yes", "no"):
+        raise HTTPException(400, "chills must be yes or no")
+    rating = req.rating
+    if rating is None or not 1 <= int(rating) <= 5:
+        raise HTTPException(400, "rating must be 1-5")
+    rating = int(rating)
+
+    e = (db.query(JournalEntry)
+         .filter(JournalEntry.user_id == u.id,
+                 JournalEntry.protocol_id.is_(None),
+                 JournalEntry.question == INTRO_QUESTION)
+         .first())
+    if e:
+        e.answer = encrypt_field(answer)
+        e.chills = chills
+        e.rating = rating
+    else:
+        db.add(JournalEntry(
+            user_id=u.id,
+            protocol_id=None,
+            day=None,
+            question=INTRO_QUESTION,
+            answer=encrypt_field(answer),
+            chills=chills,
+            rating=rating,
+        ))
+    db.commit()
+    return Ok(status="ok")
 
 
 @r.get("/{jid}/status", response_model=StatusResp)
