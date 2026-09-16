@@ -274,6 +274,7 @@ class Ok(BaseModel):
 def get_config():
     """Publishable key + display prices for the paywall."""
     return {
+        "paywall_enabled": cfg.PAYWALL_ENABLED,
         "publishable_key": cfg.STRIPE_PUBLISHABLE_KEY or "",
         "protocol_price_usd": cfg.PROTOCOL_PRICE_USD,
         "monthly_price_usd": cfg.MONTHLY_PRICE_USD,
@@ -294,6 +295,12 @@ def get_status(user: User = Depends(get_current_user_required), db: Session = De
 @r.post("/checkout", response_model=CheckoutResp)
 def checkout(req: CheckoutReq, request: Request,
              user: User = Depends(get_current_user_required), db: Session = Depends(get_db)):
+    # Payments are off for the Edge beta (PAYWALL_ENABLED=false). Everything
+    # below survives untouched for the flip back on; the webhook stays live
+    # either way so a stray Stripe event is still recorded, and refuses
+    # nothing.
+    if not cfg.PAYWALL_ENABLED:
+        raise HTTPException(403, "payments are disabled")
     kind = (req.kind or "").strip().lower()
     if kind not in ("protocol", "monthly"):
         raise HTTPException(400, "kind must be 'protocol' or 'monthly'")
@@ -581,6 +588,8 @@ async def stripe_webhook(request: Request):
 
 @r.post("/cancel", response_model=Ok)
 def cancel(user: User = Depends(get_current_user_required), db: Session = Depends(get_db)):
+    if not cfg.PAYWALL_ENABLED:
+        raise HTTPException(403, "payments are disabled")
     """Cancel the monthly membership. Access continues until the current period
     ends (Stripe cancel_at_period_end); the deleted webhook expires it then."""
     m = _monthly_entitlement(user.id, db)
@@ -609,6 +618,8 @@ def cancel(user: User = Depends(get_current_user_required), db: Session = Depend
 
 @r.post("/resume", response_model=Ok)
 def resume(user: User = Depends(get_current_user_required), db: Session = Depends(get_db)):
+    if not cfg.PAYWALL_ENABLED:
+        raise HTTPException(403, "payments are disabled")
     """Undo a scheduled cancellation so the membership keeps renewing."""
     m = _monthly_entitlement(user.id, db)
     if not m:
