@@ -177,7 +177,10 @@ def _has_monthly(uid, db) -> bool:
 
 def _protocol_unlocked(p, uid, db) -> bool:
     """Days 2-5 are unlocked if this protocol was purchased, or the user has a
-    monthly membership (which unlocks all protocols)."""
+    monthly membership (which unlocks all protocols). With the paywall off
+    (Edge beta) everything is unlocked."""
+    if not cfg.PAYWALL_ENABLED:
+        return True
     return bool(p.unlocked) or _has_monthly(uid, db)
 
 
