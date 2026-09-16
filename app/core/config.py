@@ -386,10 +386,12 @@ class Config:
     PAYWALL_ENABLED: bool = os.getenv("PAYWALL_ENABLED", "false").lower() in ("true", "1", "yes")
 
     # The Introduction: one fixed audio, same for every user, played as
-    # the first experience on the card. File goes in app/assets/ once
-    # Felix sends it. Length in seconds drives the player timeline.
-    INTRO_AUDIO_FILE: str = os.getenv("INTRO_AUDIO_FILE", "introduction.mp3")
-    INTRO_LEN_SEC: int = int(os.getenv("INTRO_LEN_SEC", "180"))
+    # the first experience on the card. Served raw, never generated or
+    # mixed, and nothing to do with the day 1 primers. Felix's file is
+    # 12:00, mpeg. Drop it at app/assets/introduction.mpeg. Length in
+    # seconds drives the player timeline.
+    INTRO_AUDIO_FILE: str = os.getenv("INTRO_AUDIO_FILE", "introduction.mpeg")
+    INTRO_LEN_SEC: int = int(os.getenv("INTRO_LEN_SEC", "720"))
 
     @property
     def intro_audio_path(self) -> Path:
