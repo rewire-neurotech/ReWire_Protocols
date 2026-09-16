@@ -372,6 +372,38 @@ class Config:
         }
 
     # ------------------------------------------------------------------ #
+    # EDGE (Sept 2026 rebrand + ChillsTV unification)
+    # ------------------------------------------------------------------ #
+    # The app is Edge at app.rewire.bio. Accounts live in ChillsTV's
+    # Postgres (rewire.bio front door); Edge never creates accounts, it
+    # reads that DB through services/chillstv_bridge.py. Set
+    # CHILLSTV_DB_URL in Render to ChillsTV's postgres connection string.
+    APP_NAME: str = os.getenv("APP_NAME", "Edge")
+    CHILLSTV_DB_URL: str = os.getenv("CHILLSTV_DB_URL", "")
+
+    # Payments are off for the beta. Flip to true to bring back the
+    # entitlement gates and Stripe checkout untouched below.
+    PAYWALL_ENABLED: bool = os.getenv("PAYWALL_ENABLED", "false").lower() in ("true", "1", "yes")
+
+    # The Introduction: one fixed audio, same for every user, played as
+    # the first experience on the card. File goes in app/assets/ once
+    # Felix sends it. Length in seconds drives the player timeline.
+    INTRO_AUDIO_FILE: str = os.getenv("INTRO_AUDIO_FILE", "introduction.mp3")
+    INTRO_LEN_SEC: int = int(os.getenv("INTRO_LEN_SEC", "180"))
+
+    @property
+    def intro_audio_path(self) -> Path:
+        return self.ASSETS_DIR / self.INTRO_AUDIO_FILE
+
+    # The work page topics, in the mockup's order. A protocol stores the
+    # picked one in Protocol.category. Free text protocols get a category
+    # guessed client side, "Meaning" when nothing matches.
+    TOPICS: list = [
+        "Family", "Love life", "Friends", "Work", "Money", "Exercise",
+        "Sleep", "Confidence", "Creativity", "A loss", "A change", "Meaning",
+    ]
+
+    # ------------------------------------------------------------------ #
     # Database
     # ------------------------------------------------------------------ #
     DB_URL: str = os.getenv("DB_URL", "sqlite:///./rewire.db")
