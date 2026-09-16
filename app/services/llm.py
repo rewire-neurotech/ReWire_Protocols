@@ -732,12 +732,17 @@ def _generate_meditation(model: str, system: str, user: str, validate_fn,
     )
 
 
-def generate_meditation_day1(theme: str, topic: str, why: str) -> str:
+def generate_meditation_day1(theme: str, topic: str, why: str, listener_context: str = "") -> str:
     """Day 1 meditation script for a theme (regular / forest / ocean / fire).
 
     Ocean and fire prompts carry their context corpora, loaded from assets
     and truncated to the config cap, inserted before the LISTENER INPUT
     heading exactly the way stimgen did.
+
+    listener_context (Edge, Sept 2026): what ChillsTV knows about this
+    listener (questionnaire, chills profile), appended to the same
+    CONTEXT MATERIAL slot. The prompt text itself is untouched; an empty
+    string means the prompt is byte-identical to before.
     """
     theme = cfg.meditation_theme(theme)
     if cfg.DEV_MODE:
@@ -746,6 +751,8 @@ def generate_meditation_day1(theme: str, topic: str, why: str) -> str:
     context_text = meditation_prompts.load_context(
         cfg.meditation_context_paths(theme), cfg.MEDITATION_CONTEXT_CAP
     )
+    if listener_context:
+        context_text = (context_text + "\n\n" + listener_context).strip()
     system = meditation_prompts.compose_day1_prompt(theme, context_text)
     user = meditation_prompts.build_day1_input(topic, why)
 
