@@ -37,6 +37,7 @@ class StartResp(BaseModel):
     jolt_id: Optional[int] = None
     day: Optional[int] = None
     audio_url: Optional[str] = None   # set when status == "replay"
+    speech_end_sec: Optional[float] = None   # where the words end (meditations)
     message: Optional[str] = None
 
 
@@ -45,6 +46,7 @@ class StatusResp(BaseModel):
     stage: str
     progress: int
     audio_url: Optional[str] = None
+    speech_end_sec: Optional[float] = None   # where the words end (meditations)
     error: Optional[str] = None
 
 
@@ -151,6 +153,7 @@ def start_jolt(pid: int, req: StartReq,
             jolt_id=existing.id,
             day=day,
             audio_url=_audio_url_for(existing.audio_filename),
+            speech_end_sec=existing.speech_end_sec,
         )
 
     # 3) Already generating -> return the in-flight jolt (avoid double work).
@@ -387,7 +390,8 @@ def get_status(jid: int, u: User = Depends(get_current_user_required),
             print(f"[protojolt] {j.id} done row had no file on disk (status)")
 
     return StatusResp(jolt_id=j.id, stage=j.stage, progress=j.progress,
-                      audio_url=url, error=j.gen_error)
+                      audio_url=url, speech_end_sec=j.speech_end_sec,
+                      error=j.gen_error)
 
 
 @r.post("/{jid}/reflect", response_model=Ok)
