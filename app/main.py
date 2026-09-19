@@ -257,6 +257,20 @@ if Base is not None and engine is not None:
         # ------------------------------------------------------------------ #
         # migrate: add last_active_at to users
         #
+        # speech_end_sec (Sept 2026): where the words end inside a meditation
+        # file, so the frontend can close the session when the notebook is
+        # saved past them. Old rows stay null and the frontend simply never
+        # ends early on those, so this migration is safe to miss.
+        try:
+            with engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE protocol_jolts ADD COLUMN speech_end_sec REAL"
+                ))
+                conn.commit()
+                print("[migrate] added speech_end_sec column to protocol_jolts")
+        except Exception:
+            pass  # column already exists
+
         # THIS ONE IS NOT OPTIONAL. Every other migration above adds a column
         # that only one feature reads, so a database missing it merely loses
         # that feature. last_active_at is different: it is declared on the User
