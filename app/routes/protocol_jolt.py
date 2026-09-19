@@ -321,20 +321,18 @@ def intro_reflect(req: ReflectReq, u: User = Depends(get_current_user_required),
                   db: Session = Depends(get_db)):
     """Save the Introduction's notebook note, stars and chills.
 
-    Same strictness as a session (no skipping): the note needs 5 words,
-    the stars 1-5, chills yes or no. Saved once per user; a repeat just
-    updates the same entry.
+    A line is enough (Felix, Sept 2026): the notebook and the star and chills
+    screens can all be skipped now, so nothing here is required. The note may
+    be short or empty, chills may be unanswered, rating may be 0. The two
+    sides must agree, or a save the client thinks succeeded gets rejected and
+    the intro never advances. Saved once per user; a repeat updates the entry.
     """
     answer = (req.answer or "").strip()
-    if len(answer.split()) < 5:
-        raise HTTPException(400, "please write at least 5 words")
     chills = (req.chills or "").strip().lower()
     if chills not in ("yes", "no"):
-        raise HTTPException(400, "chills must be yes or no")
+        chills = None
     rating = req.rating
-    if rating is None or not 1 <= int(rating) <= 5:
-        raise HTTPException(400, "rating must be 1-5")
-    rating = int(rating)
+    rating = max(0, min(5, int(rating))) if rating is not None else None
 
     e = (db.query(JournalEntry)
          .filter(JournalEntry.user_id == u.id,
@@ -416,11 +414,11 @@ def save_reflection(jid: int, req: ReflectReq,
     if rating is not None:
         rating = max(0, min(5, int(rating)))
 
-    # Meditation build (Aug 2026): the post-jolt questionnaire branches on
-    # chills. Both branches carry a 5 word minimum (Felix, Sep 2026, was the
-    # no branch only) so the next day's prompt has something real to read.
-    if is_meditation and len(answer.split()) < 5:
-        raise HTTPException(400, "please write at least 5 words")
+    # A line is enough (Felix, Sept 2026): the notebook no longer enforces a
+    # word count, so the server no longer rejects a short reflection either.
+    # An empty note is still allowed through; the next day's prompt reads
+    # whatever is there. The two sides must agree, or a saved-but-rejected
+    # note silently strands the user on the same day (the day-2 stall).
 
     # Saved into the journal, tagged to this protocol + day.
     db.add(JournalEntry(
