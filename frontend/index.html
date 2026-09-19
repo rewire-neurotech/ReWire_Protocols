@@ -310,21 +310,40 @@
   .mp3.intro .ctrls { margin-top: 14px; }
   .mp3.intro .ctrls .pp { width: 74px; height: 74px; }
   .mp3.intro .pp svg { width: 26px; height: 26px; }
-  /* the notebook itself: a ruled page on the veil, top-left, with Save */
-  .ask.nb { justify-content: flex-start; padding-top: 22px; }
+  /* the notebook itself: a ruled page on the veil. The cue sits on the first rule; the rules run down to just above Controls and Save */
+  .ask.nb { justify-content: flex-start; padding-top: 22px; --kb: 0px; --ctl: 0px; }
   .ask.nb > :first-child { margin-top: 0; } .ask.nb > :last-child { margin-bottom: 0; }
   .ask.nb .nb-top { display: flex; align-items: center; justify-content: space-between; min-height: 60px; }
   .ask.nb .nb-top .k { margin: 0; }
   .ask.nb .nb-top .x { width: 60px; height: 60px; display: grid; place-items: center; color: var(--ink); margin-right: -12px; }
   .ask.nb .nb-top .x svg { width: 30px; height: 30px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; filter: drop-shadow(0 0 6px rgba(247,245,242,.9)); }
   .ask.nb .nb-top .x[hidden] { display: grid !important; visibility: hidden; }
-  .ask.nb { --kb: 0px; }
-  .ask.nb .page { position: absolute; left: 26px; right: 26px; top: 92px; bottom: calc(var(--safe-bottom) + 118px + var(--kb)); display: flex; }
-  .ask.nb .page textarea { flex: 1; width: 100%; min-height: 0; padding: 6px 0 0; margin: 0; border: 0; resize: none; font-family: inherit; font-size: 19px; font-weight: 400; line-height: 34px; color: var(--ink); caret-color: var(--ink); text-shadow: var(--glow);
-    background: repeating-linear-gradient(to bottom, transparent 0, transparent 33px, rgba(28,26,22,.26) 33px, rgba(28,26,22,.26) 34px) local; background-position: 0 6px; }
-  .ask.nb .page textarea::placeholder { color: rgba(28,26,22,.42); }
-  .ask.nb .nb-row { position: absolute; left: 26px; right: 26px; bottom: calc(var(--safe-bottom) + 28px + var(--kb)); justify-content: flex-end; margin: 0; transition: bottom .2s ease; }
-  .ask.nb .nb-row .go { flex: 0 0 auto; width: auto; padding: 17px 34px; font-size: 17.5px; }
+  .ask.nb .page { position: absolute; left: 26px; right: 26px; top: 96px; bottom: calc(var(--safe-bottom) + 102px + max(var(--kb), var(--ctl))); display: flex; transition: bottom .35s var(--ease); }
+  .ask.nb .page textarea { flex: 1; width: 100%; min-height: 0; max-height: none; padding: 0; margin: 0; border: 0; resize: none; font-family: inherit; font-size: 19px; font-weight: 400; line-height: 34px; color: var(--ink); caret-color: var(--ink); text-shadow: var(--glow);
+    background-image: linear-gradient(to bottom, transparent 33px, rgba(28,26,22,.26) 33px); background-size: 100% 34px; background-repeat: repeat-y; background-attachment: local; background-position: 0 0; }
+  .ask.nb .page .cue { position: absolute; left: 0; right: 0; top: 0; line-height: 34px; font-size: 19px; color: rgba(28,26,22,.42); text-shadow: var(--glow); pointer-events: none; }
+  .ask.nb .page.has .cue { display: none; }
+  .ask.nb .nb-row { position: absolute; left: 26px; right: 26px; bottom: calc(var(--safe-bottom) + 28px + max(var(--kb), var(--ctl))); display: flex; align-items: center; gap: 10px; margin: 0; transition: bottom .35s var(--ease); }
+  .ask.nb .nb-row .go { flex: 0 0 auto; margin-left: auto; width: auto; padding: 17px 34px; border-radius: 999px; background: var(--ink); color: var(--screen); font-size: 17.5px; font-weight: 500; box-shadow: 0 10px 34px rgba(16,16,19,.16); transition: transform .15s ease; }
+  .ask.nb .nb-row .ctl-btn { display: inline-flex; align-items: center; gap: 9px; padding: 14px 20px 14px 16px; border-radius: 999px; background: rgba(251,249,244,.86); color: var(--ink); font-size: 16.5px; font-weight: 500; box-shadow: 0 8px 26px rgba(16,16,19,.12); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); transition: transform .15s ease; }
+  .ask.nb .nb-row .ctl-btn svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .ask.nb .nb-row .ctl-btn:active, .ask.nb .nb-row .go:active { transform: scale(.97); }
+  /* the controls live under the keyboard: Controls sends the keyboard down and they come up where it was, with the page still showing what was written. Opening the keyboard covers them rather than dismissing them */
+  .ask.nb .nb-ctl { position: absolute; left: 26px; right: 26px; bottom: calc(var(--safe-bottom) + 26px); opacity: 0; transform: translateY(28px); pointer-events: none; transition: opacity .3s ease, transform .4s var(--ease); }
+  .ask.nb.ctl { --ctl: 176px; }
+  .ask.nb.ctl .nb-ctl { opacity: 1; transform: none; pointer-events: auto; transition-delay: .08s; }
+  body.kb-open .ask.nb.ctl { --ctl: 0px; }
+  body.kb-open .ask.nb.ctl .nb-ctl { opacity: 0; transform: translateY(28px); pointer-events: none; transition: none; }
+  .ask.nb .nb-ctl .nc-k { font-size: 15px; font-weight: 500; color: var(--ink-soft); text-shadow: var(--glow); margin-bottom: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ask.nb .nb-ctl .track { position: relative; width: 100%; height: 2px; border-radius: 2px; background: rgba(16,16,19,.12); }
+  .ask.nb .nb-ctl .fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 2px; background: var(--ink); width: 0; }
+  .ask.nb .nb-ctl .knob { position: absolute; top: 50%; width: 8px; height: 8px; border-radius: 50%; background: var(--ink); transform: translate(-50%,-50%); left: 0; }
+  .ask.nb .nb-ctl .times { display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; text-shadow: var(--glow); }
+  .ask.nb .nb-ctl .ctrls { display: flex; justify-content: center; margin-top: 12px; }
+  .ask.nb .nb-ctl .pp { width: 74px; height: 74px; border-radius: 50%; background: var(--ink); color: var(--screen); display: grid; place-items: center; box-shadow: 0 10px 30px rgba(0,0,0,.16); transition: transform .15s ease; }
+  .ask.nb .nb-ctl .pp:active { transform: scale(.92); }
+  .ask.nb .nb-ctl .pp svg { width: 26px; height: 26px; fill: currentColor; }
+  .go:disabled, .ob-cta:disabled { opacity: .55; pointer-events: none; }
   .ask { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; padding: 28px 26px calc(var(--safe-bottom) + 28px); opacity: 0; pointer-events: none; transition: opacity .45s ease; overflow-y: auto; scrollbar-width: none; }
   .ask::-webkit-scrollbar { display: none; }
   .ask > :first-child { margin-top: auto; }
@@ -499,13 +518,13 @@
           </div>
         </div>
         <div class="mp3" id="mp3">
-          <div class="top"><button class="nb-btn" id="mpNotebook" hidden><svg viewBox="0 0 24 24"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M13.5 6.5l3 3"/></svg>Notebook</button><span class="k" id="mpK"></span><button class="x" id="mpClose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+          <div class="top"><button class="nb-btn" id="mpNotebook"><svg viewBox="0 0 24 24"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M13.5 6.5l3 3"/></svg>Notebook</button><span class="k" id="mpK"></span><button class="x" id="mpClose" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
           <div class="mid"><div class="t" id="mpTitle"></div></div>
           <div class="bar"><div class="bar-k" id="mpBarK">Introduction</div><div class="track"><div class="fill" id="mpFill"></div><div class="knob" id="mpKnob"></div></div><div class="times"><span id="mpNow">0:00</span><span id="mpLen">10:00</span></div></div>
           <div class="ctrls">
             <button class="prev" id="mpBack" aria-label="Past sessions"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><small>Past sessions</small></button>
             <button class="pp" id="mpPlay" aria-label="Play or pause"><svg viewBox="0 0 24 24" id="mpIcon"></svg></button>
-            <span class="prev" style="visibility:hidden"></span>
+            <button class="prev" id="mpNote" aria-label="Notebook"><svg viewBox="0 0 24 24"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M13.5 6.5l3 3"/></svg><small>Notebook</small></button>
           </div>
         </div>
         <div class="hint" id="mpHint">Tap for controls</div>
@@ -537,8 +556,8 @@
       <div class="scroll" id="wk2" hidden>
         <div class="picked" id="wkPicked"></div>
         <h1 class="cr-h" id="wkQ">Tell us a bit about it.</h1>
-        <p class="qs" id="wkQs">A few lines, the way you'd tell a friend. Your first experience is written from this.</p>
-        <div class="ob-area" style="margin-top:18px"><textarea id="wkText" rows="5" placeholder="We talk every week and say nothing. I'd like to tell her one true thing before it's too late."></textarea></div>
+        <p class="qs" id="wkQs" hidden></p>
+        <div class="ob-area" style="margin-top:18px"><textarea id="wkText" rows="5"></textarea></div>
         <p class="need" id="wkNeed"></p>
         <button class="wk-none" id="wkNone" hidden>Nothing came to mind yet.</button>
         <div style="height:24px"></div>
@@ -1324,10 +1343,10 @@ function primerBegin(theme){
   a.preload = "auto";
   a.volume = 0;
   pl.audio = a; pl.primer = true; pl.offset = p.start; pl.mixReady = false; pl.mixUrl = null;
-  a.addEventListener("timeupdate", () => { pl.t = a.currentTime; draw(); maybeSwap(); });
+  a.addEventListener("timeupdate", () => { pl.t = a.currentTime; draw(); if (!pl.noteAuto && pl.playing && pl.t >= 60) noteAtMinute(); savePosT(); maybeSwap(); });
   a.addEventListener("ended", () => { maybeSwap(true); });
   a.addEventListener("error", () => { pl.primer = false; pl.audio = null; pl.playing = false; draw(); });
-  pl.playing = true;
+  pl.playing = true; wlGet();
   a.play().catch(() => { pl.playing = false; draw(); });
   let v = 0;
   const fad = setInterval(() => { v += 0.08; if (v >= 1){ v = 1; clearInterval(fad); } try { a.volume = v; } catch(e){} }, 120);
@@ -1343,9 +1362,15 @@ function mixArrived(url){
   if (!pl.primer){
     pl.pendingPrimer = null;   // full file has the primer baked in already
     plAttach(url);
+    applyResume();
+    if (!pl.playing) togglePlay();
     draw();
     return;
   }
+  const n = new Audio(url);
+  n.preload = "auto";
+  n.addEventListener("loadedmetadata", () => { try { n.currentTime = Math.max(0, pl.offset - 0.2); } catch(e){} }, { once:true });
+  pl.next = n;
   maybeSwap();
 }
 
@@ -1357,19 +1382,34 @@ function maybeSwap(force){
   if (!ended && t < pl.offset) return;
   const wasPlaying = pl.playing;
   pl.primer = false;
-  plAttach(pl.mixUrl);
-  const a = pl.audio;
+  const a = pl.next || new Audio(pl.mixUrl);
+  pl.next = null;
+  a.preload = "auto";
+  plWire(a);
+  pl.audio = a;
   const go = () => {
     try { a.currentTime = t; } catch(e){}
-    if (wasPlaying) a.play().catch(() => { pl.playing = false; draw(); });
+    if (a.duration && isFinite(a.duration)){ pl.len = a.duration; $("#mpLen").textContent = fmt(pl.len); }
+    if (wasPlaying){
+      try { a.volume = 0; } catch(e){}
+      a.play().then(() => {
+        let v = 0;
+        const up = setInterval(() => { v += 0.25; if (v >= 1){ v = 1; clearInterval(up); } try { a.volume = v; } catch(e){} }, 50);
+      }).catch(() => { pl.playing = false; draw(); });
+      if (primerA){
+        let pv = primerA.volume;
+        const dn = setInterval(() => { pv -= 0.25; if (pv <= 0){ clearInterval(dn); try { primerA.pause(); } catch(e){} } else { try { primerA.volume = pv; } catch(e){} } }, 50);
+      }
+    } else if (primerA){ try { primerA.pause(); } catch(e){} }
+    draw();
   };
-  if (a.readyState >= 1) go(); else a.addEventListener("loadedmetadata", go, { once:true });
-  if (primerA){ try { primerA.pause(); } catch(e){} }
+  if (a.readyState >= 2) go(); else { a.addEventListener("canplay", go, { once:true }); try { a.load(); } catch(e){} }
 }
 
 let startBusy = false;
 function startNext(it){
   if (!it || it.fresh || startBusy) return;
+  unlockAudio();
   if (it.intro){
     startPlayer(it, { title:it.title, date:today(), ts:nowTs(), len:INTRO_LEN, fresh:true }, false);
     return;
@@ -1380,18 +1420,34 @@ function startNext(it){
   const sess = { title:"", date:today(), ts:nowTs(), len:"10:00", fresh:true };
   const primed = day === 1;
   if (primed){
-    // the player opens quiet; the play press starts the primer instantly
-    // (a static asset), and generation finishes underneath it
-    startPlayer(it, sess, false, true);
+    // the player opens and the primer starts itself (a static asset);
+    // generation finishes underneath it
+    startPlayer(it, sess, false);
     pl.pendingPrimer = themeOf(it);
   }
   api("/api/protocol-jolt/" + it.pid + "/start", { method: "POST", body: { day } })
     .then(r => {
       startBusy = false;
       sess.joltId = r.jolt_id;
+      if (pl.sess === sess) pl.joltId = r.jolt_id;
       if (r.status === "replay" && r.audio_url){
-        sess.audio_url = r.audio_url;
-        if (primed){ mixArrived(r.audio_url); return; }
+        sess.audio_url = r.audio_url; sess.speech_end = r.speech_end_sec || 0;
+        if (pl.sess === sess) pl.speechEnd = sess.speech_end;
+        if (primed){
+          if (pl.sess !== sess) return;
+          if (pl.primer){
+            const k = posKey(); let v = 0; try { v = parseFloat((k && localStorage.getItem(k)) || "0"); } catch(e){}
+            if (v > 5){
+              const pa = pl.audio; pl.primer = false; try { if (pa) pa.pause(); } catch(e){}
+              plAttach(r.audio_url); applyResume();
+              if (pl.playing) pl.audio.play().catch(() => { pl.playing = false; draw(); });
+            } else mixArrived(r.audio_url);
+          } else if (!pl.audio){
+            pl.pendingPrimer = null; plAttach(r.audio_url); applyResume();
+            if (!pl.playing) togglePlay();
+          } else mixArrived(r.audio_url);
+          return;
+        }
         startPlayer(it, sess, false, false);
         return;
       }
@@ -1400,7 +1456,7 @@ function startNext(it){
         if (pl.sess !== sess) return;
         try {
           const s = await api("/api/protocol-jolt/" + r.jolt_id + "/status");
-          if (s.stage === "done" && s.audio_url){ sess.audio_url = s.audio_url; mixArrived(s.audio_url); return; }
+          if (s.stage === "done" && s.audio_url){ sess.audio_url = s.audio_url; sess.speech_end = s.speech_end_sec || 0; if (pl.sess === sess) pl.speechEnd = sess.speech_end; mixArrived(s.audio_url); return; }
           if (s.stage === "error" || s.stage === "blocked"){ toast("That one could not be made. Try again."); closePlayer(); return; }
         } catch(e){}
         setTimeout(poll, 3500);
@@ -1447,7 +1503,48 @@ $("#card").addEventListener("click", ev => {
 
 /* ===== the card grows into the player ===== */
 let pl = { item:null, sess:null, playing:false, t:0, len:600, timer:null, replay:false }, hintTimer, hideTimer;
-const NEXT_TITLES = ["Where it sits","The pause","One true sentence","Telling a stranger","The argument","What stays","Starting again"];
+/* keep the screen awake while something plays */
+let wl = null;
+async function wlGet(){ try { if ("wakeLock" in navigator && !wl){ wl = await navigator.wakeLock.request("screen"); wl.addEventListener("release", () => { wl = null; }); } } catch(e){ wl = null; } }
+function wlDrop(){ try { if (wl) wl.release(); } catch(e){} wl = null; }
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && pl.playing) wlGet(); });
+/* the place they left: position per jolt, so closing with X and coming back resumes */
+function posKey(){ if (pl.item && pl.item.intro) return "edge_pos_intro"; return pl.joltId ? "edge_pos_" + pl.joltId : null; }
+function savePos(){ const k = posKey(); if (!k || !pl.len) return; try { if (pl.t > 5 && pl.t < pl.len - 8) localStorage.setItem(k, String(Math.floor(pl.t))); } catch(e){} }
+let lastPos = 0;
+function savePosT(){ const n = Date.now(); if (n - lastPos < 3000) return; lastPos = n; savePos(); }
+function clearPos(){ const k = posKey(); if (k) try { localStorage.removeItem(k); } catch(e){} }
+function applyResume(){
+  const k = posKey(); if (!k || pl.primer || !pl.audio) return;
+  let v = 0; try { v = parseFloat(localStorage.getItem(k) || "0"); } catch(e){}
+  if (!(v > 5)) return;
+  const a = pl.audio;
+  const go = () => { if (pl.len && v > pl.len - 8) return; try { a.currentTime = v; pl.t = v; draw(); } catch(e){} };
+  if (a.readyState >= 1) go(); else a.addEventListener("loadedmetadata", go, { once:true });
+}
+/* browsers want a gesture before audio: spend the card tap on an unlock */
+let audioUnlocked = false;
+function unlockAudio(){
+  if (audioUnlocked) return;
+  try {
+    const s = new Audio("data:audio/wav;base64,UklGRrQBAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YZABAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA");
+    s.volume = 0;
+    const p = s.play();
+    if (p) p.then(() => { audioUnlocked = true; try { s.pause(); } catch(e){} }).catch(() => {});
+  } catch(e){}
+}
+/* saving the notebook once the words are done ends the experience instead of the music running on */
+function fadeOutAndFinish(){
+  closeNote(true);
+  const a = pl.audio;
+  if (!a){ pl.t = pl.len; finish(); return; }
+  let v = a.volume;
+  const f = setInterval(() => {
+    v -= 0.12;
+    if (v <= 0){ clearInterval(f); try { a.pause(); } catch(e){} pl.t = pl.len; finish(); }
+    else { try { a.volume = v; } catch(e){} }
+  }, 90);
+}
 function fmt(sec){ const m = Math.floor(sec / 60), s = Math.floor(sec % 60); return `${m}:${String(s).padStart(2, "0")}`; }
 const topicOf = t => { const c = t.replace(/\s+/g, " ").split(/[.,;:!?\n]/)[0].trim().split(" ").slice(0, 5).join(" "); return c.charAt(0).toUpperCase() + c.slice(1); };
 /* the one question something from the library asks, when you add it: what you write names the protocol */
@@ -1455,7 +1552,7 @@ function askTopic(tag, question, then){
   $("#preBody").innerHTML = `<div class="ob-step ct-one"><div class="ob-tag">${esc(tag)}</div><h1 class="ob-q" id="preQ">${esc(question)}</h1><div class="ob-area"><textarea id="preText" rows="4" enterkeyhint="done"></textarea></div><p class="need" id="preNeed"></p></div>`;
   $("#preFoot").innerHTML = `<button class="ob-cta" id="preGo">Add to your protocols</button>`;
   const ta = $("#preText"); watchMore(ta, $("#preNeed"), MIN_WORDS);
-  $("#preGo").addEventListener("click", () => { if (needMore(ta, $("#preNeed"), MIN_WORDS)) return; const text = ta.value.trim(); ta.blur(); preVeil.pulse(.9); setTimeout(() => then(text), 260); });
+  $("#preGo").addEventListener("click", () => { if (needMore(ta, $("#preNeed"), MIN_WORDS)) return; const b = $("#preGo"); if (b.disabled) return; b.disabled = true; b.textContent = "Making it\u2026"; const text = ta.value.trim(); ta.blur(); preVeil.pulse(.9); setTimeout(() => then(text), 260); });
   nav("pre"); preVeil.start(); preVeil.resize(); setTimeout(() => ta.focus(), 450);
 }
 $("#preBack").addEventListener("click", goBack);
@@ -1469,12 +1566,12 @@ function startPlayer(item, sess, replay, paused){
   clearInterval(pl.timer); if (pl.audio){ try { pl.audio.pause(); } catch(e){} }
   currentId = item.id;
   const [mm, ss] = sess.len.split(":").map(Number);
-  pl = { item, sess, playing:false, t:0, len: mm * 60 + ss, timer:null, replay, audio:null, joltId: sess.joltId || null };
+  pl = { item, sess, playing:false, t:0, len: mm * 60 + ss, timer:null, replay, audio:null, joltId: sess.joltId || null, notes:"", noteAuto:false, speechEnd: sess.speech_end || 0 };
   const src = item.intro ? (INTRO && INTRO.audio_url) : sess.audio_url;
-  if (src) plAttach(src);
-  if (sess.fresh) sess.title = item.intro || item.shared ? item.title : NEXT_TITLES[item.sessions.length % NEXT_TITLES.length];
+  if (src){ plAttach(src); applyResume(); }
+  if (sess.fresh) sess.title = item.intro || item.shared ? item.title : "Session " + (item.sessions.length + 1);
   $("#mpK").textContent = item.intro ? "Your first experience" : item.title;
-  $("#mpNotebook").hidden = !item.intro; $("#mp3").classList.toggle("intro", !!item.intro); noteOpen = false; pl.notes = "";
+  $("#mp3").classList.toggle("intro", !!item.intro); noteOpen = false;
   $("#mpTitle").textContent = sess.title;
   $("#mpBack").hidden = !item.sessions.length;
   $("#mpLen").textContent = fmt(pl.len);
@@ -1489,8 +1586,8 @@ function startPlayer(item, sess, replay, paused){
   card.style.transition = "transform .6s var(--ease)";
   card.style.transform = "none";
   homeVeil.start(); homeVeil.resize(); homeVeil.setCalm(0.15);
-  setTimeout(() => { card.style.transition = ""; card.style.transform = ""; homeVeil.resize(); $("#mp3").classList.add("show"); draw(); }, 620);
-  clearTimeout(hideTimer);
+  setTimeout(() => { card.style.transition = ""; card.style.transform = ""; homeVeil.resize(); $("#mp3").classList.add("show"); draw(); if (!paused && !pl.playing) togglePlay(); }, 620);
+  clearTimeout(hideTimer); if (!paused) hideTimer = setTimeout(hideControls, 4200);
 }
 function hideControls(){ if (pl.item && pl.item.intro) return; $("#mp3").classList.remove("show"); $("#mpHint").classList.add("show"); clearTimeout(hintTimer); hintTimer = setTimeout(() => $("#mpHint").classList.remove("show"), 2200); }
 function toggleControls(){
@@ -1503,14 +1600,18 @@ function draw(){
   $("#mpFill").style.width = (p * 100) + "%"; $("#mpKnob").style.left = (p * 100) + "%";
   $("#mpNow").textContent = fmt(pl.t);
   $("#mpIcon").innerHTML = pl.playing ? '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>' : '<path d="M8 5.5v13a.6.6 0 0 0 .92.5l10-6.5a.6.6 0 0 0 0-1l-10-6.5A.6.6 0 0 0 8 5.5Z"/>';
+  const nf = $("#ncFill"); if (nf){ nf.style.width = (p * 100) + "%"; $("#ncKnob").style.left = (p * 100) + "%"; $("#ncNow").textContent = fmt(pl.t); const nl = $("#ncLen"); if (nl) nl.textContent = fmt(pl.len); $("#ncIcon").innerHTML = $("#mpIcon").innerHTML; }
+}
+function plWire(a){
+  a.addEventListener("loadedmetadata", () => { if (a.duration && isFinite(a.duration)){ pl.len = a.duration; $("#mpLen").textContent = fmt(pl.len); draw(); } });
+  a.addEventListener("timeupdate", () => { pl.t = a.currentTime; draw(); if (!pl.noteAuto && pl.playing && pl.t >= 60) noteAtMinute(); savePosT(); });
+  a.addEventListener("ended", () => { pl.t = pl.len; finish(); });
+  a.addEventListener("error", () => { toast("The audio would not load. Try again."); });
 }
 function plAttach(src){
   const a = new Audio(src);
   a.preload = "auto";
-  a.addEventListener("loadedmetadata", () => { if (a.duration && isFinite(a.duration)){ pl.len = a.duration; $("#mpLen").textContent = fmt(pl.len); draw(); } });
-  a.addEventListener("timeupdate", () => { pl.t = a.currentTime; draw(); });
-  a.addEventListener("ended", () => { pl.t = pl.len; finish(); });
-  a.addEventListener("error", () => { toast("The audio would not load. Try again."); });
+  plWire(a);
   pl.audio = a;
 }
 function togglePlay(){
@@ -1519,11 +1620,12 @@ function togglePlay(){
     toast("Getting it ready\u2026"); return;
   }
   pl.playing = !pl.playing;
-  if (pl.playing){ pl.audio.play().catch(() => { pl.playing = false; draw(); }); homeVeil.setIntensity(1); }
-  else { pl.audio.pause(); homeVeil.setIntensity(0.35); clearTimeout(hideTimer); }
+  if (pl.playing){ pl.audio.play().catch(() => { pl.playing = false; draw(); }); homeVeil.setIntensity(1); wlGet(); }
+  else { pl.audio.pause(); homeVeil.setIntensity(0.35); clearTimeout(hideTimer); wlDrop(); }
   draw();
 }
 function closePlayer(){
+  savePos(); wlDrop();
   clearInterval(pl.timer); pl.playing = false; clearTimeout(hideTimer); $("#hist").classList.remove("show");
   if (pl.audio){ try { pl.audio.pause(); } catch(e){} pl.audio = null; }
   const card = $("#card"); $("#mp3").classList.remove("show"); $("#mpHint").classList.remove("show");
@@ -1541,49 +1643,65 @@ function closePlayer(){
 }
 let asking = false, ans = { rating:0, chills:false, note:"" };
 function finish(){
-  clearInterval(pl.timer); pl.playing = false; draw();
+  clearInterval(pl.timer); pl.playing = false; draw(); wlDrop(); clearPos();
   homeVeil.pulse(0.9); homeVeil.setCalm(0.6);
   $("#mp3").classList.remove("show"); $("#mpHint").classList.remove("show"); clearTimeout(hideTimer);
-  ans = { rating:0, chills:false, note:"" }; asking = true;
+  ans = { rating:0, chills:false, note: pl.notes || "" }; asking = true;
   if (pl.item.intro){ homeVeil.setIntensity(1); homeVeil.setCalm(0.4); setTimeout(() => openNote(true), 500); return; }
+  if (noteOpen){ closeNote(true); asking = true; }       /* what was written carries into the questions */
   setTimeout(() => askStep(0), 700);
 }
-/* the notebook: a ruled page on the veil. During the audio it closes back to the player; when the words end it opens by itself, and Save is the way on. */
+/* the notebook: a ruled page on the veil. One minute in it comes up by itself; Controls sends the keyboard down and brings the player up in its place; the X goes back to the full player; when the words end it opens by itself, and Save is the way on. */
 let noteOpen = false, noteEnd = false;
+const ICON_CTL = '<svg viewBox="0 0 24 24"><path d="M8 5.5v13l10-6.5z"/></svg>', ICON_NB = '<svg viewBox="0 0 24 24"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M13.5 6.5l3 3"/></svg>';
+function noteAtMinute(){ pl.noteAuto = true; if (noteOpen || $("#hist").classList.contains("show")) return; openNote(false); }
+const ctlShowing = () => $("#ask").classList.contains("ctl") && !document.body.classList.contains("kb-open");
+function syncCtlBtn(){ const b = $("#nbCtlBtn"); if (b) b.innerHTML = ctlShowing() ? ICON_NB + "<span>Notebook</span>" : ICON_CTL + "<span>Controls</span>"; }
+function setCtl(on){ $("#ask").classList.toggle("ctl", on); syncCtlBtn(); }
 function openNote(atEnd){
   const box = $("#ask");
+  if (noteOpen && atEnd && $("#nbText")){ noteEnd = true; $("#nbClose").hidden = true; $("#nbCue").textContent = "What came up for you?"; const b = $("#nbCtlBtn"); if (b) b.remove(); setCtl(false); $("#nbText").focus(); return; }
   noteOpen = true; noteEnd = !!atEnd; asking = true;
   clearTimeout(hideTimer); $("#mp3").classList.remove("show"); $("#mpHint").classList.remove("show");
-  box.classList.add("nb");
+  box.classList.add("nb"); box.classList.remove("ctl");
   box.innerHTML = `<div class="nb-top"><div class="k">Notebook</div><button class="x" id="nbClose" aria-label="Back to listening" ${atEnd ? "hidden" : ""}><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
-    <div class="page"><textarea id="nbText" placeholder="${atEnd ? "What came up for you?" : "Anything that comes up while you listen"}" autocapitalize="sentences"></textarea></div>
-    <div class="row-btn nb-row"><button class="go" id="nbSave">Save</button></div>`;
-  const ta = $("#nbText"); ta.value = pl.notes || "";
-  ta.addEventListener("input", () => { pl.notes = ta.value; });
+    <div class="page" id="nbPage"><textarea id="nbText" autocapitalize="sentences"></textarea><div class="cue" id="nbCue">${atEnd ? "What came up for you?" : "Take notes while you listen"}</div></div>
+    <div class="nb-row">${atEnd ? "" : `<button class="ctl-btn" id="nbCtlBtn">${ICON_CTL}<span>Controls</span></button>`}<button class="go" id="nbSave">Save</button></div>
+    <div class="nb-ctl" id="nbCtl"><div class="nc-k">${esc(pl.sess.title)}</div><div class="track"><div class="fill" id="ncFill"></div><div class="knob" id="ncKnob"></div></div><div class="times"><span id="ncNow">0:00</span><span id="ncLen">${fmt(pl.len)}</span></div><div class="ctrls"><button class="pp" id="ncPlay" aria-label="Play or pause"><svg viewBox="0 0 24 24" id="ncIcon"></svg></button></div></div>`;
+  const ta = $("#nbText"), page = $("#nbPage"); ta.value = pl.notes || ""; page.classList.toggle("has", !!ta.value);
+  ta.addEventListener("input", () => { pl.notes = ta.value; page.classList.toggle("has", !!ta.value); });
+  const cb = $("#nbCtlBtn"); if (cb) cb.addEventListener("click", () => { if (ctlShowing()){ setCtl(false); ta.focus(); } else { ta.blur(); setCtl(true); } });
+  $("#ncPlay").addEventListener("click", togglePlay);
   $("#nbClose").addEventListener("click", () => { closeNote(); if (pl.t >= pl.len) return; $("#mp3").classList.add("show"); if (pl.playing) hideTimer = setTimeout(hideControls, 4000); });
   $("#nbSave").addEventListener("click", () => {
     pl.notes = ta.value.trim(); ta.blur();
-    if (!noteEnd){ closeNote(); toast("Saved"); $("#mp3").classList.add("show"); if (pl.playing) hideTimer = setTimeout(hideControls, 4000); return; }
-    if (wordsIn(pl.notes) < MIN_WORDS){ toast(moreText(MIN_WORDS - wordsIn(pl.notes), MIN_WORDS)); ta.focus(); return; }
+    if (!noteEnd){
+      if (pl.speechEnd && pl.t >= pl.speechEnd){ fadeOutAndFinish(); return; }
+      closeNote(); toast("Saved"); $("#mp3").classList.add("show"); if (pl.playing) hideTimer = setTimeout(hideControls, 4000); return;
+    }
     closeNote(); asking = true;
     homeVeil.pulse(1); homeVeil.setCalm(0.25);           /* the burn */
     setTimeout(() => askStep(0), 900);
   });
+  draw();
   box.classList.add("show");
   setTimeout(() => ta.focus(), 450);
 }
-/* keep Save above the keyboard: the visual viewport shrinks when it opens */
+/* keep the page and its buttons above the keyboard: --kb is how far the keyboard reaches into the notebook */
 if (window.visualViewport){
-  const track = () => { const vv = window.visualViewport; const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop); $("#ask").style.setProperty("--kb", kb + "px"); };
+  const track = () => { const vv = window.visualViewport, box = $("#ask"); const kb = Math.max(0, box.getBoundingClientRect().bottom - (vv.offsetTop + vv.height)); box.style.setProperty("--kb", Math.round(kb) + "px"); syncCtlBtn(); };
   window.visualViewport.addEventListener("resize", track); window.visualViewport.addEventListener("scroll", track);
+  document.addEventListener("focusin", () => { setTimeout(track, 100); setTimeout(track, 440); });
+  document.addEventListener("focusout", () => setTimeout(track, 140));
 }
-function closeNote(){
+function closeNote(now){
   const ta = $("#nbText"); if (ta) pl.notes = ta.value;
   noteOpen = false; asking = false;
-  const box = $("#ask"); box.classList.remove("show");
-  setTimeout(() => box.classList.remove("nb"), 450);
+  const box = $("#ask"); box.classList.remove("show", "ctl");
+  if (now) box.classList.remove("nb"); else setTimeout(() => box.classList.remove("nb"), 450);
 }
 $("#mpNotebook").addEventListener("click", () => openNote(false));
+$("#mpNote").addEventListener("click", () => openNote(false));
 /* after the ratings, the Introduction lands what was written as the first protocol */
 function endIntro(){
   asking = false; $("#ask").classList.remove("show");
@@ -1628,6 +1746,7 @@ function afterIntro(text){
         $("#aiGo").addEventListener("click", () => {
           const more = $("#aiMore").value.trim();
           if (!more){ toast("A line first"); return; }
+          $("#aiGo").disabled = true;
           asking = false; box.classList.remove("show");
           setTimeout(() => make(t + " " + more), 320);
         });
@@ -1651,19 +1770,17 @@ function askStep(i){
     if (i === 0){
       box.innerHTML = `<div class="k">${esc(pl.sess.title)}</div><h2>How was it?</h2><div class="stars">${[1,2,3,4,5].map(n => `<button data-star="${n}" aria-label="${n} stars"><svg viewBox="0 0 24 24"><path d="M12 2.8l2.8 6 6.5.7-4.9 4.4 1.4 6.4L12 17l-5.8 3.3 1.4-6.4L2.7 9.5l6.5-.7z"/></svg></button>`).join("")}</div>
         <div class="row-btn"><button class="skip" id="askSkip0">Skip</button><button class="go" id="askNext">Next</button></div>`;
-      $("#askSkip0").addEventListener("click", () => toast("Tap a star first"));
+      $("#askSkip0").addEventListener("click", () => pl.item.intro ? endIntro() : endAsk());
       box.querySelectorAll("[data-star]").forEach(b => b.addEventListener("click", () => { ans.rating = Number(b.dataset.star); box.querySelectorAll("[data-star]").forEach(x => x.classList.toggle("on", Number(x.dataset.star) <= ans.rating)); }));
       $("#askNext").addEventListener("click", () => { if (!ans.rating){ toast("Tap a star first"); return; } askStep(1); });
     } else if (i === 1){
       box.innerHTML = `<h2>Did you get chills?</h2><div class="yn"><button class="no" data-c="0">No</button><button class="yes" data-c="1">Yes</button></div>`;
       box.querySelectorAll("[data-c]").forEach(b => b.addEventListener("click", () => { ans.chills = b.dataset.c === "1"; pl.item.intro ? endIntro() : askStep(2); }));
     } else {
-      box.innerHTML = `<h2>What came up?</h2><div class="ob-area"><textarea id="askNote" placeholder="A few words, the way you'd tell a friend"></textarea></div>
-        <p class="need" id="askNeed"></p>
+      box.innerHTML = `<h2>What came up?</h2><div class="ob-area"><textarea id="askNote" placeholder="A line is enough">${esc(pl.notes || "")}</textarea></div>
         <div class="row-btn"><button class="skip" id="askSkip">Skip</button><button class="go" id="askDone">Done</button></div>`;
-      watchMore($("#askNote"), $("#askNeed"), MIN_WORDS);
-      $("#askDone").addEventListener("click", () => { const ta = $("#askNote"); if (needMore(ta, $("#askNeed"), MIN_WORDS)) return; ans.note = ta.value.trim(); endAsk(); });
-      $("#askSkip").addEventListener("click", () => { needMore($("#askNote"), $("#askNeed"), MIN_WORDS); toast("A few words first"); });
+      $("#askDone").addEventListener("click", () => { ans.note = $("#askNote").value.trim(); endAsk(); });
+      $("#askSkip").addEventListener("click", endAsk);
       setTimeout(() => $("#askNote").focus(), 350);
     }
     box.classList.add("show");
@@ -1692,7 +1809,7 @@ $("#mpBack").addEventListener("click", () => {
   $("#histX").addEventListener("click", () => { box.classList.remove("show"); $("#mp3").classList.add("show"); });
   box.querySelectorAll("[data-h]").forEach(b => b.addEventListener("click", () => { box.classList.remove("show"); clearInterval(pl.timer); startPlayer(it, it.sessions[Number(b.dataset.h)], true); }));
 });
-$("#mpClose").addEventListener("click", () => { if (asking) return; closePlayer(); });
+$("#mpClose").addEventListener("click", () => { if (asking) return; savePos(); closePlayer(); });
 
 /* ===== the work page: what do you want to work on ===== */
 const TOPICS = Object.keys(ILL);
@@ -1724,7 +1841,7 @@ function afterAsk(){
   $("#wk1").hidden = true; $("#wk2").hidden = false; $("#wkFoot").hidden = false;
   $("#wkPicked").innerHTML = ""; $("#wkPicked").style.display = "none";
   $("#wkQ").textContent = "What came to mind?";
-  $("#wkQs").textContent = "A person, a place, a decision. One line is enough.";
+  $("#wkQs").hidden = false; $("#wkQs").textContent = "A person, a place, a decision. One line is enough.";
   $("#wkText").value = wkLine; $("#wkText").placeholder = "My father, and the call I keep putting off.";
   $("#wkNeed").classList.remove("show"); $("#wkNone").hidden = false;
   $("#wkGo").textContent = "Next";
@@ -1741,12 +1858,16 @@ function afterPlace(){
   $("#wk2").hidden = true; $("#wkFoot").hidden = true; $("#wk1").hidden = false;
   $("#wkGrid").innerHTML = order.map(t => `<button class="wk-tile" data-t="${esc(t)}"><span class="wimg ${t === guess ? "guess" : ""}"><span class="ill"><img src="${ILL[t]}" alt="" draggable="false"></span><span class="name">${esc(t)}</span></span></button>`).join("")
     + `<button class="wk-tile" id="wkOwn"><span class="wimg own"><span class="plus"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span><span class="name">Something else</span></span></button>`;
-  const done = topic => { createProtocol(topic || null, wkLine, { onClarify: q => {
-    afterAsk();
-    $("#wkQ").textContent = q;
-    $("#wkQs").textContent = "Add a line, then continue.";
-    $("#wkText").value = wkLine;
-  } }).then(it => { if (it) land(it); }); };
+  const done = topic => {
+    if (createBusy) return;
+    $("#wkLead").hidden = false; $("#wkLead").textContent = "Making it\u2026";
+    createProtocol(topic || null, wkLine, { onClarify: q => {
+      afterAsk();
+      $("#wkQ").textContent = q;
+      $("#wkQs").hidden = false; $("#wkQs").textContent = "Add a line, then continue.";
+      $("#wkText").value = wkLine;
+    } }).then(it => { if (it) land(it); else if (!$("#wk1").hidden) $("#wkLead").textContent = "That one could not be made. Tap to try again."; });
+  };
   $("#wkGrid").querySelectorAll("[data-t]").forEach(b => b.addEventListener("click", () => done(b.dataset.t)));
   $("#wkOwn").addEventListener("click", () => done(""));
   $("#wk1").scrollTop = 0;
@@ -1762,8 +1883,8 @@ function wkChoose(topic){
   $("#wkPicked").style.display = ""; $("#wkNone").hidden = true;
   $("#wkPicked").innerHTML = `<span class="sw">${ILL[topic] ? `<img src="${ILL[topic]}" alt="">` : WM}</span>${esc(topic || "Your own")}`;
   $("#wkQ").textContent = FIRST_Q[topic] || "Tell us a bit about it.";
-  $("#wkQs").textContent = "A few lines, the way you'd tell a friend. Your first experience is written from this.";
-  $("#wkText").placeholder = "We talk every week and say nothing. I'd like to tell her one true thing before it's too late.";
+  $("#wkQs").hidden = true; $("#wkQs").textContent = "";
+  $("#wkText").placeholder = "";
   $("#wkGo").textContent = "Create the protocol";
   $("#wkText").value = ""; $("#wkNeed").classList.remove("show");
   if (!$("#wkText").dataset.watched){ $("#wkText").dataset.watched = "1"; watchMore($("#wkText"), $("#wkNeed"), MIN_WORDS); }
@@ -1780,10 +1901,13 @@ $("#wkGo").addEventListener("click", () => {
   if (needMore($("#wkText"), $("#wkNeed"), MIN_WORDS)) return;
   const text = $("#wkText").value.trim();
   $("#wkText").blur();
+  const b = $("#wkGo");
+  if (createBusy || b.disabled) return;
+  b.disabled = true; const was = b.textContent; b.textContent = "Making it\u2026";
   createProtocol(wkPick || null, text, { onClarify: q => {
     $("#wkQ").textContent = q;
-    $("#wkQs").textContent = "Add a line answering this to what you wrote, then create again.";
-  } }).then(it => { if (it) land(it); });
+    $("#wkQs").hidden = false; $("#wkQs").textContent = "Add a line answering this to what you wrote, then create again.";
+  } }).then(it => { b.disabled = false; b.textContent = was; if (it) land(it); });
 });
 
 /* ===== discover: the library, and settings ===== */
@@ -1793,19 +1917,16 @@ function renderStore(){
   if (dTab !== "xp") return renderSettings();
   const q = (($("#storeSearch") || {}).value || "").trim().toLowerCase();
   const hit = it => !q || [it.title, it.by || "", it.about, it.cap || "", it.maker ? CREATORS[it.maker].name : ""].join(" ").toLowerCase().includes(q);
-  const xps = STORE.filter(hit), cls = SHARED.filter(hit);
+  const xps = STORE.filter(hit);
   const ptile = it => `<div class="stile"><button class="tile" data-store="${it.id}"><span class="img" style="background-image:url('${it.img}')"><span class="name">${esc(it.title)}</span></span></button><span class="cap">${esc(it.cap)}</span></div>`;
-  const ctile = s => `<div class="stile"><button class="tile" data-shared="${s.id}"><span class="img veil" style="background-image:url('${veilOf(s)}')">${WM}<span class="name">${esc(s.title)}</span><span class="by">${esc(s.by)}</span></span></button><span class="cap">${esc(s.cap)}</span></div>`;
   $("#storeBody").innerHTML = `
     <h1 class="st-h">Discover</h1>
-    <p class="st-p">Experiences from ReWire, and protocols written by clinicians and researchers.</p>
+    <p class="st-p">Experiences from ReWire.</p>
     <div class="search" style="margin-top:16px"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></svg><input id="storeSearch" type="text" placeholder="Search the library" autocomplete="off" value="${esc(q)}"></div>
     ${xps.length ? `<div class="shelf-h"><span class="new">New</span>Immersive meditations</div><div class="shelf">${xps.map(ptile).join("")}</div>` : ""}
-    ${cls.length ? `<div class="shelf-h">From clinicians</div><div class="shelf">${cls.map(ctile).join("")}</div>` : ""}
-    ${!xps.length && !cls.length ? `<div class="empty">Nothing by that name in the library.</div>` : ""}`;
+    ${!xps.length ? `<div class="empty">Nothing by that name in the library.</div>` : ""}`;
   $("#storeSearch").addEventListener("input", () => { const v = $("#storeSearch").value; renderStore(); const i = $("#storeSearch"); i.value = v; i.focus(); i.setSelectionRange(v.length, v.length); });
   $("#storeBody").querySelectorAll("[data-store]").forEach(b => b.addEventListener("click", () => openXp(b.dataset.store)));
-  $("#storeBody").querySelectorAll("[data-shared]").forEach(b => b.addEventListener("click", () => openDetail(b.dataset.shared)));
 }
 function renderSettings(){
   const body = $("#storeBody");
@@ -1902,7 +2023,7 @@ $("#xpGo").addEventListener("click", () => {
   const { it } = cur;
   askTopic(it.title, it.q, text => { createProtocol(null, text, { format:it.id, onClarify: q => {
     $("#preQ").textContent = q;
-  } }).then(np => { if (np) land(np); }); });
+  } }).then(np => { const b = $("#preGo"); if (b){ b.disabled = false; b.textContent = "Add to your protocols"; } if (np) land(np); }); });
 });
 
 /* ===== signing in: an email, a code, and you are where you left off ===== */
