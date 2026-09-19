@@ -565,6 +565,27 @@ def _music_duration_ms(music_path: str) -> int:
         return len(AudioSegment.from_file(music_path))
 
 
+def _voice_seconds(wav_path: str) -> float:
+    """Length of the spoken part in seconds, measured before padding.
+
+    Reading a length changes nothing about the audio. 0.0 means unknown, and
+    the caller stores null so the frontend never ends a session early on it.
+    """
+    try:
+        with wave.open(wav_path, "rb") as wf:
+            fr = wf.getframerate()
+            if fr:
+                return wf.getnframes() / float(fr)
+    except Exception:
+        pass
+    try:
+        from pydub import AudioSegment
+        return len(AudioSegment.from_file(wav_path)) / 1000.0
+    except Exception as e:
+        print(f"[meditation] voice length probe failed: {e}")
+        return 0.0
+
+
 def _pad_voice_to_music(wav_path: str, music_path: str) -> str:
     """Append silence to the voice WAV so it matches the music length.
 
@@ -686,6 +707,10 @@ def _run_meditation_gen(jolt_id, ctx):
             pause_ms=cfg.MEDITATION_PAUSE_MS,
             long_pause_ms=cfg.MEDITATION_LONG_PAUSE_MS,
         )
+        # Where the words end: the pad below stretches this same wav out to
+        # the music length, so the bare voice is measured first. Day 1 adds
+        # the primer offset once attach_primer reports it.
+        voice_sec = _voice_seconds(wav)
         _update(jolt_id, stage="mixing", progress=70)
 
         # ---- 3. Pad voice to music, mix with mix_v45. Day 1 gets the theme
@@ -694,6 +719,7 @@ def _run_meditation_gen(jolt_id, ctx):
         # (Ashwin, Aug 2026) ----
         af = f"{_PREFIX}{jolt_id}.mp3"
         final_path = str(cfg.out_dir_path / af)
+        words_offset = 0.0
         bare_mix = None
         if day == 1:
             bare_fd, bare_mix = tempfile.mkstemp(prefix="rewire_bare_", suffix=".mp3")
@@ -713,7 +739,7 @@ def _run_meditation_gen(jolt_id, ctx):
                 # Join primer + meditation the way Felix's 2_transition.py
                 # does. Never raises: on any failure the bare mix is
                 # delivered as is.
-                attach_primer(theme, bare_mix, final_path)
+                words_offset = attach_primer(theme, bare_mix, final_path)
             encrypt_file(final_path)
         finally:
             try:
@@ -728,9 +754,10 @@ def _run_meditation_gen(jolt_id, ctx):
                 print(f"[meditation] {jolt_id} voice temp cleanup failed: {e}")
 
         elapsed = round(time.time() - t0, 1)
-        _update(jolt_id, audio_filename=af,
+        speech_end = round(words_offset + voice_sec, 1) if voice_sec > 0 else None
+        _update(jolt_id, audio_filename=af, speech_end_sec=speech_end,
                 gen_time_sec=elapsed, stage="done", progress=100)
-        print(f"[meditation] {jolt_id} done in {elapsed}s")
+        print(f"[meditation] {jolt_id} done in {elapsed}s, words end at {speech_end}s")
         # Push wording (Ashwin, Aug 2026): pre generated days complete while
         # the user is away, so the notification names the day it announces.
         _notify_user(ctx["user_id"], f"Jolt {day} is ready", "Put on headphones and press play.")
