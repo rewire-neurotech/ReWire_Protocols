@@ -1417,7 +1417,7 @@ function startNext(it){
   const day = it.nextDay;
   if (!day){ toast("This protocol is complete."); return; }
   startBusy = true;
-  const sess = { title:"", date:today(), ts:nowTs(), len:"10:00", fresh:true };
+  const sess = { title:"", date:today(), ts:nowTs(), len:"10:00", fresh:true, day };
   const primed = day === 1;
   if (primed){
     // the player opens and the primer starts itself (a static asset);
@@ -1429,7 +1429,17 @@ function startNext(it){
     .then(r => {
       startBusy = false;
       sess.joltId = r.jolt_id;
-      if (pl.sess === sess) pl.joltId = r.jolt_id;
+      if (pl.sess === sess){
+        const oldK = pl.item && pl.item.pid && sess.day ? "edge_pos_p" + pl.item.pid + "d" + sess.day : null;
+        pl.joltId = r.jolt_id;
+        const newK = "edge_pos_" + r.jolt_id;
+        if (oldK && oldK !== newK){ try {
+          const pv = localStorage.getItem(oldK); if (pv && !localStorage.getItem(newK)) localStorage.setItem(newK, pv);
+          const nv = localStorage.getItem(oldK + "_n"); if (nv && !localStorage.getItem(newK + "_n")) localStorage.setItem(newK + "_n", nv);
+          localStorage.removeItem(oldK); localStorage.removeItem(oldK + "_n");
+        } catch(e){} }
+        loadNote();
+      }
       if (r.status === "replay" && r.audio_url){
         sess.audio_url = r.audio_url; sess.speech_end = r.speech_end_sec || 0;
         if (pl.sess === sess) pl.speechEnd = sess.speech_end;
@@ -1509,11 +1519,13 @@ async function wlGet(){ try { if ("wakeLock" in navigator && !wl){ wl = await na
 function wlDrop(){ try { if (wl) wl.release(); } catch(e){} wl = null; }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && pl.playing) wlGet(); });
 /* the place they left: position per jolt, so closing with X and coming back resumes */
-function posKey(){ if (pl.item && pl.item.intro) return "edge_pos_intro"; return pl.joltId ? "edge_pos_" + pl.joltId : null; }
+function posKey(){ if (pl.item && pl.item.intro) return "edge_pos_intro"; if (pl.joltId) return "edge_pos_" + pl.joltId; if (pl.item && pl.item.pid && pl.sess && pl.sess.day) return "edge_pos_p" + pl.item.pid + "d" + pl.sess.day; return null; }
 function savePos(){ const k = posKey(); if (!k || !pl.len) return; try { if (pl.t > 5 && pl.t < pl.len - 8) localStorage.setItem(k, String(Math.floor(pl.t))); } catch(e){} }
 let lastPos = 0;
 function savePosT(){ const n = Date.now(); if (n - lastPos < 3000) return; lastPos = n; savePos(); }
-function clearPos(){ const k = posKey(); if (k) try { localStorage.removeItem(k); } catch(e){} }
+function clearPos(){ const k = posKey(); if (k) try { localStorage.removeItem(k); localStorage.removeItem(k + "_n"); } catch(e){} }
+function saveNote(){ const k = posKey(); if (!k) return; try { if (pl.notes && pl.notes.trim()) localStorage.setItem(k + "_n", pl.notes); else localStorage.removeItem(k + "_n"); } catch(e){} }
+function loadNote(){ const k = posKey(); if (!k) return; try { const v = localStorage.getItem(k + "_n"); if (v && !pl.notes) pl.notes = v; } catch(e){} }
 function applyResume(){
   const k = posKey(); if (!k || pl.primer || !pl.audio) return;
   let v = 0; try { v = parseFloat(localStorage.getItem(k) || "0"); } catch(e){}
@@ -1567,6 +1579,7 @@ function startPlayer(item, sess, replay, paused){
   currentId = item.id;
   const [mm, ss] = sess.len.split(":").map(Number);
   pl = { item, sess, playing:false, t:0, len: mm * 60 + ss, timer:null, replay, audio:null, joltId: sess.joltId || null, notes:"", noteAuto:false, speechEnd: sess.speech_end || 0 };
+  loadNote();
   const src = item.intro ? (INTRO && INTRO.audio_url) : sess.audio_url;
   if (src){ plAttach(src); applyResume(); }
   if (sess.fresh) sess.title = item.intro || item.shared ? item.title : "Session " + (item.sessions.length + 1);
@@ -1669,7 +1682,7 @@ function openNote(atEnd){
     <div class="nb-row">${atEnd ? "" : `<button class="ctl-btn" id="nbCtlBtn">${ICON_CTL}<span>Controls</span></button>`}<button class="go" id="nbSave">Save</button></div>
     <div class="nb-ctl" id="nbCtl"><div class="nc-k">${esc(pl.sess.title)}</div><div class="track"><div class="fill" id="ncFill"></div><div class="knob" id="ncKnob"></div></div><div class="times"><span id="ncNow">0:00</span><span id="ncLen">${fmt(pl.len)}</span></div><div class="ctrls"><button class="pp" id="ncPlay" aria-label="Play or pause"><svg viewBox="0 0 24 24" id="ncIcon"></svg></button></div></div>`;
   const ta = $("#nbText"), page = $("#nbPage"); ta.value = pl.notes || ""; page.classList.toggle("has", !!ta.value);
-  ta.addEventListener("input", () => { pl.notes = ta.value; page.classList.toggle("has", !!ta.value); });
+  ta.addEventListener("input", () => { pl.notes = ta.value; page.classList.toggle("has", !!ta.value); saveNote(); });
   const cb = $("#nbCtlBtn"); if (cb) cb.addEventListener("click", () => { if (ctlShowing()){ setCtl(false); ta.focus(); } else { ta.blur(); setCtl(true); } });
   $("#ncPlay").addEventListener("click", togglePlay);
   $("#nbClose").addEventListener("click", () => { closeNote(); if (pl.t >= pl.len) return; $("#mp3").classList.add("show"); if (pl.playing) hideTimer = setTimeout(hideControls, 4000); });
@@ -1696,6 +1709,7 @@ if (window.visualViewport){
 }
 function closeNote(now){
   const ta = $("#nbText"); if (ta) pl.notes = ta.value;
+  saveNote();
   noteOpen = false; asking = false;
   const box = $("#ask"); box.classList.remove("show", "ctl");
   if (now) box.classList.remove("nb"); else setTimeout(() => box.classList.remove("nb"), 450);
@@ -1809,7 +1823,7 @@ $("#mpBack").addEventListener("click", () => {
   $("#histX").addEventListener("click", () => { box.classList.remove("show"); $("#mp3").classList.add("show"); });
   box.querySelectorAll("[data-h]").forEach(b => b.addEventListener("click", () => { box.classList.remove("show"); clearInterval(pl.timer); startPlayer(it, it.sessions[Number(b.dataset.h)], true); }));
 });
-$("#mpClose").addEventListener("click", () => { if (asking) return; savePos(); closePlayer(); });
+$("#mpClose").addEventListener("click", () => { if (asking) return; savePos(); saveNote(); closePlayer(); });
 
 /* ===== the work page: what do you want to work on ===== */
 const TOPICS = Object.keys(ILL);
