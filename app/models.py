@@ -275,6 +275,13 @@ class ProtocolJolt(Base):
     gen_error = Column(Text, nullable=True)
     gen_time_sec = Column(Float, nullable=True)
 
+    # Where the spoken words end inside the final file, in seconds. Meditation
+    # jolts only: the mix pads the voice out to the music, so trailing music
+    # runs on after the words. The frontend uses this to end the session when
+    # the notebook is saved past the words. Null on activate jolts and on
+    # rows made before this column existed.
+    speech_end_sec = Column(Float, nullable=True)
+
     # output safety screen result (run on the generated speech)
     screen_verdict = Column(String(20), nullable=True)    # pass | fail
     screen_category = Column(String(30), nullable=True)
