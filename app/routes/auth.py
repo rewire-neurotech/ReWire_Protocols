@@ -3,7 +3,7 @@ import time
 from datetime import datetime, timedelta, timezone, date
 from typing import Optional
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -252,6 +252,20 @@ class LoginReq(BaseModel):
 class GoogleReq(BaseModel):
     credential: str
 
+class SignupReq(BaseModel):
+    email: str
+    password: str
+
+class ConsentReq(BaseModel):
+    terms_version: str = ""
+    privacy_version: str = ""
+    age18_and_terms: bool = False
+    no_care_and_not_in_crisis: bool = False
+    research_use: bool = False
+
+class ResetReq(BaseModel):
+    email: str
+
 class ProfileReq(BaseModel):
     first_name: str = ""
     last_name: str = ""
@@ -272,6 +286,7 @@ class AuthResp(BaseModel):
     has_subscription: bool = False
     is_admin: bool = False          # admin console gate; always false for app users
     first_time: bool = True         # no protocols yet: frontend runs the story + Introduction
+    needs_consent: bool = False     # ChillsTV row has no consented_at: frontend shows the notice
 
 class UserResp(BaseModel):
     user_id: int
@@ -284,12 +299,13 @@ class UserResp(BaseModel):
     has_subscription: bool = False
     is_admin: bool = False          # admin console gate; always false for app users
     first_time: bool = True         # no protocols yet: frontend runs the story + Introduction
+    needs_consent: bool = False     # ChillsTV row has no consented_at: frontend shows the notice
 
 class StatusResp(BaseModel):
     status: str
 
 
-def _auth_resp(u, token, db):
+def _auth_resp(u, token, db, needs_consent=False):
     # Runs on every sign-in path (local, register, Google), so an account listed
     # in ADMIN_EMAILS gets its flag the first time it signs in, without waiting
     # for a redeploy.
@@ -302,6 +318,7 @@ def _auth_resp(u, token, db):
         has_subscription=_has_active_sub(u.id, db),
         is_admin=bool(u.is_admin),
         first_time=_first_time(u.id, db),
+        needs_consent=needs_consent,
     )
 
 
@@ -359,8 +376,91 @@ def login(req: LoginReq, db: Session = Depends(get_db)):
         if not bridge.has_edge_access(ctv):
             raise HTTPException(403, "this account has no Edge access yet, request it on rewire.bio")
         u = edge_user_for_chillstv(db, ctv)
-        return _auth_resp(u, make_token(u.id, u.email), db)
+        return _auth_resp(u, make_token(u.id, u.email), db,
+                          needs_consent=not ctv.get("consented_at"))
     raise HTTPException(401, "invalid email or password")
+
+
+EMAIL_OK = __import__("re").compile(r"^[^\s@]+@[^\s@]+\.[^\s@]{2,}$")
+
+# signup throttle: small in-memory window per worker, mirrors ChillsTV's guard
+_signup_hits = {}
+def _client_ip(request) -> str:
+    fwd = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+    return fwd or (request.client.host if request.client else "")
+def _signup_throttled(ip: str) -> bool:
+    now = time.time()
+    hits = [t for t in _signup_hits.get(ip, []) if now - t < 600]
+    _signup_hits[ip] = hits
+    if len(hits) >= 10:
+        return True
+    hits.append(now)
+    return False
+
+
+@r.post("/signup", response_model=AuthResp)
+def signup(req: SignupReq, request: Request, db: Session = Depends(get_db)):
+    """Create the account in ChillsTV's DB with Edge access granted.
+
+    Edge is a second front door since Sept 2026: same users table as
+    rewire.bio, so the person is one identity in both apps. The frontend
+    shows the notice right after; consent lands via /consent below.
+    """
+    email = (req.email or "").strip().lower()
+    if not EMAIL_OK.match(email):
+        raise HTTPException(400, "That email does not look right.")
+    if len(req.password or "") < 8:
+        raise HTTPException(400, "Password needs at least 8 characters.")
+    if not bridge.enabled():
+        raise HTTPException(503, "Sign up is not available right now.")
+    if _signup_throttled(_client_ip(request)):
+        raise HTTPException(429, "Too many signups from this network. Please wait a few minutes.")
+    if bridge.user_by_email(email):
+        raise HTTPException(409, "That email already has an account. Sign in instead.")
+    ctv = bridge.create_account(email, req.password)
+    if not ctv:
+        if bridge.user_by_email(email):
+            raise HTTPException(409, "That email already has an account. Sign in instead.")
+        raise HTTPException(503, "Could not create the account. Please try again.")
+    u = edge_user_for_chillstv(db, ctv)
+    return _auth_resp(u, make_token(u.id, u.email), db, needs_consent=True)
+
+
+@r.post("/consent", response_model=StatusResp)
+def record_consent(req: ConsentReq, u: User = Depends(get_current_user_required),
+                   db: Session = Depends(get_db)):
+    """Stamp the Before-you-begin acceptance on the ChillsTV row."""
+    if not (req.age18_and_terms and req.no_care_and_not_in_crisis):
+        raise HTTPException(400, "The required boxes must be accepted.")
+    boxes = {
+        "age18_and_terms": req.age18_and_terms,
+        "no_care_and_not_in_crisis": req.no_care_and_not_in_crisis,
+        "research_use": req.research_use,
+    }
+    if u.chillstv_user_id:
+        ok = bridge.record_consent(u.chillstv_user_id, req.terms_version, req.privacy_version, boxes)
+        if not ok:
+            raise HTTPException(503, "Could not save. Please try again.")
+    # local mirror so /me can answer without the bridge
+    if not u.disclaimer_accepted_at:
+        u.disclaimer_accepted_at = datetime.now(timezone.utc)
+        db.commit()
+    return StatusResp(status="ok")
+
+
+@r.post("/reset-request", response_model=StatusResp)
+def reset_request(req: ResetReq):
+    """Password reset stub: logs the ask, always answers ok (no enumeration).
+
+    The email send is a follow-up piece pending a provider decision. Until
+    then the request lands in ChillsTV's events table so a reset can be
+    handled by hand in beta.
+    """
+    email = (req.email or "").strip().lower()
+    if EMAIL_OK.match(email) and bridge.enabled():
+        ctv = bridge.user_by_email(email)
+        bridge.log_event("reset_requested", user_id=(ctv or {}).get("id"), detail={"email": email, "via": "edge"})
+    return StatusResp(status="ok")
 
 
 @r.post("/session", response_model=AuthResp)
@@ -377,7 +477,8 @@ def chillstv_session(cv_session: str = Cookie(default=""), db: Session = Depends
     if not bridge.has_edge_access(ctv):
         raise HTTPException(403, "this account has no Edge access yet, request it on rewire.bio")
     u = edge_user_for_chillstv(db, ctv)
-    return _auth_resp(u, make_token(u.id, u.email), db)
+    return _auth_resp(u, make_token(u.id, u.email), db,
+                      needs_consent=not ctv.get("consented_at"))
 
 
 @r.post("/google", response_model=AuthResp)
@@ -527,6 +628,13 @@ def complete_onboarding(u: User = Depends(get_current_user_required),
 
 @r.get("/me", response_model=UserResp)
 def get_me(u: User = Depends(get_current_user_required), db: Session = Depends(get_db)):
+    # notice pending: covers /go and cookie arrivals too, not just password sign-in.
+    # the local disclaimer mirror is the fast path, the bridge read only runs until
+    # consent is stamped once.
+    needs_consent = False
+    if u.chillstv_user_id and not u.disclaimer_accepted_at:
+        ctv = bridge.user_by_id(u.chillstv_user_id)
+        needs_consent = bool(ctv) and not ctv.get("consented_at")
     return UserResp(
         user_id=u.id, email=u.email,
         first_name=u.first_name or "", last_name=u.last_name or "",
@@ -536,6 +644,7 @@ def get_me(u: User = Depends(get_current_user_required), db: Session = Depends(g
         has_subscription=_has_active_sub(u.id, db),
         is_admin=bool(u.is_admin),
         first_time=_first_time(u.id, db),
+        needs_consent=needs_consent,
     )
 
 
