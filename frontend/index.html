@@ -2189,8 +2189,12 @@ function gateAuth(mode, then, email){
   };
   $("#gGo").addEventListener("click", go);
   [em, pw].forEach(el => el.addEventListener("keydown", e => { if (e.key === "Enter") go(); }));
-  $("#gGoog").addEventListener("click", () => {
-    toast("Google sign-in is coming soon.");
+  $("#gGoog").addEventListener("click", async () => {
+    try {
+      const cfgd = await api("/api/auth/config");
+      if (cfgd && cfgd.chillstv_url){ location.href = cfgd.chillstv_url + "/auth/google/start?from=edge"; return; }
+    } catch(e){}
+    toast("Google sign-in is not available right now.");
   });
 }
 function miSignIn(then){ gateAuth("in", then); }
@@ -2316,6 +2320,10 @@ async function boot(){
   if ("serviceWorker" in navigator){ try { navigator.serviceWorker.register("/sw.js"); } catch(e){} }
   const m = location.hash.match(/edge_token=([^&]+)/);
   if (m){ setToken(decodeURIComponent(m[1])); history.replaceState(null, "", location.pathname); }
+  const ge = location.hash.match(/gerr=([a-z]+)/);
+  if (ge){ history.replaceState(null, "", location.pathname);
+    toast(ge[1] === "noaccess" ? "No Edge access yet. Request it on rewire.bio." : "Google sign-in did not complete. Try again.");
+  }
   if (!TOKEN){
     try { const d = await api("/api/auth/session", { method: "POST" }); setToken(d.token); }
     catch(e){}
