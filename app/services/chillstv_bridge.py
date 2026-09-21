@@ -1,11 +1,15 @@
-"""Read-only bridge to ChillsTV's database.
+"""Bridge to ChillsTV's database.
 
-Accounts live in ChillsTV (rewire.bio). Edge never creates accounts, it
-recognizes them three ways: the /go/{code} grant link, the cv_session
-cookie ChillsTV sets on .rewire.bio, and plain email+password checked
-against ChillsTV's pbkdf2 hashes. All three resolve here, plus the
-research readers (questionnaire answers, chills score) fed into speech
-generation.
+Accounts live in ChillsTV (rewire.bio). Edge recognizes them three ways:
+the /go/{code} grant link, the cv_session cookie ChillsTV sets on
+.rewire.bio, and plain email+password checked against ChillsTV's pbkdf2
+hashes. All three resolve here, plus the research readers (questionnaire
+answers, chills score) fed into speech generation.
+
+Since Edge signup (Sept 2026) the bridge also writes: create_account
+puts the new user straight into ChillsTV's users table with Edge access
+granted, and record_consent stamps the notice acceptance. Same formats
+as ChillsTV's own auth.py and db.py, so both apps read one identity.
 
 Set CHILLSTV_DB_URL to ChillsTV's postgres connection string. A
 sqlite:///path url also works for local dev against a chillstv.db file.
@@ -17,6 +21,7 @@ import hmac
 import json
 import time
 import hashlib
+import secrets
 import sqlite3
 import threading
 
@@ -117,6 +122,12 @@ def user_by_edge_code(code: str):
     return _one("SELECT * FROM users WHERE edge_code = ? AND edge_code != ''", (code,))
 
 
+def user_by_id(user_id: int):
+    if not user_id:
+        return None
+    return _one("SELECT * FROM users WHERE id = ?", (user_id,))
+
+
 def user_by_email(email: str):
     e = (email or "").strip().lower()
     if not e:
@@ -213,3 +224,114 @@ def full_record(chillstv_user_id: int) -> dict:
         "events": _query("SELECT * FROM events WHERE user_id = ? ORDER BY created_at", uid),
         "tags": _query("SELECT tag, created_at FROM user_tags WHERE user_id = ? ORDER BY created_at", uid),
     }
+
+
+# ── writes: Edge signup lands the account in ChillsTV ──────────────
+
+PBKDF2_ITERATIONS = 260000  # same as ChillsTV auth.py
+
+
+def _execute(sql: str, params=()) -> bool:
+    """Run one INSERT/UPDATE. True on success, False on any failure."""
+    global _pg
+    if not enabled():
+        return False
+    try:
+        if _is_sqlite():
+            conn = sqlite3.connect(_sqlite_path())
+            try:
+                conn.execute(sql, params)
+                conn.commit()
+                return True
+            finally:
+                conn.close()
+        import psycopg2
+        with _lock:
+            if _pg is None or _pg.closed:
+                _pg = psycopg2.connect(cfg.CHILLSTV_DB_URL)
+                _pg.autocommit = True
+            try:
+                cur = _pg.cursor()
+                cur.execute(sql.replace("?", "%s"), params)
+                cur.close()
+                return True
+            except psycopg2.Error:
+                try:
+                    _pg.close()
+                except Exception:
+                    pass
+                _pg = psycopg2.connect(cfg.CHILLSTV_DB_URL)
+                _pg.autocommit = True
+                cur = _pg.cursor()
+                cur.execute(sql.replace("?", "%s"), params)
+                cur.close()
+                return True
+    except Exception as e:
+        print(f"[chillstv bridge] write failed: {type(e).__name__}: {e}")
+        return False
+
+
+def hash_password(password: str) -> str:
+    """Same scheme ChillsTV mints: pbkdf2$iters$salt$hex."""
+    salt = secrets.token_hex(16)
+    dk = hashlib.pbkdf2_hmac("sha256", (password or "").encode(), salt.encode(), PBKDF2_ITERATIONS)
+    return f"pbkdf2${PBKDF2_ITERATIONS}${salt}${dk.hex()}"
+
+
+def log_event(event: str, user_id=None, detail: dict = None):
+    """One row in ChillsTV's events table, best effort, never raises."""
+    try:
+        _execute(
+            "INSERT INTO events (user_id, pid, event, detail, created_at) VALUES (?,?,?,?,?)",
+            (user_id, "", event, json.dumps(detail or {}), time.time()),
+        )
+    except Exception:
+        pass
+
+
+def create_account(email: str, password: str):
+    """A fresh ChillsTV users row born in Edge, access granted.
+
+    Mirrors ChillsTV's create_account_user plus grant_edge in one insert:
+    token so every legacy flow works on the row, pbkdf2 password, beta
+    granted with an edge code minted. Returns the users row, or None if
+    the email is taken or the write failed.
+    """
+    e = (email or "").strip().lower()
+    if not e:
+        return None
+    if user_by_email(e):
+        return None
+    token = secrets.token_urlsafe(16)
+    ok = _execute(
+        "INSERT INTO users (token, email, password_hash, created_at, "
+        "beta_status, edge_code, edge_granted_at) VALUES (?,?,?,?,?,?,?)",
+        (token, e, hash_password(password), time.time(),
+         "granted", secrets.token_urlsafe(6), time.time()),
+    )
+    if not ok:
+        return None
+    u = _one("SELECT * FROM users WHERE token = ?", (token,))
+    if u:
+        log_event("account_created", user_id=u.get("id"), detail={"method": "password", "via": "edge"})
+    return u
+
+
+def record_consent(user_id: int, terms_version: str, privacy_version: str, consent_boxes: dict) -> bool:
+    """Stamp the notice acceptance, same fields ChillsTV's consent writes.
+
+    Versions update to the latest accepted, the timestamp only stamps once.
+    """
+    if not user_id:
+        return False
+    ok = _execute(
+        "UPDATE users SET terms_version=?, privacy_version=?, consent_boxes=? WHERE id=?",
+        (terms_version or "", privacy_version or "", json.dumps(consent_boxes or {}), user_id),
+    )
+    if ok:
+        _execute(
+            "UPDATE users SET consented_at=? WHERE id=? AND consented_at IS NULL",
+            (time.time(), user_id),
+        )
+        log_event("consented", user_id=user_id, detail={"via": "edge"})
+    return ok
