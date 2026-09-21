@@ -474,6 +474,81 @@
   body.kb-open .ob-body.top { padding-top: 6px; }
   body.kb-open .ob-q { font-size: 26px; }
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  /* ===== the gate: an account, then the notice ===== */
+  #s-gate { background: var(--screen); }
+  .gate-scroll { position: absolute; inset: 0; display: flex; overflow-y: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .gate-scroll::-webkit-scrollbar { display: none; }
+  .gate-wrap { width: 100%; max-width: 380px; margin: auto; padding: calc(var(--safe-top) + 46px) 26px calc(var(--safe-bottom) + 30px); }
+  .gate-wrap.doc { max-width: 420px; padding-top: calc(var(--safe-top) + 78px); }
+  .g-fade { animation: gateIn .5s var(--ease) both; }
+  @keyframes gateIn { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
+  .g-back { position: absolute; left: 16px; top: calc(var(--safe-top) + 14px); z-index: 3; width: 40px; height: 40px; border-radius: 50%;
+    display: grid; place-items: center; color: var(--ink); background: var(--screen); box-shadow: 0 0 10px 9px var(--screen);
+    transition: transform .2s ease; }
+  .g-back:active { transform: scale(.9); }
+  .g-back svg { width: 23px; height: 23px; stroke: currentColor; stroke-width: 1.9; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+  .g-mark { display: block; height: 44px; width: auto; margin: 0 auto; }
+  .g-h { margin-top: 24px; text-align: center; font-family: var(--display); font-size: 31px; font-weight: 600; letter-spacing: -.022em; line-height: 1.08; }
+  .g-sub { margin-top: 9px; text-align: center; font-size: 16.5px; line-height: 1.45; color: var(--muted); }
+
+  .g-goog { width: 100%; display: flex; align-items: center; justify-content: center; gap: 11px; margin-top: 30px; padding: 19px;
+    border-radius: 999px; background: #fff; border: 1px solid rgba(28,26,22,.14); box-shadow: 0 1px 2px rgba(0,0,0,.035);
+    font-size: 17.5px; font-weight: 500; transition: transform .16s ease, box-shadow .2s ease; }
+  .g-goog:active { transform: scale(.985); }
+  .g-goog svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+  .g-or { display: flex; align-items: center; gap: 14px; margin: 20px 0 4px; font-size: 15px; color: var(--muted); }
+  .g-or::before, .g-or::after { content: ""; flex: 1; height: 1px; background: var(--hairline); }
+
+  .g-row { position: relative; margin-top: 11px; }
+  .g-in { width: 100%; padding: 20px 23px; border-radius: 999px; background: #fff; border: 1px solid rgba(28,26,22,.14);
+    box-shadow: 0 1px 2px rgba(0,0,0,.035); font-size: 17.5px; color: var(--ink); transition: border-color .2s ease; }
+  .g-in::placeholder { color: var(--muted); }
+  .g-in:focus { border-color: rgba(28,26,22,.5); }
+  .g-row.bad .g-in { border-color: rgba(165,53,43,.55); }
+  .g-row.pw .g-in { padding-right: 84px; }
+  .g-peek { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); padding: 12px; font-size: 15px; font-weight: 500; color: var(--ink-soft); }
+
+  .g-cta { width: 100%; margin-top: 18px; padding: 21px; border-radius: 999px; background: var(--ink); color: var(--screen);
+    text-align: center; font-size: 18px; font-weight: 500; letter-spacing: -.005em; transition: transform .16s ease, opacity .2s ease; }
+  .g-cta:active { transform: scale(.985); }
+  .g-cta[disabled] { opacity: .26; cursor: default; }
+  .g-ghost { width: 100%; margin-top: 11px; padding: 19px; border-radius: 999px; border: 1px solid rgba(28,26,22,.14);
+    background: transparent; text-align: center; font-size: 17px; font-weight: 500; color: var(--ink); }
+  .g-ghost[disabled] { color: var(--muted); cursor: default; }
+
+  .g-forgot { display: block; width: max-content; margin: 14px auto 0; font-size: 15.5px; color: var(--muted);
+    text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 3px; padding: 4px 6px; }
+  .g-alt { margin-top: 24px; text-align: center; font-size: 16px; color: var(--muted); }
+  .g-alt button { font-weight: 500; color: var(--ink); text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 3px; padding: 4px 2px; }
+  .g-fine { margin-top: 26px; text-align: center; font-size: 13.5px; line-height: 1.55; color: var(--faint); }
+  .g-fine a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+  .g-icon { width: 58px; height: 58px; margin: 0 auto; border-radius: 50%; background: #fff; border: 1px solid rgba(28,26,22,.12);
+    box-shadow: 0 1px 2px rgba(0,0,0,.035); display: grid; place-items: center; }
+  .g-icon svg { width: 25px; height: 25px; stroke: var(--ink); stroke-width: 1.7; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .g-body { margin-top: 12px; text-align: center; font-size: 16.5px; line-height: 1.5; color: var(--ink-soft); }
+  .g-body b { font-weight: 500; color: var(--ink); }
+
+  /* the notice */
+  .g-title { font-family: var(--display); font-size: 33px; font-weight: 600; letter-spacing: -.022em; line-height: 1.06; }
+  .g-note { margin-top: 15px; font-size: 16.5px; line-height: 1.58; color: var(--ink-soft); }
+  .g-note b { font-weight: 600; color: var(--ink); }
+  .g-checks { margin-top: 24px; border-top: 1px solid var(--hairline); }
+  .g-check { display: flex; align-items: flex-start; gap: 15px; width: 100%; padding: 18px 2px; border-bottom: 1px solid var(--hairline); text-align: left; }
+  .g-check .bx { flex: 0 0 25px; height: 25px; margin-top: 1px; border-radius: 8px; background: #fff; border: 1.5px solid rgba(28,26,22,.24);
+    display: grid; place-items: center; transition: background .18s ease, border-color .18s ease, transform .18s var(--ease); }
+  .g-check .bx svg { width: 14px; height: 14px; stroke: var(--screen); stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round;
+    opacity: 0; transform: scale(.6); transition: opacity .16s ease, transform .2s var(--ease); }
+  .g-check.on .bx { background: var(--ink); border-color: var(--ink); }
+  .g-check.on .bx svg { opacity: 1; transform: none; }
+  .g-check:active .bx { transform: scale(.9); }
+  .g-check .tx { flex: 1; min-width: 0; font-size: 16px; line-height: 1.5; color: var(--ink); }
+  .g-check .tx a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--faint); }
+  .g-opt { display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 999px; background: var(--chip); font-size: 12px; font-weight: 600; color: var(--ink-soft); vertical-align: 1.5px; }
+  .g-crisis { margin-top: 20px; font-size: 15px; line-height: 1.5; color: var(--ink-soft); }
+  .g-crisis b { font-weight: 600; color: var(--ink); }
+  .g-stamp { margin-top: 18px; text-align: center; font-size: 13px; color: var(--faint); }
 </style>
 </head>
 <body>
@@ -625,6 +700,12 @@
       <div class="ob-body top" id="miBody"></div>
       <div class="ob-foot is-in" id="miFoot"></div>
     </div>
+  </section>
+
+  <!-- ===== ACCOUNT AND NOTICE ===== -->
+  <section class="screen" id="s-gate">
+    <button class="g-back" id="gBack" aria-label="Back" hidden><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div class="gate-scroll" id="gScroll"></div>
   </section>
 
   <div class="veil-root" id="snapVeil" style="position:absolute;left:-2000px;top:0;width:300px;height:300px"></div>
@@ -1974,7 +2055,7 @@ function renderSettings(){
     b.querySelector(".tog").classList.toggle("on", settings[b.dataset.tog]);
     if (b.dataset.tog === "notifications") setPush(settings.notifications).catch(() => {});
   }));
-  $("#signOut").addEventListener("click", () => { toast("Signed out"); setTimeout(() => { mine.length = 0; currentId = null; flip(false, true); navStack = []; miSignIn(() => { seedReturning(); renderHome(); nav("home"); }); }, 500); });
+  $("#signOut").addEventListener("click", () => { toast("Signed out"); setTimeout(() => { setToken(""); mine.length = 0; currentId = null; flip(false, true); navStack = []; renderHome(); gateAuth("in", async () => { await loadAll().catch(() => {}); afterAuth(); }); }, 500); });
   body.scrollTop = 0;
 }
 
@@ -2041,44 +2122,169 @@ $("#xpGo").addEventListener("click", () => {
 });
 
 /* ===== signing in: an email, a code, and you are where you left off ===== */
-function miFrame(html, foot){ $("#miBody").innerHTML = html; $("#miFoot").innerHTML = foot || ""; $("#miFoot").classList.add("is-in"); miVeil.pulse(.7); }
-function miSignIn(then){
-  nav("mini"); miVeil.start(); miVeil.resize();
-  miFrame(`
-    <div class="ob-step">
-      <h1 class="ob-q">Welcome back.</h1>
-      <p class="ob-qs">Sign in and pick up where you left off.</p>
-      <div class="mi-field"><input id="miEmail" type="email" inputmode="email" placeholder="you@email.com" autocomplete="email" enterkeyhint="go"></div>
-    </div>`,
-    `<button class="ob-cta" id="miSend">Continue</button>`);
-  const em = $("#miEmail"); setTimeout(() => em.focus(), 420);
-  const go = () => { if (!/.+@.+\..+/.test(em.value.trim())){ toast("An email first"); return; } em.blur(); miCode(em.value.trim(), then); };
-  $("#miSend").addEventListener("click", go);
-  em.addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+/* ===== the gate: an account, then the notice, then the app ===== */
+const TERMS_V = "1.1", PRIVACY_V = "1.0";
+const TERMS_URL = "https://rewire.bio/terms", PRIVACY_URL = "https://rewire.bio/privacy";
+const RESEARCH_REQUIRED = false;   /* the research box is optional; true gates Continue on it too */
+let account = null, consent = null;
+
+const LOGO_SRC = document.querySelector("#s-mini .ob-top img").getAttribute("src");
+const G_SVG = `<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>`;
+const TICK = `<span class="bx"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>`;
+const okEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((v || "").trim());
+
+function gate(html, back){
+  nav("gate");
+  $("#gScroll").innerHTML = `<div class="gate-wrap g-fade">${html}</div>`;
+  const b = $("#gBack"); b.hidden = !back; b.onclick = back || null;
+  $("#gScroll").scrollTop = 0;
 }
-function miCode(email, then){
-  miFrame(`
-    <div class="ob-step">
-      <h1 class="ob-q">Your password.</h1>
-      <p class="ob-qs">The one you use on rewire.bio, for ${esc(email)}.</p>
-      <div class="mi-field"><input id="miPin" type="password" autocomplete="current-password" placeholder="password" enterkeyhint="go"></div>
-    </div>`,
-    `<button class="ob-cta" id="miIn">Sign in</button>`);
-  setTimeout(() => $("#miPin").focus(), 420);
+
+/* the account: one screen, two modes */
+function gateAuth(mode, then, email){
+  const up = mode === "up";
+  gate(`
+    <img class="g-mark" alt="ReWire" src="${LOGO_SRC}">
+    <h1 class="g-h">${up ? "Create your Edge account" : "Welcome back"}</h1>
+    ${up ? "" : `<p class="g-sub">Sign in and pick up where you left off.</p>`}
+    <button class="g-goog" id="gGoog">${G_SVG}<span>Continue with Google</span></button>
+    <div class="g-or">or</div>
+    <div class="g-row" id="gRowE"><input class="g-in" id="gEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="Email" enterkeyhint="go" value="${esc(email || "")}"></div>
+    <div class="g-row pw" id="gRowP"><input class="g-in" id="gPass" type="password" autocomplete="${up ? "new-password" : "current-password"}" placeholder="Password" enterkeyhint="go"><button class="g-peek" id="gPeek">Show</button></div>
+    <button class="g-cta" id="gGo">${up ? "Create account" : "Sign in"}</button>
+    ${up ? "" : `<button class="g-forgot" id="gForgot">Forgot your password?</button>`}
+    <p class="g-alt">${up ? "Already have an account?" : "New to Edge?"} <button id="gSwap">${up ? "Sign in" : "Create an account"}</button></p>
+    <p class="g-fine">By continuing you agree to the <a href="${TERMS_URL}" target="_blank" rel="noopener">Terms of Use</a> and <a href="${PRIVACY_URL}" target="_blank" rel="noopener">Privacy Policy</a>.</p>
+  `);
+  const em = $("#gEmail"), pw = $("#gPass");
+  $("#gPeek").addEventListener("click", () => {
+    const show = pw.type === "password";
+    pw.type = show ? "text" : "password"; $("#gPeek").textContent = show ? "Hide" : "Show"; pw.focus();
+  });
+  $("#gSwap").addEventListener("click", () => gateAuth(up ? "in" : "up", then, em.value.trim()));
+  if (!up) $("#gForgot").addEventListener("click", () => gateReset(em.value.trim(), then));
+  const bad = (row, msg, el) => { $(row).classList.add("bad"); toast(msg); el.focus(); setTimeout(() => $(row).classList.remove("bad"), 1600); };
   const go = async () => {
-    const pw = $("#miPin").value;
-    if (!pw){ toast("Your password first"); return; }
-    $("#miPin").blur();
+    if (!okEmail(em.value)) return bad("#gRowE", "An email first", em);
+    if (up && pw.value.length < 8) return bad("#gRowP", "Eight characters at least", pw);
+    if (!pw.value) return bad("#gRowP", "Your password", pw);
+    account = { email: em.value.trim(), via: "password", isNew: up };
+    em.blur(); pw.blur();
+    const b = $("#gGo"); if (b.disabled) return; b.disabled = true;
     try {
-      const d = await api("/api/auth/login", { method: "POST", body: { email, password: pw } });
-      setToken(d.token); miVeil.pulse(.9); setTimeout(then, 240);
+      if (up){
+        const d = await api("/api/auth/signup", { method: "POST", body: { email: account.email, password: pw.value } });
+        setToken(d.token);
+        gateNotice(then);
+      } else {
+        const d = await api("/api/auth/login", { method: "POST", body: { email: account.email, password: pw.value } });
+        setToken(d.token);
+        if (d.needs_consent) gateNotice(then); else then();
+      }
     } catch(err){
-      toast(err.status === 403 ? "No Edge access yet. Request it on rewire.bio." : "That did not match. Try again.");
+      b.disabled = false;
+      if (up) toast((err.data && err.data.detail) || "Could not create the account. Try again.");
+      else toast(err.status === 403 ? "No Edge access yet. Request it on rewire.bio." : "That did not match. Try again.");
     }
   };
-  $("#miIn").addEventListener("click", go);
-  $("#miPin").addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+  $("#gGo").addEventListener("click", go);
+  [em, pw].forEach(el => el.addEventListener("keydown", e => { if (e.key === "Enter") go(); }));
+  $("#gGoog").addEventListener("click", () => {
+    toast("Google sign-in is coming soon.");
+  });
 }
+function miSignIn(then){ gateAuth("in", then); }
+
+/* a link, not the password itself: what is stored is a hash, so there is nothing to send back */
+function gateReset(email, then){
+  gate(`
+    <h1 class="g-h" style="margin-top:0">Reset your password</h1>
+    <p class="g-sub">We send a link to set a new one. It works once, and expires in thirty minutes.</p>
+    <div class="g-row" id="gRowR" style="margin-top:26px"><input class="g-in" id="gRe" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="Email" enterkeyhint="go" value="${esc(email || "")}"></div>
+    <button class="g-cta" id="gReGo">Send the link</button>
+  `, () => gateAuth("in", then, $("#gRe") ? $("#gRe").value.trim() : email));
+  const re = $("#gRe"); setTimeout(() => re.focus(), 420);
+  const go = () => {
+    if (!okEmail(re.value)){ $("#gRowR").classList.add("bad"); toast("An email first"); setTimeout(() => $("#gRowR").classList.remove("bad"), 1600); return; }
+    re.blur();
+    api("/api/auth/reset-request", { method: "POST", body: { email: re.value.trim() } }).catch(() => {});
+    gateSent(re.value.trim(), then);
+  };
+  $("#gReGo").addEventListener("click", go);
+  re.addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+}
+function gateSent(email, then){
+  gate(`
+    <div class="g-icon"><svg viewBox="0 0 24 24"><path d="M3 7l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2.5"/></svg></div>
+    <h1 class="g-h">Check your email</h1>
+    <p class="g-body">We sent a reset link to <b>${esc(email)}</b>. It can take a minute, and it sometimes lands in spam.</p>
+    <button class="g-cta" id="gSentBack" style="margin-top:28px">Back to sign in</button>
+    <button class="g-ghost" id="gAgain">Send it again</button>
+  `, () => gateAuth("in", then, email));
+  $("#gSentBack").addEventListener("click", () => gateAuth("in", then, email));
+  let left = 30; const again = $("#gAgain");
+  again.disabled = true; again.textContent = "Send it again in " + left + "s";
+  const t = setInterval(() => {
+    if (!document.body.contains(again)){ clearInterval(t); return; }
+    left--;
+    if (left <= 0){ clearInterval(t); again.disabled = false; again.textContent = "Send it again"; }
+    else again.textContent = "Send it again in " + left + "s";
+  }, 1000);
+  again.addEventListener("click", () => { if (!again.disabled){ api("/api/auth/reset-request", { method: "POST", body: { email } }).catch(() => {}); toast("Sent again"); } });
+}
+
+/* the notice, before anything is played */
+function gateNotice(then){
+  gate(`
+    <div class="doc-in">
+      <h1 class="g-title">Before you begin</h1>
+      <p class="g-note"><b>Important notice.</b> Edge, by ReWire, is a wellness and research service. It is not a medical device, and it does not provide medical or psychological advice, diagnosis, or treatment. It is not a substitute for care from a qualified health professional. If you are in crisis, or thinking about harming yourself or someone else, do not use this service. Contact your local emergency number or a crisis line right away.</p>
+      <div class="g-checks">
+        <button class="g-check" id="gc1" data-req="1">${TICK}<span class="tx">I am at least 18 years old, and I have read and agree to the <a href="${TERMS_URL}" target="_blank" rel="noopener">Terms of Use</a> (v${TERMS_V}) and the <a href="${PRIVACY_URL}" target="_blank" rel="noopener">Privacy Policy</a> (v${PRIVACY_V}), including the arbitration agreement and class action waiver in the Terms.</span></button>
+        <button class="g-check" id="gc2" data-req="1">${TICK}<span class="tx">I understand that ReWire does not provide medical or psychological care, that I use Edge at my own risk, and that I will seek professional help if I am in distress. I confirm that I am not currently in crisis.</span></button>
+        <button class="g-check" id="gc3" data-req="0">${TICK}<span class="tx">I consent to the use of my responses and usage data, in de-identified form, for scientific research on aesthetic chills, as described in the Privacy Policy. I can withdraw this at any time in Settings.<span class="g-opt">Optional</span></span></button>
+      </div>
+      <p class="g-crisis"><b>In the US:</b> call or text 988 for the Suicide &amp; Crisis Lifeline. Elsewhere, call your local emergency number.</p>
+      <button class="g-cta" id="gcGo" disabled>Continue</button>
+    </div>
+  `, () => gateAuth("up", then, account ? account.email : ""));
+  $("#gScroll").firstChild.classList.add("doc");
+
+  const boxes = [...document.querySelectorAll(".g-check")];
+  const needed = el => el.dataset.req === "1" || (RESEARCH_REQUIRED && el.id === "gc3");
+  const refresh = () => { $("#gcGo").disabled = !boxes.filter(needed).every(el => el.classList.contains("on")); };
+  boxes.forEach(el => {
+    el.setAttribute("role", "checkbox"); el.setAttribute("aria-checked", "false");
+    el.addEventListener("click", e => {
+      if (e.target.tagName === "A") return;
+      el.classList.toggle("on");
+      el.setAttribute("aria-checked", el.classList.contains("on") ? "true" : "false");
+      refresh();
+    });
+  });
+  refresh();
+  $("#gcGo").addEventListener("click", async () => {
+    consent = {
+      acceptedAt: new Date().toISOString(), termsVersion: TERMS_V, privacyVersion: PRIVACY_V,
+      age18AndTerms: $("#gc1").classList.contains("on"),
+      noCareAndNotInCrisis: $("#gc2").classList.contains("on"),
+      researchUse: $("#gc3").classList.contains("on"),
+    };
+    const b = $("#gcGo"); if (b.disabled) return; b.disabled = true;
+    try {
+      await api("/api/auth/consent", { method: "POST", body: {
+        terms_version: TERMS_V, privacy_version: PRIVACY_V,
+        age18_and_terms: consent.age18AndTerms,
+        no_care_and_not_in_crisis: consent.noCareAndNotInCrisis,
+        research_use: consent.researchUse,
+      } });
+      then();
+    } catch(err){ b.disabled = false; toast(err.message || "Could not save. Try again."); }
+  });
+}
+
+/* ===== who is opening this: someone for the first time, or someone coming back ===== */
+
 /* ===== who is opening this: the token, the cookie, or the sign in ===== */
 renderHome();
 async function setPush(on){
@@ -2118,7 +2324,11 @@ async function boot(){
     try { await loadAll(); }
     catch(e){ if (e.status === 401){ setToken(""); } }
   }
-  if (!TOKEN){ nav("onboard"); obVeil.start(); miSignIn(async () => { await loadAll().catch(() => {}); afterAuth(); }); return; }
+  if (!TOKEN){
+    const as = (location.hash.match(/as=([a-z]+)/i) || [])[1] || "";
+    gateAuth(as === "returning" ? "in" : "up", async () => { await loadAll().catch(() => {}); afterAuth(); });
+    return;
+  }
   afterAuth();
 }
 function afterAuth(){
