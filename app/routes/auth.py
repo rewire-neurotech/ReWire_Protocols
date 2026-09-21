@@ -650,7 +650,14 @@ def get_me(u: User = Depends(get_current_user_required), db: Session = Depends(g
 
 @r.get("/config")
 def get_auth_config():
-    return {"google_client_id": cfg.GOOGLE_CLIENT_ID or ""}
+    import os
+    return {
+        "google_client_id": cfg.GOOGLE_CLIENT_ID or "",
+        # google sign-in routes through chillstv (its domain holds the oauth
+        # registration); set CHILLSTV_BASE_URL to the onrender url until the
+        # dns cutover, then it can fall back to rewire.bio
+        "chillstv_url": os.getenv("CHILLSTV_BASE_URL", "https://rewire.bio").rstrip("/"),
+    }
 
 
 def delete_user_data(db: Session, u: User) -> int:
