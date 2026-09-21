@@ -2332,6 +2332,7 @@ async function boot(){
   afterAuth();
 }
 function afterAuth(){
+  if (ME && ME.needs_consent){ ME.needs_consent = false; gateNotice(afterAuth); return; }
   const firstTime = ME && ME.first_time && INTRO && !INTRO.done;
   if (firstTime){
     mine.length = 0; mine.push(introItem()); currentId = "intro"; renderHome();
