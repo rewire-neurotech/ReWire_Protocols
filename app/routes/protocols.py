@@ -184,10 +184,37 @@ def _protocol_unlocked(p, uid, db) -> bool:
     return bool(p.unlocked) or _has_monthly(uid, db)
 
 
+def _audio_sig(filename: str, exp: int) -> str:
+    import hmac, hashlib
+    msg = f"{filename}.{exp}".encode()
+    return hmac.new(cfg.JWT_SECRET.encode(), msg, hashlib.sha256).hexdigest()[:32]
+
+
+def audio_token(filename: str, ttl_sec: int = 24 * 3600) -> str:
+    """Signed query token so bare <audio> elements (which cannot send an
+    Authorization header) can fetch a jolt without the file being public.
+    Anyone without the token gets 401; a wrong or expired token gets 403."""
+    import time
+    exp = int(time.time()) + ttl_sec
+    return f"{exp}.{_audio_sig(filename, exp)}"
+
+
+def audio_token_ok(filename: str, token: str) -> bool:
+    import hmac as _h, time
+    try:
+        exp_s, sig = token.split(".", 1)
+        exp = int(exp_s)
+    except (ValueError, AttributeError):
+        return False
+    if exp < int(time.time()):
+        return False
+    return _h.compare_digest(sig, _audio_sig(filename, exp))
+
+
 def _audio_url_for(filename: str) -> str:
     # Served by the protocol-jolt route (see routes/protocol_jolt.py).
     base = cfg.PUBLIC_BASE_URL.rstrip("/") if cfg.PUBLIC_BASE_URL else ""
-    return f"{base}/api/protocol-jolt/audio/{filename}"
+    return f"{base}/api/protocol-jolt/audio/{filename}?t={audio_token(filename)}"
 
 
 def _category(raw) -> Optional[str]:
