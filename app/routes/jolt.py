@@ -162,8 +162,9 @@ def _has_sub(uid, db):
 
 
 def _audio_url_for(filename: str) -> str:
+    from app.routes.protocols import audio_token
     base = cfg.PUBLIC_BASE_URL.rstrip("/") if cfg.PUBLIC_BASE_URL else ""
-    return f"{base}/api/jolt/audio/{filename}"
+    return f"{base}/api/jolt/audio/{filename}?t={audio_token(filename)}"
 
 
 def _latest_done_jolt(gid, uid, db):
@@ -403,7 +404,12 @@ def start_jolt(gid: int, skip_hc: bool = False,
 
 
 @r.get("/audio/{fname}")
-def serve_audio(fname: str, request: Request):
+def serve_audio(fname: str, request: Request, t: str = ""):
+    from app.routes.protocols import audio_token_ok
+    if not t:
+        raise HTTPException(401, "missing audio token")
+    if not audio_token_ok(fname, t):
+        raise HTTPException(403, "bad or expired audio token")
     fp = cfg.out_dir_path / fname
     if not fp.exists():
         raise HTTPException(404, "audio not found")
