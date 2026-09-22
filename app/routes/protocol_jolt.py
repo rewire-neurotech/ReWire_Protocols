@@ -10,7 +10,7 @@ from app.core.config import cfg
 from app.db import get_db
 from app.models import Protocol, ProtocolDay, ProtocolJolt, JournalEntry, JournalJolt, User
 from app.routes.auth import get_current_user_required
-from app.routes.protocols import _audio_url_for, _protocol_unlocked, _own, _as_aware_utc, day_time_unlocked
+from app.routes.protocols import _audio_url_for, audio_token_ok, _protocol_unlocked, _own, _as_aware_utc, day_time_unlocked
 from app.utils.encryption import encrypt_field, decrypt_field, decrypt_file_to_bytes
 from app import tasks
 from app.services import llm
@@ -263,7 +263,13 @@ def _bytes_response(data: bytes, fname: str, mt: str, request: Request):
 
 
 @r.get("/audio/{fname}")
-def serve_audio(fname: str, request: Request):
+def serve_audio(fname: str, request: Request, t: str = ""):
+    # Signed-URL check: filenames are sequential (pj{id}.mp3 / jj{id}.mp3),
+    # so without this anyone could enumerate other users' jolts (IDOR).
+    if not t:
+        raise HTTPException(401, "missing audio token")
+    if not audio_token_ok(fname, t):
+        raise HTTPException(403, "bad or expired audio token")
     fp = cfg.out_dir_path / fname
     if not fp.exists():
         raise HTTPException(404, "audio not found")
