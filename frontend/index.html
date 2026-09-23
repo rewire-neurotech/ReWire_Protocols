@@ -1514,9 +1514,10 @@ function startNext(it){
       startBusy = false;
       sess.joltId = r.jolt_id;
       if (pl.sess === sess){
-        const oldK = pl.item && pl.item.pid && sess.day ? "edge_pos_p" + pl.item.pid + "d" + sess.day : null;
+        const uk = (ME && ME.id) ? "u" + ME.id + "_" : "";
+        const oldK = uk && pl.item && pl.item.pid && sess.day ? "edge_pos_" + uk + "p" + pl.item.pid + "d" + sess.day : null;
         pl.joltId = r.jolt_id;
-        const newK = "edge_pos_" + r.jolt_id;
+        const newK = "edge_pos_" + uk + r.jolt_id;
         if (oldK && oldK !== newK){ try {
           const pv = localStorage.getItem(oldK); if (pv && !localStorage.getItem(newK)) localStorage.setItem(newK, pv);
           const nv = localStorage.getItem(oldK + "_n"); if (nv && !localStorage.getItem(newK + "_n")) localStorage.setItem(newK + "_n", nv);
@@ -1603,7 +1604,7 @@ async function wlGet(){ try { if ("wakeLock" in navigator && !wl){ wl = await na
 function wlDrop(){ try { if (wl) wl.release(); } catch(e){} wl = null; }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && pl.playing) wlGet(); });
 /* the place they left: position per jolt, so closing with X and coming back resumes */
-function posKey(){ if (pl.item && pl.item.intro) return "edge_pos_intro"; if (pl.joltId) return "edge_pos_" + pl.joltId; if (pl.item && pl.item.pid && pl.sess && pl.sess.day) return "edge_pos_p" + pl.item.pid + "d" + pl.sess.day; return null; }
+function posKey(){ const u = (ME && ME.id) ? "u" + ME.id + "_" : ""; if (!u) return null; if (pl.item && pl.item.intro) return "edge_pos_" + u + "intro"; if (pl.joltId) return "edge_pos_" + u + pl.joltId; if (pl.item && pl.item.pid && pl.sess && pl.sess.day) return "edge_pos_" + u + "p" + pl.item.pid + "d" + pl.sess.day; return null; }
 function savePos(){ const k = posKey(); if (!k || !pl.len) return; try { if (pl.t > 5 && pl.t < pl.len - 8) localStorage.setItem(k, String(Math.floor(pl.t))); } catch(e){} }
 let lastPos = 0;
 function savePosT(){ const n = Date.now(); if (n - lastPos < 3000) return; lastPos = n; savePos(); }
