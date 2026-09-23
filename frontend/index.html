@@ -2059,7 +2059,7 @@ function renderSettings(){
     b.querySelector(".tog").classList.toggle("on", settings[b.dataset.tog]);
     if (b.dataset.tog === "notifications") setPush(settings.notifications).catch(() => {});
   }));
-  $("#signOut").addEventListener("click", () => { toast("Signed out"); setTimeout(() => { setToken(""); mine.length = 0; currentId = null; flip(false, true); navStack = []; renderHome(); gateAuth("in", async () => { await loadAll().catch(() => {}); afterAuth(); }); }, 500); });
+  $("#signOut").addEventListener("click", () => { toast("Signed out"); setTimeout(() => { setToken(""); location.replace("/#as=returning"); }, 350); });
   body.scrollTop = 0;
 }
 
